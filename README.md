@@ -75,7 +75,68 @@ TCGScanner/
 └── collection.db    # Local SQLite database (auto-created)
 ```
 
-## Adding a Model
+## Training a Model
+
+The `scripts/` folder contains two Python scripts to build a model from scratch.
+
+### Requirements
+
+```bash
+pip install albumentations opencv-python-headless numpy tqdm tensorflow
+```
+
+### 1. Prepare card images
+
+Place one PNG per card in `scripts/images/<name>/`, named with the card ID:
+
+```
+scripts/images/riftbound/
+    ogn-001-298.png
+    ogn-002-298.png
+    ...
+```
+
+### 2. Augment
+
+Generates ~50 variations per card composited onto random backgrounds:
+
+```bash
+cd scripts
+python augment.py --name riftbound
+# or with custom count and real background photos:
+python augment.py --name riftbound --per-card 100 --backgrounds backgrounds/
+```
+
+Output: `scripts/datasets/riftbound/` — one subfolder per card ID.
+
+### 3. Train
+
+Trains a MobileNetV2 classifier and exports to TFLite:
+
+```bash
+python train.py --name riftbound
+# or with more epochs:
+python train.py --name riftbound --epochs 30
+```
+
+Output in `scripts/models/riftbound/`:
+- `model.tflite` — quantized model for the app
+- `labels.json` — class index → card ID mapping
+- `model.keras` — full model for retraining
+
+### 4. Deploy
+
+Copy the output to the app's models folder:
+
+```bash
+cp -r scripts/models/riftbound models/riftbound
+```
+
+Then launch the app and select `riftbound` from the model dropdown.
+
+## Adding a Pre-built Model
+
+If you already have a compatible TFLite model:
 
 1. Create a folder under `./models/<name>/`
 2. Place your `model.tflite` and `labels.json` inside

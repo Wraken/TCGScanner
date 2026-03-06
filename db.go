@@ -32,10 +32,6 @@ func openDB(path string) (*sql.DB, error) {
 
 	_, _ = db.Exec(`PRAGMA foreign_keys = ON`)
 
-	// Migrations for existing databases (no-op if already renamed)
-	_, _ = db.Exec(`ALTER TABLE sessions RENAME TO collections`)
-	_, _ = db.Exec(`ALTER TABLE cards RENAME COLUMN session_id TO collection_id`)
-
 	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS collections (
 			id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,8 +50,6 @@ func openDB(path string) (*sql.DB, error) {
 		db.Close()
 		return nil, err
 	}
-	// Migration: add name column to existing databases (no-op if already present)
-	_, _ = db.Exec(`ALTER TABLE collections ADD COLUMN name TEXT NOT NULL DEFAULT ''`)
 	return db, nil
 }
 

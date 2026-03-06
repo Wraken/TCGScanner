@@ -274,10 +274,14 @@ def main():
         return
 
     # Find all card images
-    images = sorted(list(input_dir.glob("*.png")))
+    images = sorted(
+        list(input_dir.glob("*.png")) +
+        list(input_dir.glob("*.webp")) +
+        list(input_dir.glob("*.jpg"))
+    )
 
     if not images:
-        print(f"No PNG files found in {input_dir}")
+        print(f"No images found in {input_dir}")
         return
 
     real_backgrounds = load_real_backgrounds(args.backgrounds)

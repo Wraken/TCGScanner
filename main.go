@@ -18,9 +18,10 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  "TCGScanner",
-		Width:  1024,
-		Height: 768,
+		Title:             "TCGScanner",
+		Width:             1024,
+		Height:            768,
+		WindowStartState: options.Maximised,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},

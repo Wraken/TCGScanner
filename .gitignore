@@ -1,0 +1,13 @@
+build/bin
+node_modules
+frontend/dist
+
+*.db
+
+models
+
+frontend/wailsjs/
+
+scripts/datasets/
+scripts/images/
+scripts/models/

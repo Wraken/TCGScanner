@@ -12,6 +12,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"sync"
 
 	"github.com/mattn/go-tflite"
 	"golang.org/x/image/draw"
@@ -22,6 +23,7 @@ const (
 )
 
 type Model struct {
+	mu          sync.Mutex
 	name        string
 	model       *tflite.Model
 	options     *tflite.InterpreterOptions
@@ -93,6 +95,9 @@ func (m *Model) Predict(base64Frame string) (*Prediction, error) {
 	if err != nil {
 		return nil, fmt.Errorf("image decode: %w", err)
 	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
 	m.preprocessImage(img)
 

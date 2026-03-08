@@ -55,7 +55,7 @@ export function useCamera() {
 
   useEffect(() => {
     if (!selectedCamera) return;
-    let currentStream: MediaStream | null = null;
+    let aborted = false;
 
     async function startCamera() {
       try {
@@ -63,16 +63,20 @@ export function useCamera() {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { deviceId: { exact: selectedCamera } },
         });
-        currentStream = stream;
+        if (aborted) {
+          stopStream(stream);
+          return;
+        }
         if (videoRef.current) videoRef.current.srcObject = stream;
       } catch {
-        setCameraError(CAMERA_ERROR);
+        if (!aborted) setCameraError(CAMERA_ERROR);
       }
     }
     startCamera();
 
     return () => {
-      stopStream(currentStream);
+      aborted = true;
+      stopStream(videoRef.current?.srcObject as MediaStream | null);
     };
   }, [selectedCamera]);
 

@@ -5,7 +5,7 @@ MobileNetV2 transfer learning → TFLite export
 Usage:
     pip install tensorflow numpy
     python train.py --name riftbound
-    python train.py --name riftbound --epochs 30
+    python train.py --name riftbound --epochs 30 --dense 256
 
 Directory layout:
     datasets/riftbound/         <- input (from augment.py)
@@ -70,7 +70,7 @@ def load_datasets(dataset_dir, validation_split=0.2):
     return train_ds, val_ds, class_names, num_classes
 
 
-def build_model(num_classes):
+def build_model(num_classes, dense_units=512):
     """MobileNetV2 + custom head."""
     # MobileNetV2 expects [-1, 1] input
     preprocess = keras.applications.mobilenet_v2.preprocess_input
@@ -88,7 +88,7 @@ def build_model(num_classes):
         base_model,
         keras.layers.GlobalAveragePooling2D(),
         keras.layers.Dropout(0.3),
-        keras.layers.Dense(512, activation="relu"),
+        keras.layers.Dense(dense_units, activation="relu"),
         keras.layers.Dropout(0.2),
         keras.layers.Dense(num_classes, activation="softmax"),
     ])
@@ -182,6 +182,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--name", required=True, help="Model name (e.g. riftbound)")
     parser.add_argument("--epochs", type=int, default=20, help="Epochs per phase")
+    parser.add_argument("--dense", type=int, default=512, help="Dense layer units (default: 512)")
     args = parser.parse_args()
 
     dataset_dir = os.path.join("datasets", args.name)
@@ -200,25 +201,19 @@ def main():
 
     print("GPU available:", tf.config.list_physical_devices("GPU"))
 
-    # Load data
     train_ds, val_ds, class_names, num_classes = load_datasets(dataset_dir)
 
-    # Build model
-    model, base_model = build_model(num_classes)
+    model, base_model = build_model(num_classes, dense_units=args.dense)
     model.summary()
 
-    # Phase 1: train head
     train_phase1(model, train_ds, val_ds, epochs=args.epochs)
 
-    # Phase 2: fine-tune
     train_phase2(model, base_model, train_ds, val_ds, epochs=args.epochs)
 
-    # Evaluate
     print("\n=== Final Evaluation ===")
     loss, acc = model.evaluate(val_ds)
     print(f"Val accuracy: {acc:.4f}")
 
-    # Save
     keras_path = os.path.join(output_dir, "model.keras")
     model.save(keras_path)
     print(f"Keras model saved to {keras_path}")

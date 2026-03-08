@@ -196,6 +196,11 @@ def augment_card_worker(args):
     """Worker function for multiprocessing. Takes a tuple of arguments."""
     image_path, output_dir, card_id, n_variations, real_backgrounds = args
 
+    # Seed RNG per worker to avoid identical augmentations when using fork
+    seed = os.getpid() + hash(card_id)
+    random.seed(seed)
+    np.random.seed(seed % (2**32))
+
     card_transform = get_card_transform()
     scene_transform = get_scene_transform()
 

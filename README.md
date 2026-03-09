@@ -56,24 +56,12 @@ wails dev
 wails build
 ```
 
-## Project Structure
+## Pre-built Models
 
-```
-TCGScanner/
-├── main.go          # App entry point
-├── app.go           # Go backend API (Wails bindings)
-├── model.go         # TFLite inference & image preprocessing
-├── db.go            # SQLite schema, collections, CSV export
-├── models/
-│   └── riftbound/   # Example model
-│       ├── model.tflite
-│       ├── labels.json
-│       └── images/  # Card images named {card_id}.png
-├── frontend/
-│   └── src/
-│       └── App.tsx  # React UI
-└── collection.db    # Local SQLite database (auto-created)
-```
+Pre-built models for **Riftbound** and **One Piece** are available here:
+[Google Drive — Pre-built models](https://drive.google.com/drive/folders/1hEbXABvjob_O-DmMwDbtjYJrJ61U-QV1?usp=sharing)
+
+Download and place them under `./models/` following the structure in [Adding a Pre-built Model](#adding-a-pre-built-model).
 
 ## Training a Model
 

@@ -196,8 +196,10 @@ func (a *App) Predict(imageData string) (*Prediction, error) {
 
 	pred, err := a.model.Predict(imageData)
 	if err != nil {
+		runtime.LogDebugf(a.ctx, "[Predict] Error: %v", err)
 		return nil, err
 	}
 
+	fmt.Println("[Predict] card_id=%s confidence=%.4f", pred.CardID, pred.Confidence)
 	return pred, nil
 }

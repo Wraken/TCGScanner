@@ -194,7 +194,7 @@ def get_scene_transform():
 
 def augment_card_worker(args):
     """Worker function for multiprocessing. Takes a tuple of arguments."""
-    image_path, output_dir, card_id, n_variations, real_backgrounds = args
+    image_path, output_dir, card_id, n_variations, n_val, real_backgrounds = args
 
     # Seed RNG per worker to avoid identical augmentations when using fork
     seed = os.getpid() + hash(card_id)
@@ -205,12 +205,29 @@ def augment_card_worker(args):
     scene_transform = get_scene_transform()
 
     return augment_card(
-        image_path, output_dir, card_id, n_variations,
+        image_path, output_dir, card_id, n_variations, n_val,
         card_transform, scene_transform, real_backgrounds,
     )
 
+def mask_watermark(image, p=1.0):
+    """Mask the SAMPLE watermark zone with a random solid color.
+    Forces the model to ignore that region and focus on the rest of the card art."""
+    if random.random() > p:
+        return image
 
-def augment_card(image_path, output_dir, card_id, n_variations,
+    h, w = image.shape[:2]
+    y1 = int(h * 0.40)
+    y2 = int(h * 0.60)
+    x1 = int(w * 0.1)
+    x2 = int(w * 0.9)
+
+    color = np.random.randint(0, 256, 3, dtype=np.uint8).tolist()
+    image[y1:y2, x1:x2] = color
+
+    return image
+
+
+def augment_card(image_path, output_dir, card_id, n_variations, n_val,
                  card_transform, scene_transform, real_backgrounds):
     img = cv2.imread(str(image_path))
     if img is None:
@@ -219,32 +236,40 @@ def augment_card(image_path, output_dir, card_id, n_variations,
 
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-    card_dir = os.path.join(output_dir, card_id)
-    os.makedirs(card_dir, exist_ok=True)
+    train_dir = os.path.join(output_dir, "train", card_id)
+    val_dir = os.path.join(output_dir, "val", card_id)
+    os.makedirs(train_dir, exist_ok=True)
+    os.makedirs(val_dir, exist_ok=True)
 
-    # Variation 0: original card, no background, just resized
+    # Original card (resized, no augmentation) goes to val
     original = cv2.resize(img, (OUTPUT_SIZE, OUTPUT_SIZE))
     original_bgr = cv2.cvtColor(original, cv2.COLOR_RGB2BGR)
-    cv2.imwrite(os.path.join(card_dir, f"{card_id}_000.jpg"), original_bgr)
+    cv2.imwrite(os.path.join(val_dir, f"{card_id}_000.jpg"), original_bgr)
 
-    # Augmented variations with backgrounds
+    # Generate all augmented variations
+    # Last n_val go to val, the rest go to train
     count = 0
     for i in range(1, n_variations + 1):
-        # 1. Transform the card (perspective, rotation)
+        # 1. Mask watermark on the original card before any transform
+        #card_masked = mask_watermark(img.copy())
+
+        # 2. Transform the card (perspective, rotation)
         card_aug = card_transform(image=img)["image"]
 
-        # 2. Generate/pick a background
+        # 3. Generate/pick a background
         bg = get_random_background(OUTPUT_SIZE * 3, real_backgrounds)
 
-        # 3. Composite card on background
+        # 4. Composite card on background
         scene = composite_card_on_bg(card_aug, bg)
 
-        # 4. Apply scene-level augmentations
+        # 5. Apply scene-level augmentations
         result = scene_transform(image=scene)["image"]
 
-        # Save
+        # Save to val for last n_val variations, train for the rest
         result_bgr = cv2.cvtColor(result, cv2.COLOR_RGB2BGR)
-        out_path = os.path.join(card_dir, f"{card_id}_{i:03d}.jpg")
+        is_val = i > n_variations - n_val
+        out_dir = val_dir if is_val else train_dir
+        out_path = os.path.join(out_dir, f"{card_id}_{i:03d}.jpg")
         cv2.imwrite(out_path, result_bgr, [cv2.IMWRITE_JPEG_QUALITY, 95])
         count += 1
 
@@ -267,6 +292,7 @@ def main():
     parser = argparse.ArgumentParser(description="Augment card images for model training")
     parser.add_argument("--name", required=True, help="Model name (e.g. riftbound)")
     parser.add_argument("--per-card", type=int, default=50, help="Variations per card")
+    parser.add_argument("--val-per-card", type=int, default=10, help="Validation variations per card (default: 10)")
     parser.add_argument("--backgrounds", default="backgrounds", help="Real background photos dir")
     parser.add_argument("--workers", type=int, default=0, help="Parallel workers (0 = auto)")
     args = parser.parse_args()
@@ -294,8 +320,9 @@ def main():
     print(f"Model: {args.name}")
     print(f"Input: {input_dir}/")
     print(f"Output: {output_dir}/")
+    n_val = min(args.val_per_card, args.per_card)
     print(f"Found {len(images)} cards")
-    print(f"Generating {args.per_card} variations each")
+    print(f"Generating {args.per_card} variations each ({args.per_card - n_val} train, {n_val} val + 1 original in val)")
     print(f"Total images: ~{len(images) * (args.per_card + 1)}")
     if not real_backgrounds:
         print(f"No backgrounds/ folder found — using generated backgrounds only")
@@ -304,7 +331,7 @@ def main():
 
     # Build worker args
     worker_args = [
-        (str(img_path), str(output_dir), img_path.stem, args.per_card, real_backgrounds)
+        (str(img_path), str(output_dir), img_path.stem, args.per_card, n_val, real_backgrounds)
         for img_path in images
     ]
 

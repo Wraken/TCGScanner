@@ -35,23 +35,20 @@ BATCH_SIZE = 32
 FINE_TUNE_LAYERS = 30  # unfreeze last N layers of MobileNetV2
 
 
-def load_datasets(dataset_dir, validation_split=0.2):
-    """Load dataset with train/val split."""
+def load_datasets(dataset_dir):
+    """Load pre-split train/val datasets."""
+    train_dir = os.path.join(dataset_dir, "train")
+    val_dir = os.path.join(dataset_dir, "val")
+
     train_ds = keras.utils.image_dataset_from_directory(
-        dataset_dir,
-        validation_split=validation_split,
-        subset="training",
-        seed=42,
+        train_dir,
         image_size=(IMG_SIZE, IMG_SIZE),
         batch_size=BATCH_SIZE,
         label_mode="int",
     )
 
     val_ds = keras.utils.image_dataset_from_directory(
-        dataset_dir,
-        validation_split=validation_split,
-        subset="validation",
-        seed=42,
+        val_dir,
         image_size=(IMG_SIZE, IMG_SIZE),
         batch_size=BATCH_SIZE,
         label_mode="int",
@@ -200,6 +197,11 @@ def main():
     print(f"Output: {output_dir}/")
 
     print("GPU available:", tf.config.list_physical_devices("GPU"))
+
+    if not os.path.isdir(os.path.join(dataset_dir, "train")):
+        print(f"train/ subfolder not found in {dataset_dir}")
+        print(f"  Run augment.py --name {args.name} first")
+        return
 
     train_ds, val_ds, class_names, num_classes = load_datasets(dataset_dir)
 

@@ -79,6 +79,7 @@ function App() {
               modelLoaded={model.modelLoaded}
               modelError={model.modelError}
               onModelChange={model.handleModelChange}
+              onRefresh={model.refreshModels}
             />
 
             <div className="h-px bg-border" />

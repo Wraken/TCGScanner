@@ -9,10 +9,17 @@ export function useModel() {
   const [modelLoaded, setModelLoaded] = useState(false);
 
   useEffect(() => {
-    ListModels()
-      .then((list) => setModels(list ?? []))
-      .catch(() => setModelError("Failed to list models."));
+    refreshModels();
   }, []);
+
+  async function refreshModels() {
+    try {
+      const list = await ListModels();
+      setModels(list ?? []);
+    } catch {
+      setModelError("Failed to list models.");
+    }
+  }
 
   async function handleModelChange(name: string) {
     setSelectedModel(name);
@@ -29,5 +36,5 @@ export function useModel() {
     }
   }
 
-  return { models, selectedModel, modelLoaded, modelLoading, modelError, handleModelChange };
+  return { models, selectedModel, modelLoaded, modelLoading, modelError, handleModelChange, refreshModels };
 }

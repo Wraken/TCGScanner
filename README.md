@@ -20,30 +20,13 @@ Built with [Wails](https://wails.io/) (Go + React/TypeScript) into a single nati
 - [Go 1.21+](https://go.dev/)
 - [Node.js 18+](https://nodejs.org/)
 - [Wails CLI v2](https://wails.io/docs/gettingstarted/installation) — `go install github.com/wailsapp/wails/v2/cmd/wails@latest`
-- [TensorFlow headers](https://www.tensorflow.org/install/lang_c) — download and extract the TensorFlow C library to get the `tensorflow/` include directory
-- A TFLite model + labels (see [Adding a model](#adding-a-model))
+- A TFLite model + labels (see [Adding a model](#adding-a-pre-built-model))
 
-The TFLite shared library (`tensorflowlite_c.dll`) is included in the `tflite/` folder.
+The TFLite shared library is embedded in the binary — no C compiler or environment variables required.
 
 ## Getting Started
 
-### 1. Set up environment variables
-
-Point CGO to the TensorFlow headers and the bundled TFLite library:
-
-```bash
-# Linux / macOS
-export CGO_CFLAGS="-I/path/to/tensorflow"
-export CGO_LDFLAGS="-L$(pwd)/tflite"
-export LD_LIBRARY_PATH="$(pwd)/tflite:$LD_LIBRARY_PATH"
-
-# Windows (PowerShell)
-$env:CGO_CFLAGS = "-IC:\path\to\tensorflow"
-$env:CGO_LDFLAGS = "-L$PWD\tflite"
-$env:PATH += ";$PWD\tflite"
-```
-
-### 2. Build & run
+### Build & run
 
 ```bash
 # Install frontend dependencies

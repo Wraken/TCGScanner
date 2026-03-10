@@ -209,23 +209,6 @@ def augment_card_worker(args):
         card_transform, scene_transform, real_backgrounds,
     )
 
-def mask_watermark(image, p=1.0):
-    """Mask the SAMPLE watermark zone with a random solid color.
-    Forces the model to ignore that region and focus on the rest of the card art."""
-    if random.random() > p:
-        return image
-
-    h, w = image.shape[:2]
-    y1 = int(h * 0.40)
-    y2 = int(h * 0.60)
-    x1 = int(w * 0.1)
-    x2 = int(w * 0.9)
-
-    color = np.random.randint(0, 256, 3, dtype=np.uint8).tolist()
-    image[y1:y2, x1:x2] = color
-
-    return image
-
 
 def augment_card(image_path, output_dir, card_id, n_variations, n_val,
                  card_transform, scene_transform, real_backgrounds):
@@ -250,19 +233,17 @@ def augment_card(image_path, output_dir, card_id, n_variations, n_val,
     # Last n_val go to val, the rest go to train
     count = 0
     for i in range(1, n_variations + 1):
-        # 1. Mask watermark on the original card before any transform
-        #card_masked = mask_watermark(img.copy())
 
-        # 2. Transform the card (perspective, rotation)
+        # 1. Transform the card (perspective, rotation)
         card_aug = card_transform(image=img)["image"]
 
-        # 3. Generate/pick a background
+        # 2. Generate/pick a background
         bg = get_random_background(OUTPUT_SIZE * 3, real_backgrounds)
 
-        # 4. Composite card on background
+        # 3. Composite card on background
         scene = composite_card_on_bg(card_aug, bg)
 
-        # 5. Apply scene-level augmentations
+        # 4. Apply scene-level augmentations
         result = scene_transform(image=scene)["image"]
 
         # Save to val for last n_val variations, train for the rest

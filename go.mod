@@ -3,7 +3,7 @@ module TCGScanner
 go 1.26
 
 require (
-	github.com/mattn/go-tflite v1.0.5
+	github.com/ebitengine/purego v0.10.0
 	github.com/wailsapp/wails/v2 v2.11.0
 	golang.org/x/image v0.12.0
 	modernc.org/sqlite v1.46.1
@@ -25,7 +25,6 @@ require (
 	github.com/leaanthony/u v1.1.1 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/mattn/go-pointer v0.0.1 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect

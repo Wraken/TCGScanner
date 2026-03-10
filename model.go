@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/mattn/go-tflite"
+	"TCGScanner/pkg/tflite"
 	"golang.org/x/image/draw"
 )
 

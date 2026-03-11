@@ -12,6 +12,7 @@ import { ModelSelector } from "@/components/ModelSelector";
 import { CardPreview } from "@/components/CardPreview";
 import { CardForm } from "@/components/CardForm";
 import { CollectionDetail } from "@/components/CollectionDetail";
+import { ExportModal } from "@/components/ExportModal";
 
 function App() {
   const camera = useCamera();
@@ -115,7 +116,15 @@ function App() {
         onOpenChange={collection.setDetailOpen}
         cards={collection.detailCards}
         images={collection.detailImages}
+        onUpdateCard={collection.handleUpdateCard}
         onDeleteCard={collection.handleDeleteCard}
+      />
+
+      <ExportModal
+        open={collection.exportOpen}
+        onOpenChange={collection.setExportOpen}
+        presets={collection.exportPresets}
+        onExport={collection.handleExportConfirm}
       />
     </div>
   );

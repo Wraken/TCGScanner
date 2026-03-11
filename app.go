@@ -93,13 +93,9 @@ func (a *App) LoadModel(modelName string) error {
 	return nil
 }
 
-func (a *App) GetCardImage(cardID string) (string, error) {
-	if a.model == nil {
-		return "", fmt.Errorf("no model loaded")
-	}
-
+func loadCardImage(cardID, modelName string) (string, error) {
 	for _, ext := range []string{"jpg", "jpeg", "png", "webp"} {
-		path := filepath.Join(".", "models", a.model.name, "images", cardID+"."+ext)
+		path := filepath.Join(".", "models", modelName, "images", cardID+"."+ext)
 		data, err := os.ReadFile(path)
 		if err == nil {
 			mime := "image/" + ext
@@ -109,8 +105,14 @@ func (a *App) GetCardImage(cardID string) (string, error) {
 			return "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(data), nil
 		}
 	}
+	return "", fmt.Errorf("image not found for card %q in model %q", cardID, modelName)
+}
 
-	return "", fmt.Errorf("image not found for card %q", cardID)
+func (a *App) GetCardImage(cardID string) (string, error) {
+	if a.model == nil {
+		return "", fmt.Errorf("no model loaded")
+	}
+	return loadCardImage(cardID, a.model.name)
 }
 
 func (a *App) GetCurrentCollectionID() int {
@@ -149,6 +151,13 @@ func (a *App) GetCollectionCards(collectionID int) ([]CollectionCard, error) {
 	return listCollectionCards(a.db, collectionID)
 }
 
+func (a *App) UpdateCard(card CollectionCard) error {
+	if a.db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return updateCard(a.db, card)
+}
+
 func (a *App) DeleteCard(id int) error {
 	if a.db == nil {
 		return fmt.Errorf("database not initialized")
@@ -160,7 +169,18 @@ func (a *App) SaveCard(cardID string, foil bool) error {
 	if a.db == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	return insertCard(a.db, a.collectionID, cardID, foil)
+	modelName := ""
+	if a.model != nil {
+		modelName = a.model.name
+	}
+	return insertCard(a.db, a.collectionID, cardID, modelName, foil)
+}
+
+func (a *App) GetCardImageByModel(cardID, modelName string) (string, error) {
+	if modelName == "" {
+		return "", fmt.Errorf("no model name provided")
+	}
+	return loadCardImage(cardID, modelName)
 }
 
 func (a *App) GetCollections() ([]Collection, error) {
@@ -170,9 +190,16 @@ func (a *App) GetCollections() ([]Collection, error) {
 	return listCollections(a.db)
 }
 
-func (a *App) ExportCollectionCSV(collectionID int) (string, error) {
+func (a *App) ListExportPresets() []ExportPreset {
+	return builtinPresets
+}
+
+func (a *App) ExportCollectionCSV(collectionID int, config ExportConfig) (string, error) {
 	if a.db == nil {
 		return "", fmt.Errorf("database not initialized")
+	}
+	if len(config.Fields) == 0 {
+		config = ExportConfig{Fields: builtinPresets[0].Fields}
 	}
 	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
 		DefaultFilename: fmt.Sprintf("collection_%d.csv", collectionID),
@@ -183,7 +210,7 @@ func (a *App) ExportCollectionCSV(collectionID int) (string, error) {
 	if err != nil || path == "" {
 		return "", err
 	}
-	if err := writeCollectionCSV(a.db, collectionID, path); err != nil {
+	if err := writeCollectionCSV(a.db, collectionID, path, config); err != nil {
 		return "", err
 	}
 	return path, nil

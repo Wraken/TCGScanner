@@ -2,16 +2,18 @@ import { useEffect, useState } from "react";
 import {
   DeleteCard,
   ExportCollectionCSV,
-  GetCardImage,
+  UpdateCard,
+  GetCardImageByModel,
   GetCollectionCards,
   GetCollections,
   GetCurrentCollectionID,
+  ListExportPresets,
   NewCollection,
   RenameCollection,
   SetCollection,
 } from "../../wailsjs/go/main/App";
 import { LogDebug } from "../../wailsjs/runtime/runtime";
-import type { Collection, CollectionCard } from "@/types";
+import type { Collection, CollectionCard, ExportConfig, ExportPreset } from "@/types";
 
 export function useCollection() {
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -21,12 +23,15 @@ export function useCollection() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailCards, setDetailCards] = useState<CollectionCard[]>([]);
   const [detailImages, setDetailImages] = useState<Record<string, string>>({});
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportPresets, setExportPresets] = useState<ExportPreset[]>([]);
 
   useEffect(() => {
-    Promise.all([GetCollections(), GetCurrentCollectionID()])
-      .then(([list, id]) => {
+    Promise.all([GetCollections(), GetCurrentCollectionID(), ListExportPresets()])
+      .then(([list, id, presets]) => {
         setCollections(list ?? []);
         setCurrentCollectionId(id);
+        setExportPresets((presets ?? []) as ExportPreset[]);
       })
       .catch(() => {});
   }, []);
@@ -68,11 +73,14 @@ export function useCollection() {
       setDetailImages({});
       setDetailOpen(true);
       const imgs: Record<string, string> = {};
-      const uniqueIds = [...new Set((cards ?? []).map((c) => c.card_id))];
+      const seen = new Map<string, string>();
+      for (const c of cards ?? []) {
+        if (!seen.has(c.card_id)) seen.set(c.card_id, c.model_name);
+      }
       await Promise.all(
-        uniqueIds.map((cardId) =>
-          GetCardImage(cardId)
-            .then((img) => { imgs[cardId] = img; })
+        [...seen.entries()].map(([cardId, modelName]) =>
+          GetCardImageByModel(cardId, modelName)
+            .then((img: string) => { imgs[cardId] = img; })
             .catch(() => {})
         )
       );
@@ -84,14 +92,36 @@ export function useCollection() {
     try {
       await DeleteCard(id);
       setDetailCards((prev) => prev.filter((c) => c.id !== id));
-      await refreshCollections();
+      setCollections((prev) =>
+        prev.map((c) =>
+          c.id === currentCollectionId ? { ...c, card_count: c.card_count - 1 } : c
+        )
+      );
     } catch (e) {
       LogDebug(`[DeleteCard] Error: ${e}`);
     }
   }
 
+  async function handleUpdateCard(updated: CollectionCard) {
+    try {
+      await UpdateCard(updated);
+      setDetailCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+    } catch (e) {
+      LogDebug(`[UpdateCard] Error: ${e}`);
+    }
+  }
+
   function handleExport() {
-    if (currentCollectionId) ExportCollectionCSV(currentCollectionId);
+    if (currentCollectionId) setExportOpen(true);
+  }
+
+  async function handleExportConfirm(config: ExportConfig) {
+    try {
+      await ExportCollectionCSV(currentCollectionId, config);
+    } catch (e) {
+      LogDebug(`[Export] Error: ${e}`);
+    }
+    setExportOpen(false);
   }
 
   return {
@@ -107,7 +137,12 @@ export function useCollection() {
     refreshCollections,
     openCollectionDetail,
     handleDeleteCard,
+    handleUpdateCard,
     handleExport,
+    handleExportConfirm,
+    exportOpen,
+    setExportOpen,
+    exportPresets,
     detailOpen,
     setDetailOpen,
     detailCards,

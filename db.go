@@ -26,6 +26,7 @@ func openDB(path string) (*sql.DB, error) {
 			collection_id INTEGER NOT NULL REFERENCES collections(id),
 			card_id       TEXT    NOT NULL,
 			foil          INTEGER NOT NULL DEFAULT 0,
+			model_name    TEXT    NOT NULL DEFAULT '',
 			scanned_at    DATETIME DEFAULT CURRENT_TIMESTAMP
 		);
 	`)
@@ -33,5 +34,9 @@ func openDB(path string) (*sql.DB, error) {
 		db.Close()
 		return nil, err
 	}
+
+	// Migration: add model_name to existing databases (no-op if column already exists)
+	_, _ = db.Exec(`ALTER TABLE cards ADD COLUMN model_name TEXT NOT NULL DEFAULT ''`)
+
 	return db, nil
 }

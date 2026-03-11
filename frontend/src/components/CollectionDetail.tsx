@@ -1,4 +1,5 @@
-import { ImageIcon, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { ImageIcon, Trash2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,54 +16,90 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   cards: CollectionCard[];
   images: Record<string, string>;
+  onUpdateCard: (card: CollectionCard) => void;
   onDeleteCard: (id: number) => void;
 }
 
-export function CollectionDetail({ open, onOpenChange, cards, images, onDeleteCard }: Props) {
+export function CollectionDetail({ open, onOpenChange, cards, images, onUpdateCard, onDeleteCard }: Props) {
+  const [lightbox, setLightbox] = useState<string | null>(null);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[80vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Collection cards ({cards.length})</DialogTitle>
-        </DialogHeader>
-        <div className="flex-1 overflow-y-auto -mx-6 px-6">
-          {cards.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              No cards in this collection.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {cards.map((c) => (
-                <div key={c.id} className="flex items-center gap-3 rounded-lg border border-border p-2">
-                  <div className="w-12 h-16 rounded bg-muted flex items-center justify-center overflow-hidden shrink-0">
-                    {images[c.card_id]
-                      ? <img src={images[c.card_id]} alt={c.card_id} className="w-full h-full object-contain" />
-                      : <ImageIcon className="w-5 h-5 text-muted-foreground" />
-                    }
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-mono font-medium truncate">{c.card_id}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <Badge variant={c.foil ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
-                        {c.foil ? "Foil" : "Normal"}
-                      </Badge>
-                      <span className="text-[11px] text-muted-foreground">{formatDate(c.scanned_at)}</span>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Collection cards ({cards.length})</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto -mx-6 px-6">
+            {cards.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                No cards in this collection.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {cards.map((c) => (
+                  <div key={c.id} className="flex items-center gap-3 rounded-lg border border-border p-2">
+                    <button
+                      className="w-20 h-28 rounded bg-muted flex items-center justify-center overflow-hidden shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => images[c.card_id] && setLightbox(images[c.card_id])}
+                      title="View full image"
+                    >
+                      {images[c.card_id]
+                        ? <img src={images[c.card_id]} alt={c.card_id} className="w-full h-full object-contain" />
+                        : <ImageIcon className="w-5 h-5 text-muted-foreground" />
+                      }
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-mono font-medium truncate">{c.card_id}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <button
+                          onClick={() => onUpdateCard({ ...c, foil: !c.foil })}
+                          title="Toggle foil / normal"
+                        >
+                          <Badge
+                            variant={c.foil ? "default" : "secondary"}
+                            className="text-[10px] px-1.5 py-0 cursor-pointer hover:opacity-80 transition-opacity"
+                          >
+                            {c.foil ? "Foil" : "Normal"}
+                          </Badge>
+                        </button>
+                        <span className="text-[11px] text-muted-foreground">{formatDate(c.scanned_at)}</span>
+                      </div>
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => onDeleteCard(c.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="shrink-0 h-8 w-8 text-muted-foreground hover:text-destructive"
-                    onClick={() => onDeleteCard(c.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/85 flex items-center justify-center"
+          onClick={() => setLightbox(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white/70 hover:text-white"
+            onClick={() => setLightbox(null)}
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <img
+            src={lightbox}
+            className="max-h-[85vh] max-w-[85vw] object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
         </div>
-      </DialogContent>
-    </Dialog>
+      )}
+    </>
   );
 }

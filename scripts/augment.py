@@ -52,19 +52,16 @@ def generate_gradient_bg(size):
     c1 = np.random.randint(0, 256, 3).astype(np.float32)
     c2 = np.random.randint(0, 256, 3).astype(np.float32)
 
-    bg = np.zeros((size, size, 3), dtype=np.float32)
     direction = random.choice(["horizontal", "vertical", "diagonal"])
+    t = np.linspace(0, 1, size, dtype=np.float32)
 
-    for i in range(size):
-        t = i / max(size - 1, 1)
-        if direction == "horizontal":
-            bg[:, i] = c1 * (1 - t) + c2 * t
-        elif direction == "vertical":
-            bg[i, :] = c1 * (1 - t) + c2 * t
-        else:
-            for j in range(size):
-                t2 = (i + j) / max(2 * (size - 1), 1)
-                bg[i, j] = c1 * (1 - t2) + c2 * t2
+    if direction == "horizontal":
+        bg = c1 * (1 - t)[np.newaxis, :, np.newaxis] + c2 * t[np.newaxis, :, np.newaxis]
+    elif direction == "vertical":
+        bg = c1 * (1 - t)[:, np.newaxis, np.newaxis] + c2 * t[:, np.newaxis, np.newaxis]
+    else:
+        t2 = np.add.outer(t, t) / 2  # shape (size, size), values in [0, 1]
+        bg = c1 * (1 - t2[:, :, np.newaxis]) + c2 * t2[:, :, np.newaxis]
 
     return bg.astype(np.uint8)
 

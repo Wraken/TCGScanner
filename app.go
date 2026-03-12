@@ -227,6 +227,6 @@ func (a *App) Predict(imageData string) (*Prediction, error) {
 		return nil, err
 	}
 
-	fmt.Println("[Predict] card_id=%s confidence=%.4f", pred.CardID, pred.Confidence)
+	fmt.Printf("[Predict] card_id=%s confidence=%.4f\n", pred.CardID, pred.Confidence)
 	return pred, nil
 }

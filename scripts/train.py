@@ -40,19 +40,19 @@ BATCH_SIZE = 32
 
 BACKBONES = {
     "mobilenetv2": {
-        "class": lambda **kw: keras.applications.MobileNetV2(**kw),
+        "class": keras.applications.MobileNetV2,
         "preprocess": keras.applications.mobilenet_v2.preprocess_input,
         "img_size": 224,
         "fine_tune_layers": 30,
     },
     "efficientnet-b0": {
-        "class": lambda **kw: keras.applications.EfficientNetB0(**kw),
+        "class": keras.applications.EfficientNetB0,
         "preprocess": keras.applications.efficientnet.preprocess_input,
         "img_size": 224,
         "fine_tune_layers": 30,
     },
     "efficientnet-b3": {
-        "class": lambda **kw: keras.applications.EfficientNetB3(**kw),
+        "class": keras.applications.EfficientNetB3,
         "preprocess": keras.applications.efficientnet.preprocess_input,
         "img_size": 300,
         "fine_tune_layers": 30,
@@ -191,12 +191,18 @@ def export_tflite(model, output_path):
     print(f"TFLite model saved: {size_mb:.1f} MB")
 
 
+def save_json(path, data):
+    """Write data as indented JSON and print confirmation."""
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+    print(f"Saved {path}")
+
+
 def save_labels(class_names, output_path):
     """Save class name mapping for inference."""
     mapping = {i: name for i, name in enumerate(class_names)}
-    with open(output_path, "w") as f:
-        json.dump(mapping, f, indent=2)
-    print(f"Labels saved to {output_path} ({len(mapping)} classes)")
+    save_json(output_path, mapping)
+    print(f"  ({len(mapping)} classes)")
 
 
 def main():
@@ -257,16 +263,12 @@ def main():
     export_tflite(model, os.path.join(output_dir, "model.tflite"))
     save_labels(class_names, os.path.join(output_dir, "labels.json"))
 
-    config = {
+    save_json(os.path.join(output_dir, "config.json"), {
         "backbone": args.backbone,
         "img_size": img_size,
         "dense": args.dense,
         "num_classes": num_classes,
-    }
-    config_path = os.path.join(output_dir, "config.json")
-    with open(config_path, "w") as f:
-        json.dump(config, f, indent=2)
-    print(f"Config saved to {config_path}")
+    })
 
     print("\nDone! Files in", output_dir + "/")
     print("  model.keras   - full Keras model (for retraining)")

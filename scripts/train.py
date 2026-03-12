@@ -1,11 +1,17 @@
 """
 Card Recognition - Training Script
-MobileNetV2 transfer learning → TFLite export
+Transfer learning → TFLite export
+
+Supported backbones:
+    mobilenetv2      224x224  (default, fast)
+    efficientnet-b0  224x224  (better accuracy, moderate size)
+    efficientnet-b3  300x300  (best accuracy, larger)
 
 Usage:
     pip install tensorflow numpy
     python train.py --name riftbound
-    python train.py --name riftbound --epochs 30 --dense 256
+    python train.py --name riftbound --backbone efficientnet-b0
+    python train.py --name riftbound --backbone efficientnet-b3 --epochs 30 --dense 256
 
 Directory layout:
     datasets/riftbound/         <- input (from augment.py)
@@ -30,26 +36,45 @@ import tensorflow as tf
 from tensorflow import keras
 
 
-IMG_SIZE = 224  # MobileNetV2 input size
 BATCH_SIZE = 32
-FINE_TUNE_LAYERS = 30  # unfreeze last N layers of MobileNetV2
+
+BACKBONES = {
+    "mobilenetv2": {
+        "class": lambda **kw: keras.applications.MobileNetV2(**kw),
+        "preprocess": keras.applications.mobilenet_v2.preprocess_input,
+        "img_size": 224,
+        "fine_tune_layers": 30,
+    },
+    "efficientnet-b0": {
+        "class": lambda **kw: keras.applications.EfficientNetB0(**kw),
+        "preprocess": keras.applications.efficientnet.preprocess_input,
+        "img_size": 224,
+        "fine_tune_layers": 30,
+    },
+    "efficientnet-b3": {
+        "class": lambda **kw: keras.applications.EfficientNetB3(**kw),
+        "preprocess": keras.applications.efficientnet.preprocess_input,
+        "img_size": 300,
+        "fine_tune_layers": 30,
+    },
+}
 
 
-def load_datasets(dataset_dir):
+def load_datasets(dataset_dir, img_size):
     """Load pre-split train/val datasets."""
     train_dir = os.path.join(dataset_dir, "train")
     val_dir = os.path.join(dataset_dir, "val")
 
     train_ds = keras.utils.image_dataset_from_directory(
         train_dir,
-        image_size=(IMG_SIZE, IMG_SIZE),
+        image_size=(img_size, img_size),
         batch_size=BATCH_SIZE,
         label_mode="int",
     )
 
     val_ds = keras.utils.image_dataset_from_directory(
         val_dir,
-        image_size=(IMG_SIZE, IMG_SIZE),
+        image_size=(img_size, img_size),
         batch_size=BATCH_SIZE,
         label_mode="int",
     )
@@ -60,28 +85,27 @@ def load_datasets(dataset_dir):
     print(f"Train batches: {len(train_ds)}")
     print(f"Val batches: {len(val_ds)}")
 
-    # Prefetch for performance
     train_ds = train_ds.prefetch(tf.data.AUTOTUNE)
     val_ds = val_ds.prefetch(tf.data.AUTOTUNE)
 
     return train_ds, val_ds, class_names, num_classes
 
 
-def build_model(num_classes, dense_units=512):
-    """MobileNetV2 + custom head."""
-    # MobileNetV2 expects [-1, 1] input
-    preprocess = keras.applications.mobilenet_v2.preprocess_input
+def build_model(num_classes, backbone_name, dense_units=512):
+    """Build model with selected backbone + custom head."""
+    backbone = BACKBONES[backbone_name]
+    img_size = backbone["img_size"]
 
-    base_model = keras.applications.MobileNetV2(
-        input_shape=(IMG_SIZE, IMG_SIZE, 3),
+    base_model = backbone["class"](
+        input_shape=(img_size, img_size, 3),
         include_top=False,
         weights="imagenet",
     )
     base_model.trainable = False  # freeze for phase 1
 
     model = keras.Sequential([
-        keras.layers.Input(shape=(IMG_SIZE, IMG_SIZE, 3)),
-        keras.layers.Lambda(preprocess),
+        keras.layers.Input(shape=(img_size, img_size, 3)),
+        keras.layers.Lambda(backbone["preprocess"]),
         base_model,
         keras.layers.GlobalAveragePooling2D(),
         keras.layers.Dropout(0.3),
@@ -118,12 +142,12 @@ def train_phase1(model, train_ds, val_ds, epochs=10):
     return history
 
 
-def train_phase2(model, base_model, train_ds, val_ds, epochs=10):
+def train_phase2(model, base_model, train_ds, val_ds, epochs=10, fine_tune_layers=30):
     """Phase 2: Fine-tune last layers of base model."""
-    print(f"\n=== Phase 2: Fine-tuning last {FINE_TUNE_LAYERS} layers ===")
+    print(f"\n=== Phase 2: Fine-tuning last {fine_tune_layers} layers ===")
 
     base_model.trainable = True
-    for layer in base_model.layers[:-FINE_TUNE_LAYERS]:
+    for layer in base_model.layers[:-fine_tune_layers]:
         layer.trainable = False
 
     model.compile(
@@ -178,9 +202,18 @@ def save_labels(class_names, output_path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--name", required=True, help="Model name (e.g. riftbound)")
+    parser.add_argument(
+        "--backbone",
+        default="mobilenetv2",
+        choices=list(BACKBONES.keys()),
+        help="Base model architecture (default: mobilenetv2)",
+    )
     parser.add_argument("--epochs", type=int, default=20, help="Epochs per phase")
     parser.add_argument("--dense", type=int, default=512, help="Dense layer units (default: 512)")
     args = parser.parse_args()
+
+    backbone = BACKBONES[args.backbone]
+    img_size = backbone["img_size"]
 
     dataset_dir = os.path.join("datasets", args.name)
     output_dir = os.path.join("models", args.name)
@@ -192,9 +225,10 @@ def main():
 
     os.makedirs(output_dir, exist_ok=True)
 
-    print(f"Model: {args.name}")
-    print(f"Dataset: {dataset_dir}/")
-    print(f"Output: {output_dir}/")
+    print(f"Model:    {args.name}")
+    print(f"Backbone: {args.backbone} ({img_size}x{img_size})")
+    print(f"Dataset:  {dataset_dir}/")
+    print(f"Output:   {output_dir}/")
 
     print("GPU available:", tf.config.list_physical_devices("GPU"))
 
@@ -203,14 +237,14 @@ def main():
         print(f"  Run augment.py --name {args.name} first")
         return
 
-    train_ds, val_ds, class_names, num_classes = load_datasets(dataset_dir)
+    train_ds, val_ds, class_names, num_classes = load_datasets(dataset_dir, img_size)
 
-    model, base_model = build_model(num_classes, dense_units=args.dense)
+    model, base_model = build_model(num_classes, args.backbone, dense_units=args.dense)
     model.summary()
 
     train_phase1(model, train_ds, val_ds, epochs=args.epochs)
 
-    train_phase2(model, base_model, train_ds, val_ds, epochs=args.epochs)
+    train_phase2(model, base_model, train_ds, val_ds, epochs=args.epochs, fine_tune_layers=backbone["fine_tune_layers"])
 
     print("\n=== Final Evaluation ===")
     loss, acc = model.evaluate(val_ds)
@@ -223,10 +257,22 @@ def main():
     export_tflite(model, os.path.join(output_dir, "model.tflite"))
     save_labels(class_names, os.path.join(output_dir, "labels.json"))
 
+    config = {
+        "backbone": args.backbone,
+        "img_size": img_size,
+        "dense": args.dense,
+        "num_classes": num_classes,
+    }
+    config_path = os.path.join(output_dir, "config.json")
+    with open(config_path, "w") as f:
+        json.dump(config, f, indent=2)
+    print(f"Config saved to {config_path}")
+
     print("\nDone! Files in", output_dir + "/")
     print("  model.keras   - full Keras model (for retraining)")
     print("  model.tflite  - quantized TFLite (for Go inference)")
     print("  labels.json   - class index → card ID mapping")
+    print("  config.json   - backbone, img_size, dense, num_classes")
 
 
 if __name__ == "__main__":

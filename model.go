@@ -18,13 +18,29 @@ import (
 	"golang.org/x/image/draw"
 )
 
-const (
-	imgSize = 224
-)
+type ModelConfig struct {
+	Backbone   string `json:"backbone"`
+	ImgSize    int    `json:"img_size"`
+	Dense      int    `json:"dense"`
+	NumClasses int    `json:"num_classes"`
+}
+
+func loadModelConfig(configPath string) ModelConfig {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return ModelConfig{ImgSize: 224} // default for models without config
+	}
+	var cfg ModelConfig
+	if err := json.Unmarshal(data, &cfg); err != nil || cfg.ImgSize == 0 {
+		return ModelConfig{ImgSize: 224}
+	}
+	return cfg
+}
 
 type Model struct {
 	mu          sync.Mutex
 	name        string
+	imgSize     int
 	model       *tflite.Model
 	options     *tflite.InterpreterOptions
 	labels      map[int]string
@@ -33,6 +49,9 @@ type Model struct {
 }
 
 func NewModel(modelName, modelPath, labelsPath string) (*Model, error) {
+	configPath := fmt.Sprintf("./models/%s/config.json", modelName)
+	cfg := loadModelConfig(configPath)
+
 	labels, err := loadLabels(labelsPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load labels: %w", err)
@@ -66,11 +85,12 @@ func NewModel(modelName, modelPath, labelsPath string) (*Model, error) {
 
 	return &Model{
 		name:        modelName,
+		imgSize:     cfg.ImgSize,
 		model:       model,
 		options:     options,
 		labels:      labels,
 		interpreter: interpreter,
-		inputBuffer: make([]float32, imgSize*imgSize*3),
+		inputBuffer: make([]float32, cfg.ImgSize*cfg.ImgSize*3),
 	}, nil
 }
 
@@ -115,13 +135,13 @@ func (m *Model) Predict(base64Frame string) (*Prediction, error) {
 }
 
 func (m *Model) preprocessImage(img image.Image) {
-	resized := image.NewRGBA(image.Rect(0, 0, imgSize, imgSize))
+	resized := image.NewRGBA(image.Rect(0, 0, m.imgSize, m.imgSize))
 	draw.BiLinear.Scale(resized, resized.Bounds(), img, img.Bounds(), draw.Over, nil)
 
 	// Convert to float32 — raw [0, 255] values
 	idx := 0
-	for y := 0; y < imgSize; y++ {
-		for x := 0; x < imgSize; x++ {
+	for y := 0; y < m.imgSize; y++ {
+		for x := 0; x < m.imgSize; x++ {
 			r, g, b, _ := resized.At(x, y).RGBA()
 			m.inputBuffer[idx+0] = float32(r >> 8)
 			m.inputBuffer[idx+1] = float32(g >> 8)

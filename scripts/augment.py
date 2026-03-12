@@ -4,8 +4,10 @@ Composites cards onto random backgrounds with transformations.
 
 Usage:
     pip install albumentations opencv-python-headless numpy tqdm
-    python augment.py --name riftbound
-    python augment.py --name riftbound --per-card 100 --backgrounds backgrounds/
+    python augment.py --input images/riftbound
+    python augment.py --input images/riftbound --backbone efficientnet-b3
+    python augment.py --input images/riftbound --per-card 100 --backgrounds backgrounds/
+    python augment.py --input images/riftbound --output datasets/riftbound-b3 --backbone efficientnet-b3
 
 Directory layout:
     images/riftbound/           ← input card PNGs
@@ -14,6 +16,8 @@ Directory layout:
             ogn-001-298_000.jpg   (original, resized)
             ogn-001-298_001.jpg   (augmented on background)
             ...
+
+Note: use the same --backbone as train.py so output sizes match.
 """
 
 import argparse
@@ -29,8 +33,11 @@ from pathlib import Path
 from tqdm import tqdm
 
 
-# Output size matches model input
-OUTPUT_SIZE = 224
+BACKBONE_IMG_SIZES = {
+    "mobilenetv2":    224,
+    "efficientnet-b0": 224,
+    "efficientnet-b3": 300,
+}
 
 
 def generate_solid_bg(size):
@@ -151,7 +158,7 @@ def get_card_transform():
     ])
 
 
-def get_scene_transform():
+def get_scene_transform(output_size):
     """Augmentations applied to the FULL scene (card + background)."""
     return A.Compose([
         # Blur (camera)
@@ -188,13 +195,13 @@ def get_scene_transform():
         ),
 
         # Final resize
-        A.Resize(OUTPUT_SIZE, OUTPUT_SIZE),
+        A.Resize(output_size, output_size),
     ])
 
 
 def augment_card_worker(args):
     """Worker function for multiprocessing. Takes a tuple of arguments."""
-    image_path, output_dir, card_id, n_variations, n_val, real_backgrounds = args
+    image_path, output_dir, card_id, n_variations, n_val, real_backgrounds, output_size = args
 
     # Seed RNG per worker to avoid identical augmentations when using fork
     seed = os.getpid() + hash(card_id)
@@ -202,16 +209,16 @@ def augment_card_worker(args):
     np.random.seed(seed % (2**32))
 
     card_transform = get_card_transform()
-    scene_transform = get_scene_transform()
+    scene_transform = get_scene_transform(output_size)
 
     return augment_card(
         image_path, output_dir, card_id, n_variations, n_val,
-        card_transform, scene_transform, real_backgrounds,
+        card_transform, scene_transform, real_backgrounds, output_size,
     )
 
 
 def augment_card(image_path, output_dir, card_id, n_variations, n_val,
-                 card_transform, scene_transform, real_backgrounds):
+                 card_transform, scene_transform, real_backgrounds, output_size):
     img = cv2.imread(str(image_path))
     if img is None:
         print(f"  ✗ Could not read {image_path}")
@@ -225,7 +232,7 @@ def augment_card(image_path, output_dir, card_id, n_variations, n_val,
     os.makedirs(val_dir, exist_ok=True)
 
     # Original card (resized, no augmentation) goes to val
-    original = cv2.resize(img, (OUTPUT_SIZE, OUTPUT_SIZE))
+    original = cv2.resize(img, (output_size, output_size))
     original_bgr = cv2.cvtColor(original, cv2.COLOR_RGB2BGR)
     cv2.imwrite(os.path.join(val_dir, f"{card_id}_000.jpg"), original_bgr)
 
@@ -238,7 +245,7 @@ def augment_card(image_path, output_dir, card_id, n_variations, n_val,
         card_aug = card_transform(image=img)["image"]
 
         # 2. Generate/pick a background
-        bg = get_random_background(OUTPUT_SIZE * 3, real_backgrounds)
+        bg = get_random_background(output_size * 3, real_backgrounds)
 
         # 3. Composite card on background
         scene = composite_card_on_bg(card_aug, bg)
@@ -271,15 +278,24 @@ def load_real_backgrounds(bg_dir):
 
 def main():
     parser = argparse.ArgumentParser(description="Augment card images for model training")
-    parser.add_argument("--name", required=True, help="Model name (e.g. riftbound)")
+    parser.add_argument("--input", required=True, help="Input images folder (e.g. images/riftbound)")
+    parser.add_argument("--output", default=None, help="Output dataset folder (default: datasets/<input name>)")
+    parser.add_argument(
+        "--backbone",
+        default="mobilenetv2",
+        choices=list(BACKBONE_IMG_SIZES.keys()),
+        help="Target backbone (sets output image size, default: mobilenetv2)",
+    )
     parser.add_argument("--per-card", type=int, default=50, help="Variations per card")
     parser.add_argument("--val-per-card", type=int, default=10, help="Validation variations per card (default: 10)")
     parser.add_argument("--backgrounds", default="backgrounds", help="Real background photos dir")
     parser.add_argument("--workers", type=int, default=0, help="Parallel workers (0 = auto)")
     args = parser.parse_args()
 
-    input_dir = Path("images") / args.name
-    output_dir = Path("datasets") / args.name
+    output_size = BACKBONE_IMG_SIZES[args.backbone]
+
+    input_dir = Path(args.input)
+    output_dir = Path(args.output) if args.output else Path("datasets") / input_dir.name
 
     if not input_dir.is_dir():
         print(f"Input directory not found: {input_dir}")
@@ -298,9 +314,9 @@ def main():
 
     real_backgrounds = load_real_backgrounds(args.backgrounds)
 
-    print(f"Model: {args.name}")
-    print(f"Input: {input_dir}/")
-    print(f"Output: {output_dir}/")
+    print(f"Backbone: {args.backbone} ({output_size}x{output_size})")
+    print(f"Input:    {input_dir}/")
+    print(f"Output:   {output_dir}/")
     n_val = min(args.val_per_card, args.per_card)
     print(f"Found {len(images)} cards")
     print(f"Generating {args.per_card} variations each ({args.per_card - n_val} train, {n_val} val + 1 original in val)")
@@ -312,7 +328,7 @@ def main():
 
     # Build worker args
     worker_args = [
-        (str(img_path), str(output_dir), img_path.stem, args.per_card, n_val, real_backgrounds)
+        (str(img_path), str(output_dir), img_path.stem, args.per_card, n_val, real_backgrounds, output_size)
         for img_path in images
     ]
 

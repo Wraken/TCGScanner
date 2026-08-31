@@ -42,4 +42,13 @@ func TestBackfillCardGames(t *testing.T) {
 	if unknown != 1 {
 		t.Errorf("%d rows still unknown, want 1 (mystery-1)", unknown)
 	}
+
+	// Backfill runs on every startup: a second pass must be a clean no-op.
+	n, err = backfillCardGames(db, resolve)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Errorf("second backfill updated %d rows, want 0", n)
+	}
 }

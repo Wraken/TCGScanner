@@ -84,19 +84,33 @@ func backfillCardGames(db *sql.DB, resolve func(cardID string) string) (int, err
 		return 0, err
 	}
 
+	// One transaction for the whole pass: on the first post-migration run
+	// every row is unknown, and per-id autocommit UPDATEs (a journal commit
+	// plus a full table scan each) would stall startup for seconds.
+	tx, err := db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+
 	total := 0
 	for _, id := range ids {
 		g := resolve(id)
 		if g == "" {
 			continue
 		}
-		res, err := db.Exec(`UPDATE cards SET game = ? WHERE card_id = ? AND game = ''`, g, id)
+		res, err := tx.Exec(`UPDATE cards SET game = ? WHERE card_id = ? AND game = ''`, g, id)
 		if err != nil {
 			return total, err
 		}
-		if n, err := res.RowsAffected(); err == nil {
-			total += int(n)
+		n, err := res.RowsAffected()
+		if err != nil {
+			return total, err
 		}
+		total += int(n)
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
 	}
 	return total, nil
 }

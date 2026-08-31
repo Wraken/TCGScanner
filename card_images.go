@@ -112,26 +112,32 @@ func modelImagesDir(modelName string) string {
 	return filepath.Join(".", "models", modelName, "images")
 }
 
-// gameOfCard returns the game sub-directory the manifest files cardID under
-// ("onepiece/OP01-025.webp" -> "onepiece"). Unknown ids and flat entries
-// return "".
-func gameOfCard(imagesDir, cardID string) string {
-	rel, ok := cardImageManifest(imagesDir)[cardID]
-	if !ok {
+// manifestGameSegment extracts the leading game directory of a manifest path
+// ("onepiece/OP01-025.webp" -> "onepiece"). Flat entries and degenerate
+// segments ("." / "..") from a corrupt manifest yield "".
+func manifestGameSegment(rel string) string {
+	i := strings.IndexByte(rel, '/')
+	if i <= 0 {
 		return ""
 	}
-	if i := strings.IndexByte(rel, '/'); i > 0 {
-		return rel[:i]
+	if g := rel[:i]; g != "." && g != ".." {
+		return g
 	}
 	return ""
+}
+
+// gameOfCard returns the game sub-directory the manifest files cardID under.
+// Unknown ids and flat entries return "".
+func gameOfCard(imagesDir, cardID string) string {
+	return manifestGameSegment(cardImageManifest(imagesDir)[cardID])
 }
 
 // manifestGames returns the sorted distinct games of a manifest.
 func manifestGames(imagesDir string) []string {
 	seen := map[string]bool{}
 	for _, rel := range cardImageManifest(imagesDir) {
-		if i := strings.IndexByte(rel, '/'); i > 0 {
-			seen[rel[:i]] = true
+		if g := manifestGameSegment(rel); g != "" {
+			seen[g] = true
 		}
 	}
 	games := make([]string, 0, len(seen))

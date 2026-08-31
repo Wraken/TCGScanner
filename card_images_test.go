@@ -159,7 +159,7 @@ func TestLoadCardImageRealModel(t *testing.T) {
 
 func TestGameOfCard(t *testing.T) {
 	dir := t.TempDir()
-	manifest := `{"OP01-025": "onepiece/OP01-025.webp", "flat-001": "flat-001.webp"}`
+	manifest := `{"OP01-025": "onepiece/OP01-025.webp", "flat-001": "flat-001.webp", "evil-1": "../x/evil-1.webp"}`
 	if err := os.WriteFile(filepath.Join(dir, "manifest.json"), []byte(manifest), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -171,6 +171,27 @@ func TestGameOfCard(t *testing.T) {
 	}
 	if g := gameOfCard(dir, "unknown"); g != "" {
 		t.Errorf("unknown id should have no game, got %q", g)
+	}
+	if g := gameOfCard(dir, "evil-1"); g != "" {
+		t.Errorf("degenerate segment should have no game, got %q", g)
+	}
+}
+
+func TestGameResolver(t *testing.T) {
+	dir1 := t.TempDir()
+	writeTestFile(t, filepath.Join(dir1, "manifest.json"), `{"A": "onepiece/A.webp"}`)
+	dir2 := t.TempDir()
+	writeTestFile(t, filepath.Join(dir2, "manifest.json"), `{"A": "pokemon/A.webp", "B": "riftbound/B.webp"}`)
+
+	resolve := gameResolver([]string{dir1, dir2})
+	if g := resolve("A"); g != "onepiece" {
+		t.Errorf("A = %q, want onepiece (first dir wins)", g)
+	}
+	if g := resolve("B"); g != "riftbound" {
+		t.Errorf("B = %q, want riftbound", g)
+	}
+	if g := resolve("unknown"); g != "" {
+		t.Errorf("unknown = %q, want empty", g)
 	}
 }
 

@@ -60,23 +60,6 @@ func (a *App) startup(ctx context.Context) {
 		return
 	}
 	a.db = db
-
-	last, err := getLastCollection(db)
-	switch {
-	case err == nil:
-		a.collectionID = last.ID
-		fmt.Printf("Resuming collection %d\n", last.ID)
-	case err == sql.ErrNoRows:
-		id, err := createCollection(db)
-		if err != nil {
-			fmt.Printf("failed to create collection: %v\n", err)
-			return
-		}
-		a.collectionID = id
-		fmt.Printf("Collection %d started\n", id)
-	default:
-		fmt.Printf("failed to get last collection: %v\n", err)
-	}
 }
 
 func (a *App) ListModels() ([]string, error) {
@@ -142,7 +125,7 @@ func (a *App) NewCollection() (Collection, error) {
 	if a.db == nil {
 		return Collection{}, fmt.Errorf("database not initialized")
 	}
-	id, err := createCollection(a.db)
+	id, err := createCollection(a.db, "Sans nom")
 	if err != nil {
 		return Collection{}, err
 	}
@@ -167,7 +150,7 @@ func (a *App) GetCollectionCards(collectionID int) ([]CollectionCard, error) {
 	if a.db == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	return listCollectionCards(a.db, collectionID)
+	return listCards(a.db, CardFilter{CollectionID: collectionID})
 }
 
 func (a *App) UpdateCard(card CollectionCard) error {
@@ -192,7 +175,8 @@ func (a *App) SaveCard(cardID string, foil bool) error {
 	if model := a.currentModel(); model != nil {
 		modelName = model.Name()
 	}
-	return insertCard(a.db, a.collectionID, cardID, modelName, foil)
+	_, err := insertCard(a.db, a.collectionID, cardID, "", modelName, foil)
+	return err
 }
 
 func (a *App) GetCardImageByModel(cardID, modelName string) (string, error) {

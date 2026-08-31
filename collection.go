@@ -10,7 +10,7 @@ type Collection struct {
 }
 
 func createCollection(db *sql.DB) (int, error) {
-	res, err := db.Exec(`INSERT INTO collections DEFAULT VALUES`)
+	res, err := db.Exec(`INSERT INTO collections (name) VALUES ('')`)
 	if err != nil {
 		return 0, err
 	}
@@ -21,11 +21,11 @@ func createCollection(db *sql.DB) (int, error) {
 func getLastCollection(db *sql.DB) (Collection, error) {
 	var c Collection
 	err := db.QueryRow(`
-		SELECT co.id, co.name, co.started_at, COUNT(ca.id)
+		SELECT co.id, co.name, co.created_at, COUNT(ca.id)
 		FROM collections co
 		LEFT JOIN cards ca ON ca.collection_id = co.id
 		GROUP BY co.id
-		ORDER BY co.started_at DESC
+		ORDER BY co.created_at DESC
 		LIMIT 1
 	`).Scan(&c.ID, &c.Name, &c.StartedAt, &c.CardCount)
 	return c, err
@@ -34,7 +34,7 @@ func getLastCollection(db *sql.DB) (Collection, error) {
 func getCollection(db *sql.DB, id int) (Collection, error) {
 	var c Collection
 	err := db.QueryRow(`
-		SELECT co.id, co.name, co.started_at, COUNT(ca.id)
+		SELECT co.id, co.name, co.created_at, COUNT(ca.id)
 		FROM collections co
 		LEFT JOIN cards ca ON ca.collection_id = co.id
 		WHERE co.id = ?
@@ -45,11 +45,11 @@ func getCollection(db *sql.DB, id int) (Collection, error) {
 
 func listCollections(db *sql.DB) ([]Collection, error) {
 	rows, err := db.Query(`
-		SELECT co.id, co.name, co.started_at, COUNT(ca.id)
+		SELECT co.id, co.name, co.created_at, COUNT(ca.id)
 		FROM collections co
 		LEFT JOIN cards ca ON ca.collection_id = co.id
 		GROUP BY co.id
-		ORDER BY co.started_at DESC
+		ORDER BY co.created_at DESC
 	`)
 	if err != nil {
 		return nil, err

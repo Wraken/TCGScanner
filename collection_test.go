@@ -177,6 +177,46 @@ func TestListCardsAndMove(t *testing.T) {
 	}
 }
 
+func TestListCollectionsNewestFirst(t *testing.T) {
+	db := testDB(t)
+	first, err := createCollection(db, "First")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := createCollection(db, "Second")
+	if err != nil {
+		t.Fatal(err)
+	}
+	list, err := listCollections(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Same created_at second: the id DESC tie-break must put the newest first.
+	if len(list) != 2 || list[0].ID != second || list[1].ID != first {
+		t.Fatalf("order = %+v, want [%d %d]", list, second, first)
+	}
+}
+
+func TestListCardsStableOrder(t *testing.T) {
+	db := testDB(t)
+	a, err := insertCard(db, 0, "sv01-001", "pokemon", "tcg", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := insertCard(db, 0, "sv01-002", "pokemon", "tcg", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := listCards(db, CardFilter{Game: "pokemon"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Same scanned_at second: the id ASC tie-break keeps insertion order.
+	if len(got) != 2 || got[0].ID != a || got[1].ID != b {
+		t.Fatalf("order = %+v, want ids [%d %d]", got, a, b)
+	}
+}
+
 func TestUpdateCardRewritesIdAndGame(t *testing.T) {
 	db := testDB(t)
 	id, _ := insertCard(db, 0, "sv01-020", "pokemon", "tcg", false)

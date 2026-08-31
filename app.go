@@ -17,10 +17,10 @@ import (
 type App struct {
 	ctx context.Context
 
-	modelMu      sync.RWMutex
-	model        Predictor
-	db           *sql.DB
-	collectionID int
+	modelMu        sync.RWMutex
+	model          Predictor
+	db             *sql.DB
+	activeCustomID int
 }
 
 func NewApp() *App {
@@ -60,6 +60,13 @@ func (a *App) startup(ctx context.Context) {
 		return
 	}
 	a.db = db
+
+	// Cards scanned before their game's images were installed heal on start.
+	if n, err := backfillCardGames(db, gameResolver(allModelImagesDirs())); err != nil {
+		fmt.Printf("game backfill failed: %v\n", err)
+	} else if n > 0 {
+		fmt.Printf("game backfill: %d copies resolved\n", n)
+	}
 }
 
 func (a *App) ListModels() ([]string, error) {
@@ -117,26 +124,41 @@ func (a *App) GetCardImage(cardID string) (string, error) {
 	return loadCardImage(cardID, model.Name())
 }
 
-func (a *App) GetCurrentCollectionID() int {
-	return a.collectionID
+func (a *App) SetActiveCustom(id int) {
+	a.activeCustomID = id
 }
 
-func (a *App) NewCollection() (Collection, error) {
+func (a *App) GetActiveCustom() int {
+	return a.activeCustomID
+}
+
+func (a *App) GetGameCollections() ([]GameCollection, error) {
+	if a.db == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	var known []string
+	for _, dir := range allModelImagesDirs() {
+		known = append(known, manifestGames(dir)...)
+	}
+	return gameCollections(a.db, known)
+}
+
+func (a *App) GetCustomCollections() ([]Collection, error) {
+	if a.db == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	return listCollections(a.db)
+}
+
+func (a *App) NewCustomCollection(name string) (Collection, error) {
 	if a.db == nil {
 		return Collection{}, fmt.Errorf("database not initialized")
 	}
-	id, err := createCollection(a.db, "Sans nom")
+	id, err := createCollection(a.db, name)
 	if err != nil {
 		return Collection{}, err
 	}
-	a.collectionID = id
-	fmt.Printf("Switched to new collection %d\n", id)
 	return getCollection(a.db, id)
-}
-
-func (a *App) SetCollection(id int) {
-	a.collectionID = id
-	fmt.Printf("Switched to collection %d\n", id)
 }
 
 func (a *App) RenameCollection(id int, name string) error {
@@ -146,17 +168,36 @@ func (a *App) RenameCollection(id int, name string) error {
 	return renameCollection(a.db, id, name)
 }
 
-func (a *App) GetCollectionCards(collectionID int) ([]CollectionCard, error) {
+func (a *App) DeleteCollection(id int) error {
+	if a.db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if a.activeCustomID == id {
+		a.activeCustomID = 0
+	}
+	return deleteCollection(a.db, id)
+}
+
+func (a *App) GetCards(f CardFilter) ([]CollectionCard, error) {
 	if a.db == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
-	return listCards(a.db, CardFilter{CollectionID: collectionID})
+	return listCards(a.db, f)
+}
+
+func (a *App) MoveCardToCustom(rowID, customID int) error {
+	if a.db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return moveCardToCustom(a.db, rowID, customID)
 }
 
 func (a *App) UpdateCard(card CollectionCard) error {
 	if a.db == nil {
 		return fmt.Errorf("database not initialized")
 	}
+	// The id may have been corrected by hand — re-resolve the game.
+	card.Game = gameResolver(allModelImagesDirs())(card.CardID)
 	return updateCard(a.db, card)
 }
 
@@ -167,16 +208,20 @@ func (a *App) DeleteCard(id int) error {
 	return deleteCard(a.db, id)
 }
 
-func (a *App) SaveCard(cardID string, foil bool) error {
+func (a *App) SaveCard(cardID string, foil bool) (CollectionCard, error) {
 	if a.db == nil {
-		return fmt.Errorf("database not initialized")
+		return CollectionCard{}, fmt.Errorf("database not initialized")
 	}
-	modelName := ""
-	if model := a.currentModel(); model != nil {
-		modelName = model.Name()
+	model := a.currentModel()
+	if model == nil {
+		return CollectionCard{}, fmt.Errorf("no model loaded")
 	}
-	_, err := insertCard(a.db, a.collectionID, cardID, "", modelName, foil)
-	return err
+	game := gameOfCard(modelImagesDir(model.Name()), cardID)
+	id, err := insertCard(a.db, a.activeCustomID, cardID, game, model.Name(), foil)
+	if err != nil {
+		return CollectionCard{}, err
+	}
+	return getCard(a.db, id)
 }
 
 func (a *App) GetCardImageByModel(cardID, modelName string) (string, error) {
@@ -186,26 +231,31 @@ func (a *App) GetCardImageByModel(cardID, modelName string) (string, error) {
 	return loadCardImage(cardID, modelName)
 }
 
-func (a *App) GetCollections() ([]Collection, error) {
-	if a.db == nil {
-		return nil, fmt.Errorf("database not initialized")
-	}
-	return listCollections(a.db)
-}
-
 func (a *App) ListExportPresets() []ExportPreset {
 	return builtinPresets
 }
 
-func (a *App) ExportCollectionCSV(collectionID int, config ExportConfig) (string, error) {
+func (a *App) ExportCSV(f CardFilter, config ExportConfig) (string, error) {
 	if a.db == nil {
 		return "", fmt.Errorf("database not initialized")
 	}
 	if len(config.Fields) == 0 {
 		config = ExportConfig{Fields: builtinPresets[0].Fields}
 	}
+	name := f.Game
+	if f.OtherBucket {
+		name = "autres"
+	}
+	if f.CollectionID != 0 {
+		if c, err := getCollection(a.db, f.CollectionID); err == nil {
+			name = c.Name
+		}
+	}
+	if name == "" {
+		name = "export"
+	}
 	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
-		DefaultFilename: fmt.Sprintf("collection_%d.csv", collectionID),
+		DefaultFilename: fmt.Sprintf("%s.csv", name),
 		Filters: []runtime.FileFilter{
 			{DisplayName: "CSV Files (*.csv)", Pattern: "*.csv"},
 		},
@@ -213,7 +263,7 @@ func (a *App) ExportCollectionCSV(collectionID int, config ExportConfig) (string
 	if err != nil || path == "" {
 		return "", err
 	}
-	if err := writeCollectionCSV(a.db, collectionID, path, config); err != nil {
+	if err := writeCardsCSV(a.db, f, path, config); err != nil {
 		return "", err
 	}
 	return path, nil

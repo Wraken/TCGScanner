@@ -82,13 +82,21 @@ func renameCollection(db *sql.DB, id int, name string) error {
 
 // deleteCollection removes a custom collection; its copies keep their game
 // and simply leave the custom. The explicit UPDATE makes the behavior
-// independent of the connection's foreign_keys pragma.
+// independent of the connection's foreign_keys pragma, and the transaction
+// keeps detach + delete atomic.
 func deleteCollection(db *sql.DB, id int) error {
-	if _, err := db.Exec(`UPDATE cards SET collection_id = NULL WHERE collection_id = ?`, id); err != nil {
+	tx, err := db.Begin()
+	if err != nil {
 		return err
 	}
-	_, err := db.Exec(`DELETE FROM collections WHERE id = ?`, id)
-	return err
+	defer tx.Rollback()
+	if _, err := tx.Exec(`UPDATE cards SET collection_id = NULL WHERE collection_id = ?`, id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM collections WHERE id = ?`, id); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // gameCollections derives the per-game collections: every game the manifests

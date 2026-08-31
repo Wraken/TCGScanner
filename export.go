@@ -17,9 +17,9 @@ const (
 )
 
 type ExportPreset struct {
-	Name         string        `json:"name"`
-	Fields       []ExportField `json:"fields"`
-	CardIDTrimEnd int          `json:"card_id_trim_end"` // 0 = full ID, N = remove last N chars
+	Name          string        `json:"name"`
+	Fields        []ExportField `json:"fields"`
+	CardIDTrimEnd int           `json:"card_id_trim_end"` // 0 = full ID, N = remove last N chars
 }
 
 type ExportConfig struct {
@@ -69,16 +69,20 @@ func resolveField(cardID string, normalCount, foilCount int, f ExportField, conf
 	return ""
 }
 
-func writeCollectionCSV(db *sql.DB, collectionID int, path string, config ExportConfig) error {
+func writeCardsCSV(db *sql.DB, filter CardFilter, path string, config ExportConfig) error {
+	where, args, err := cardFilterWhere(filter)
+	if err != nil {
+		return err
+	}
 	rows, err := db.Query(`
 		SELECT card_id,
 		       SUM(CASE WHEN foil = 0 THEN 1 ELSE 0 END),
 		       SUM(CASE WHEN foil = 1 THEN 1 ELSE 0 END)
 		FROM cards
-		WHERE collection_id = ?
+		WHERE `+where+`
 		GROUP BY card_id
 		ORDER BY card_id ASC
-	`, collectionID)
+	`, args...)
 	if err != nil {
 		return err
 	}

@@ -64,7 +64,9 @@ func migrate(db *sql.DB) error {
 	_, _ = db.Exec(`ALTER TABLE collections RENAME COLUMN started_at TO created_at`)
 
 	// v1 declared collection_id NOT NULL; SQLite cannot relax that in place,
-	// so rebuild the table. Runs at most once per database.
+	// so rebuild the table. This branch is the one-shot v1 -> v2 migration:
+	// it runs at most once per database, and the session cleanup below must
+	// stay inside it so v2-era unnamed collections are left alone.
 	notNull, err := columnNotNull(db, "cards", "collection_id")
 	if err != nil {
 		return err
@@ -73,18 +75,24 @@ func migrate(db *sql.DB) error {
 		if err := rebuildCards(db); err != nil {
 			return err
 		}
-	}
-
-	// Old auto-created scan sessions: drop the empty unnamed ones, promote
-	// the unnamed ones that hold cards to regular named customs.
-	if _, err := db.Exec(`
-		DELETE FROM collections WHERE name = '' AND id NOT IN (
-			SELECT DISTINCT collection_id FROM cards WHERE collection_id IS NOT NULL
-		)`); err != nil {
-		return err
-	}
-	if _, err := db.Exec(`UPDATE collections SET name = 'Collection ' || id WHERE name = ''`); err != nil {
-		return err
+		// Hand-edited v1 databases could hold dangling collection ids; the
+		// migration runs with foreign keys off, so clear them explicitly
+		// (before the empty-unnamed DELETE, so a dangling ref does not keep
+		// an unnamed collection's id "in use").
+		if _, err := db.Exec(`UPDATE cards SET collection_id = NULL WHERE collection_id NOT IN (SELECT id FROM collections)`); err != nil {
+			return err
+		}
+		// Old auto-created scan sessions: drop the empty unnamed ones,
+		// promote the unnamed ones that hold cards to regular named customs.
+		if _, err := db.Exec(`
+			DELETE FROM collections WHERE name = '' AND id NOT IN (
+				SELECT DISTINCT collection_id FROM cards WHERE collection_id IS NOT NULL
+			)`); err != nil {
+			return err
+		}
+		if _, err := db.Exec(`UPDATE collections SET name = 'Collection ' || id WHERE name = ''`); err != nil {
+			return err
+		}
 	}
 	return nil
 }

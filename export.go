@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type ExportField string
@@ -45,6 +46,24 @@ func fieldLabel(f ExportField) string {
 		return "Total Count"
 	}
 	return string(f)
+}
+
+// safeFilename makes a user-provided name usable as a default filename on
+// Windows: reserved characters become '-', trailing dots and spaces go, and
+// a name with nothing left falls back to "export".
+func safeFilename(name string) string {
+	name = strings.Map(func(r rune) rune {
+		switch r {
+		case '/', '\\', ':', '*', '?', '"', '<', '>', '|':
+			return '-'
+		}
+		return r
+	}, name)
+	name = strings.TrimRight(name, ". ")
+	if name == "" {
+		return "export"
+	}
+	return name
 }
 
 // trimCardID removes n characters from the end of a card ID. n=0 returns the full ID.

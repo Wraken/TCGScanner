@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -17,10 +18,13 @@ import (
 type App struct {
 	ctx context.Context
 
-	modelMu        sync.RWMutex
-	model          Predictor
-	db             *sql.DB
-	activeCustomID int
+	modelMu sync.RWMutex
+	model   Predictor
+	db      *sql.DB
+
+	// Bound methods may run on concurrent goroutines — atomic keeps the
+	// check-then-clear in DeleteCollection from racing SaveCard.
+	activeCustomID atomic.Int32
 }
 
 func NewApp() *App {
@@ -125,11 +129,11 @@ func (a *App) GetCardImage(cardID string) (string, error) {
 }
 
 func (a *App) SetActiveCustom(id int) {
-	a.activeCustomID = id
+	a.activeCustomID.Store(int32(id))
 }
 
 func (a *App) GetActiveCustom() int {
-	return a.activeCustomID
+	return int(a.activeCustomID.Load())
 }
 
 func (a *App) GetGameCollections() ([]GameCollection, error) {
@@ -172,10 +176,11 @@ func (a *App) DeleteCollection(id int) error {
 	if a.db == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	if a.activeCustomID == id {
-		a.activeCustomID = 0
+	if err := deleteCollection(a.db, id); err != nil {
+		return err
 	}
-	return deleteCollection(a.db, id)
+	a.activeCustomID.CompareAndSwap(int32(id), 0)
+	return nil
 }
 
 func (a *App) GetCards(f CardFilter) ([]CollectionCard, error) {
@@ -196,8 +201,18 @@ func (a *App) UpdateCard(card CollectionCard) error {
 	if a.db == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	// The id may have been corrected by hand — re-resolve the game.
-	card.Game = gameResolver(allModelImagesDirs())(card.CardID)
+	prev, err := getCard(a.db, card.ID)
+	if err != nil {
+		return err
+	}
+	// A hand-corrected id gets its game re-resolved; any other edit keeps the
+	// stored game so a foil toggle can never downgrade it (shrunk manifest,
+	// bogus Game field from the caller).
+	if card.CardID != prev.CardID {
+		card.Game = gameResolver(allModelImagesDirs())(card.CardID)
+	} else {
+		card.Game = prev.Game
+	}
 	return updateCard(a.db, card)
 }
 
@@ -216,8 +231,10 @@ func (a *App) SaveCard(cardID string, foil bool) (CollectionCard, error) {
 	if model == nil {
 		return CollectionCard{}, fmt.Errorf("no model loaded")
 	}
-	game := gameOfCard(modelImagesDir(model.Name()), cardID)
-	id, err := insertCard(a.db, a.activeCustomID, cardID, game, model.Name(), foil)
+	// Resolve across every installed manifest, like UpdateCard does — a
+	// hand-typed id known only to another model's images still gets a game.
+	game := gameResolver(allModelImagesDirs())(cardID)
+	id, err := insertCard(a.db, int(a.activeCustomID.Load()), cardID, game, model.Name(), foil)
 	if err != nil {
 		return CollectionCard{}, err
 	}
@@ -239,6 +256,10 @@ func (a *App) ExportCSV(f CardFilter, config ExportConfig) (string, error) {
 	if a.db == nil {
 		return "", fmt.Errorf("database not initialized")
 	}
+	// Reject an invalid filter before showing a dead-end save dialog.
+	if _, _, err := cardFilterWhere(f); err != nil {
+		return "", err
+	}
 	if len(config.Fields) == 0 {
 		config = ExportConfig{Fields: builtinPresets[0].Fields}
 	}
@@ -251,11 +272,8 @@ func (a *App) ExportCSV(f CardFilter, config ExportConfig) (string, error) {
 			name = c.Name
 		}
 	}
-	if name == "" {
-		name = "export"
-	}
 	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
-		DefaultFilename: fmt.Sprintf("%s.csv", name),
+		DefaultFilename: fmt.Sprintf("%s.csv", safeFilename(name)),
 		Filters: []runtime.FileFilter{
 			{DisplayName: "CSV Files (*.csv)", Pattern: "*.csv"},
 		},

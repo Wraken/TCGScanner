@@ -43,3 +43,16 @@ func TestWriteCardsCSVFiltered(t *testing.T) {
 		t.Error("invalid filter should be rejected")
 	}
 }
+
+func TestSafeFilename(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"Deck : Aggro", "Deck - Aggro"},
+		{"Rouge/Bleu", "Rouge-Bleu"},
+		{"...", "export"},
+	}
+	for _, c := range cases {
+		if got := safeFilename(c.in); got != c.want {
+			t.Errorf("safeFilename(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}

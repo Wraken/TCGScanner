@@ -40,6 +40,8 @@ export function ScanScreen({ model, collection }: Props) {
 
   const [recent, setRecent] = useState<RecentScan[]>([]);
   const [lastSaved, setLastSaved] = useState<{ card_id: string; game: string } | null>(null);
+  const [saveError, setSaveError] = useState<string>("");
+  const [saving, setSaving] = useState(false);
   const [changingModel, setChangingModel] = useState(false);
   const [videoSize, setVideoSize] = useState<{ w: number; h: number } | null>(null);
 
@@ -55,6 +57,9 @@ export function ScanScreen({ model, collection }: Props) {
   async function handleSave() {
     const id = pred.editedCardID.trim();
     if (!id) return;
+    setLastSaved(null);
+    setSaveError("");
+    setSaving(true);
     const image = pred.cardImage;
     try {
       const saved = await SaveCard(id, pred.foil);
@@ -63,7 +68,16 @@ export function ScanScreen({ model, collection }: Props) {
       setRecent((prev) => [{ card_id: id, image }, ...prev.filter((r) => r.card_id !== id)].slice(0, 3));
     } catch (e) {
       LogDebug(`[SaveCard] Error: ${e}`);
+      setSaveError(String(e));
+    } finally {
+      setSaving(false);
     }
+    pred.resetCard();
+  }
+
+  function handleCancel() {
+    setLastSaved(null);
+    setSaveError("");
     pred.resetCard();
   }
 
@@ -71,7 +85,11 @@ export function ScanScreen({ model, collection }: Props) {
     const name = window.prompt("Nom de la nouvelle collection :")?.trim();
     if (!name) return;
     const c = await collection.createCustom(name);
-    if (c) collection.setActiveCustom(c.id);
+    if (c) {
+      collection.setActiveCustom(c.id);
+    } else {
+      setSaveError("Création de la collection impossible");
+    }
   }
 
   const detected = pred.prediction != null;
@@ -294,12 +312,12 @@ export function ScanScreen({ model, collection }: Props) {
 
         {/* Actions */}
         <div className="flex gap-2 mt-2">
-          <button className="n-btn n-btn-secondary flex-1" onClick={pred.resetCard}>
+          <button className="n-btn n-btn-secondary flex-1" onClick={handleCancel}>
             Annuler
           </button>
           <button
             className="n-btn n-btn-primary flex-1"
-            disabled={!pred.editedCardID.trim()}
+            disabled={!pred.editedCardID.trim() || saving}
             onClick={handleSave}
           >
             <Check className="w-4 h-4" />
@@ -307,10 +325,14 @@ export function ScanScreen({ model, collection }: Props) {
           </button>
         </div>
 
-        {lastSaved && (
-          <p className="text-center text-xs n-n400">
-            {lastSaved.card_id} ajouté à {gameLabel(lastSaved.game)}
-          </p>
+        {saveError ? (
+          <p className="text-center text-xs text-destructive">{saveError}</p>
+        ) : (
+          lastSaved && (
+            <p className="text-center text-xs n-n400">
+              {lastSaved.card_id} ajouté à {gameLabel(lastSaved.game)}
+            </p>
+          )
         )}
 
         {/* Model footer */}

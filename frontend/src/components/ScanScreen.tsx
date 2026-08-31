@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CameraOff, Check, CircleCheck, List, Plus, RefreshCw } from "lucide-react";
+import { CameraOff, Check, CircleCheck, Plus, RefreshCw } from "lucide-react";
 import { SaveCard } from "../../wailsjs/go/main/App";
 import { LogDebug } from "../../wailsjs/runtime/runtime";
 import { useCamera } from "@/hooks/useCamera";
@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatCollectionLabel } from "@/lib/utils";
+import { formatCollectionLabel, gameLabel } from "@/lib/utils";
 
 type ModelHook = ReturnType<typeof useModel>;
 type CollectionHook = ReturnType<typeof useCollection>;
@@ -39,6 +39,7 @@ export function ScanScreen({ model, collection }: Props) {
   const pred = usePrediction(camera.videoRef, camera.canvasRef, model.modelLoaded, camera.selectedCamera);
 
   const [recent, setRecent] = useState<RecentScan[]>([]);
+  const [lastSaved, setLastSaved] = useState<{ card_id: string; game: string } | null>(null);
   const [changingModel, setChangingModel] = useState(false);
   const [videoSize, setVideoSize] = useState<{ w: number; h: number } | null>(null);
 
@@ -56,13 +57,21 @@ export function ScanScreen({ model, collection }: Props) {
     if (!id) return;
     const image = pred.cardImage;
     try {
-      await SaveCard(id, pred.foil);
-      await collection.refreshCollections();
+      const saved = await SaveCard(id, pred.foil);
+      await collection.refresh();
+      setLastSaved({ card_id: saved.card_id, game: saved.game });
       setRecent((prev) => [{ card_id: id, image }, ...prev.filter((r) => r.card_id !== id)].slice(0, 3));
     } catch (e) {
       LogDebug(`[SaveCard] Error: ${e}`);
     }
     pred.resetCard();
+  }
+
+  async function handleNewCustom() {
+    const name = window.prompt("Nom de la nouvelle collection :")?.trim();
+    if (!name) return;
+    const c = await collection.createCustom(name);
+    if (c) collection.setActiveCustom(c.id);
   }
 
   const detected = pred.prediction != null;
@@ -196,19 +205,20 @@ export function ScanScreen({ model, collection }: Props) {
         className="flex flex-col w-[380px] shrink-0 overflow-y-auto"
         style={{ borderLeft: "1px solid var(--n-divider)", paddingLeft: "28px", gap: "16px" }}
       >
-        {/* Collection */}
+        {/* Optional custom collection new scans are also filed under */}
         <div>
-          <label className="block text-xs n-n400 mb-1.5">Collection</label>
+          <label className="block text-xs n-n400 mb-1.5">Ajouter aussi à</label>
           <div className="flex items-center gap-2">
             <Select
-              value={String(collection.currentCollectionId)}
-              onValueChange={(v) => collection.handleSetCollection(v)}
+              value={String(collection.activeCustomId)}
+              onValueChange={(v) => collection.setActiveCustom(parseInt(v, 10) || 0)}
             >
               <SelectTrigger className="flex-1 min-w-0">
-                <SelectValue placeholder="Chargement…" />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {collection.collections.map((c) => (
+                <SelectItem value="0">aucune collection</SelectItem>
+                {collection.customs.map((c) => (
                   <SelectItem key={c.id} value={String(c.id)}>
                     {formatCollectionLabel(c)}
                   </SelectItem>
@@ -217,18 +227,10 @@ export function ScanScreen({ model, collection }: Props) {
             </Select>
             <button
               className="n-btn n-btn-secondary n-btn-icon shrink-0"
-              title="Nouvelle collection"
-              onClick={collection.handleNewCollection}
+              title="Nouvelle collection custom"
+              onClick={handleNewCustom}
             >
               <Plus className="w-4 h-4" />
-            </button>
-            <button
-              className="n-btn n-btn-secondary n-btn-icon shrink-0"
-              title="Détails de la collection"
-              disabled={!collection.currentCollectionId}
-              onClick={collection.openCollectionDetail}
-            >
-              <List className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -304,6 +306,12 @@ export function ScanScreen({ model, collection }: Props) {
             Valider
           </button>
         </div>
+
+        {lastSaved && (
+          <p className="text-center text-xs n-n400">
+            {lastSaved.card_id} ajouté à {gameLabel(lastSaved.game)}
+          </p>
+        )}
 
         {/* Model footer */}
         <div className="mt-auto pt-4 flex items-center justify-between gap-2" style={{ fontSize: "12px" }}>

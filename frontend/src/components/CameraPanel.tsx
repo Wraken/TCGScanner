@@ -18,6 +18,7 @@ interface Props {
   onCameraChange: (deviceId: string) => void;
   cameraError: string;
   onRetry: () => void;
+  scanning: boolean;
 }
 
 export function CameraPanel({ videoRef, cameras, selectedCamera, onCameraChange, cameraError, onRetry }: Props) {

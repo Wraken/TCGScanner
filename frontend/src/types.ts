@@ -3,9 +3,22 @@ export interface CameraDevice {
   label: string;
 }
 
+export interface BoxNorm {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export interface Prediction {
   card_id: string;
   confidence: number;
+  margin?: number;
+  confident: boolean;
+  detect_score?: number;
+  // Detected card bounding box, normalized to [0,1] against the submitted
+  // frame. Set only by the embedding pipeline.
+  box?: BoxNorm;
 }
 
 export interface Collection {

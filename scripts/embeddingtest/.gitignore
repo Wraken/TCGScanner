@@ -1,0 +1,11 @@
+# Training inputs/outputs — huge, regenerable, never committed
+backgrounds/
+datasets/
+images/
+models/
+runs/
+__pycache__/
+*.pt
+# Generated debug artifacts (visualize_index, live_test_detection, probe sheets)
+*.jpg
+*.html

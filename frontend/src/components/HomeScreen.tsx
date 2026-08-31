@@ -1,28 +1,31 @@
-import { Camera, ImageIcon } from "lucide-react";
+import { Camera, FolderOpen, ImageIcon } from "lucide-react";
+import { gameLabel } from "@/lib/utils";
+import type { Collection, GameCollection } from "@/types";
 
 interface Props {
+  games: GameCollection[];
+  customs: Collection[];
   onScan: () => void;
   onOpenGame: (game: string) => void;
+  onOpenCustom: (id: number) => void;
 }
 
-// Placeholder data — pixel-fidelity pass. These figures are not yet backed by
-// the Go backend (no "game" entity, no set-size table, no pricing). They'll be
-// wired to real aggregates when we build the collection/game model.
-const STATS = [
-  { value: "1 248", label: "Cartes" },
-  { value: "87", label: "Scans cette semaine" },
-  { value: "31", label: "Foils" },
-  { value: "2 340 €", label: "Valeur estimée" },
-];
+function fmt(n: number): string {
+  return n.toLocaleString("fr-FR");
+}
 
-const GAMES = [
-  { name: "Pokémon", count: 512, set: "Écarlate & Violet", pct: 64, lastScan: "il y a 2 h" },
-  { name: "One Piece", count: 326, set: "OP01 Romance Dawn", pct: 48, lastScan: "hier" },
-  { name: "Lorcana", count: 238, set: "Premier chapitre", pct: 71, lastScan: "il y a 3 j" },
-  { name: "Riftbound", count: 172, set: "Origines", pct: 36, lastScan: "il y a 1 sem" },
-];
+export function HomeScreen({ games, customs, onScan, onOpenGame, onOpenCustom }: Props) {
+  const totalCards = games.reduce((s, g) => s + g.card_count, 0);
+  const totalFoils = games.reduce((s, g) => s + g.foil_count, 0);
+  const trackedGames = games.filter((g) => g.game !== "").length;
 
-export function HomeScreen({ onScan, onOpenGame }: Props) {
+  const stats = [
+    { value: fmt(totalCards), label: "Cartes" },
+    { value: fmt(totalFoils), label: "Foils" },
+    { value: fmt(trackedGames), label: "Jeux suivis" },
+    { value: fmt(customs.length), label: "Collections custom" },
+  ];
+
   return (
     <div className="h-full overflow-y-auto" style={{ padding: "36px 44px" }}>
       <div className="flex flex-col" style={{ gap: "26px" }}>
@@ -30,7 +33,10 @@ export function HomeScreen({ onScan, onOpenGame }: Props) {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-[32px] leading-tight">Ta collection</h2>
-            <p className="mt-1 text-sm n-n400">4 jeux suivis — dernier scan il y a 2 h</p>
+            <p className="mt-1 text-sm n-n400">
+              {trackedGames} jeu{trackedGames > 1 ? "x" : ""} suivi{trackedGames > 1 ? "s" : ""} —{" "}
+              {fmt(totalCards)} carte{totalCards > 1 ? "s" : ""}
+            </p>
           </div>
           <button onClick={onScan} className="n-btn n-btn-primary shrink-0">
             <Camera className="w-4 h-4" />
@@ -40,7 +46,7 @@ export function HomeScreen({ onScan, onOpenGame }: Props) {
 
         {/* Stats band */}
         <div className="flex flex-wrap gap-x-16 gap-y-6">
-          {STATS.map((s) => (
+          {stats.map((s) => (
             <div key={s.label} className="flex flex-col">
               <span className="text-[40px] font-medium leading-none">{s.value}</span>
               <span
@@ -57,36 +63,51 @@ export function HomeScreen({ onScan, onOpenGame }: Props) {
 
         {/* Game tiles */}
         <div className="grid gap-[18px]" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
-          {GAMES.map((g) => (
-            <div key={g.name} className="n-tile" onClick={() => onOpenGame(g.name)}>
-              {/* Visual (no artwork yet → fallback) */}
+          {games.map((g) => (
+            <div key={g.game || "__other"} className="n-tile" onClick={() => onOpenGame(g.game)}>
               <div
                 className="flex flex-col items-center justify-center gap-2"
                 style={{ height: "280px", background: "var(--n-bg)" }}
               >
                 <ImageIcon className="w-6 h-6 n-n600" />
-                <span className="text-xs n-n500">visuel {g.name}</span>
+                <span className="text-xs n-n500">{gameLabel(g.game)}</span>
               </div>
-
-              {/* Body */}
               <div style={{ padding: "14px 16px 16px" }} className="flex flex-col gap-2.5">
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-base font-medium">{g.name}</span>
-                  <span className="text-xs n-n400">{g.count} cartes</span>
+                  <span className="text-base font-medium">{gameLabel(g.game)}</span>
+                  <span className="text-xs n-n400">{fmt(g.card_count)} cartes</span>
                 </div>
-
-                <div className="h-0.5 rounded-full overflow-hidden" style={{ background: "var(--n-neutral-800)" }}>
-                  <div className="h-full" style={{ width: `${g.pct}%`, background: "var(--n-accent)" }} />
-                </div>
-
                 <div className="flex items-center justify-between" style={{ fontSize: "11px" }}>
-                  <span className="n-n500">{g.set} — {g.pct} %</span>
-                  <span className="n-n500">{g.lastScan}</span>
+                  <span className="n-n500">{fmt(g.foil_count)} foils</span>
                 </div>
               </div>
             </div>
           ))}
         </div>
+
+        {/* Custom collections */}
+        {customs.length > 0 && (
+          <>
+            <hr className="n-hr" />
+            <div className="flex flex-col gap-2">
+              <span
+                className="n-n500"
+                style={{ fontSize: "11px", letterSpacing: "0.08em", textTransform: "uppercase" }}
+              >
+                Collections custom
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {customs.map((c) => (
+                  <button key={c.id} className="n-btn n-btn-secondary" onClick={() => onOpenCustom(c.id)}>
+                    <FolderOpen className="w-4 h-4" />
+                    {c.name}
+                    <span className="n-n500 text-xs">({c.card_count})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

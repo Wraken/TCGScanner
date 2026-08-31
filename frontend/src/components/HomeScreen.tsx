@@ -64,7 +64,13 @@ export function HomeScreen({ games, customs, onScan, onOpenGame, onOpenCustom }:
         {/* Game tiles */}
         <div className="grid gap-[18px]" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
           {games.map((g) => (
-            <div key={g.game || "__other"} className="n-tile" onClick={() => onOpenGame(g.game)}>
+            <button
+              key={g.game || "__other"}
+              type="button"
+              className="n-tile w-full"
+              style={{ textAlign: "inherit", padding: 0 }}
+              onClick={() => onOpenGame(g.game)}
+            >
               <div
                 className="flex flex-col items-center justify-center gap-2"
                 style={{ height: "280px", background: "var(--n-bg)" }}
@@ -75,13 +81,17 @@ export function HomeScreen({ games, customs, onScan, onOpenGame, onOpenCustom }:
               <div style={{ padding: "14px 16px 16px" }} className="flex flex-col gap-2.5">
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="text-base font-medium">{gameLabel(g.game)}</span>
-                  <span className="text-xs n-n400">{fmt(g.card_count)} cartes</span>
+                  <span className="text-xs n-n400">
+                    {fmt(g.card_count)} carte{g.card_count > 1 ? "s" : ""}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between" style={{ fontSize: "11px" }}>
-                  <span className="n-n500">{fmt(g.foil_count)} foils</span>
+                  <span className="n-n500">
+                    {fmt(g.foil_count)} foil{g.foil_count > 1 ? "s" : ""}
+                  </span>
                 </div>
               </div>
-            </div>
+            </button>
           ))}
         </div>
 

@@ -11,6 +11,7 @@ frontend/wailsjs/
 scripts/datasets/
 scripts/images/
 scripts/models/
+scripts/backgrounds/
 
 # Claude Design handoff (input artifact, not source)
 Gestionnaire de collection de cartes/

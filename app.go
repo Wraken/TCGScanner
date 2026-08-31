@@ -3,11 +3,12 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
+	"sync"
+	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -16,7 +17,8 @@ import (
 type App struct {
 	ctx context.Context
 
-	model        *Model
+	modelMu      sync.RWMutex
+	model        Predictor
 	db           *sql.DB
 	collectionID int
 }
@@ -26,12 +28,27 @@ func NewApp() *App {
 }
 
 func (a *App) Close() {
-	if a.model != nil {
-		a.model.Delete()
+	a.modelMu.Lock()
+	model := a.model
+	a.model = nil
+	a.modelMu.Unlock()
+	if model != nil {
+		model.Delete()
 	}
 	if a.db != nil {
 		a.db.Close()
 	}
+}
+
+// currentModel returns the loaded model under the read lock. Predictor is an
+// interface value, so an unsynchronised read racing with LoadModel's swap
+// could observe a torn (type, pointer) pair. Callers that only need cheap
+// metadata such as Name may use the result outside the lock; anything that
+// runs inference must hold modelMu for the whole call, as Predict does.
+func (a *App) currentModel() Predictor {
+	a.modelMu.RLock()
+	defer a.modelMu.RUnlock()
+	return a.model
 }
 
 func (a *App) startup(ctx context.Context) {
@@ -78,41 +95,43 @@ func (a *App) ListModels() ([]string, error) {
 }
 
 func (a *App) LoadModel(modelName string) error {
-	modelPath := fmt.Sprintf("./models/%s/model.tflite", modelName)
-	labelsPath := fmt.Sprintf("./models/%s/labels.json", modelName)
+	dir := filepath.Join(".", "models", modelName)
 
-	model, err := NewModel(modelName, modelPath, labelsPath)
+	// Build new model before acquiring the lock (model init is slow).
+	// A directory holding embedding_model.onnx uses the YOLO + embedding
+	// pipeline; anything else is a legacy TFLite classifier.
+	var model Predictor
+	var err error
+	if isEmbeddingModel(dir) {
+		model, err = NewEmbeddingModel(modelName, dir)
+	} else {
+		model, err = NewModel(modelName,
+			filepath.Join(dir, "model.tflite"),
+			filepath.Join(dir, "labels.json"))
+	}
 	if err != nil {
 		return err
 	}
-	if a.model != nil {
-		a.model.Delete()
-	}
+
+	a.modelMu.Lock()
+	old := a.model
 	a.model = model
+	a.modelMu.Unlock()
+
+	// Delete old model only after the lock is released and no Predict can use it
+	if old != nil {
+		old.Delete()
+	}
 
 	return nil
 }
 
-func loadCardImage(cardID, modelName string) (string, error) {
-	for _, ext := range []string{"jpg", "jpeg", "png", "webp"} {
-		path := filepath.Join(".", "models", modelName, "images", cardID+"."+ext)
-		data, err := os.ReadFile(path)
-		if err == nil {
-			mime := "image/" + ext
-			if ext == "jpg" {
-				mime = "image/jpeg"
-			}
-			return "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(data), nil
-		}
-	}
-	return "", fmt.Errorf("image not found for card %q in model %q", cardID, modelName)
-}
-
 func (a *App) GetCardImage(cardID string) (string, error) {
-	if a.model == nil {
+	model := a.currentModel()
+	if model == nil {
 		return "", fmt.Errorf("no model loaded")
 	}
-	return loadCardImage(cardID, a.model.name)
+	return loadCardImage(cardID, model.Name())
 }
 
 func (a *App) GetCurrentCollectionID() int {
@@ -170,8 +189,8 @@ func (a *App) SaveCard(cardID string, foil bool) error {
 		return fmt.Errorf("database not initialized")
 	}
 	modelName := ""
-	if a.model != nil {
-		modelName = a.model.name
+	if model := a.currentModel(); model != nil {
+		modelName = model.Name()
 	}
 	return insertCard(a.db, a.collectionID, cardID, modelName, foil)
 }
@@ -217,16 +236,27 @@ func (a *App) ExportCollectionCSV(collectionID int, config ExportConfig) (string
 }
 
 func (a *App) Predict(imageData string) (*Prediction, error) {
+	a.modelMu.RLock()
+	defer a.modelMu.RUnlock()
+
 	if a.model == nil {
 		return nil, fmt.Errorf("no model loaded")
 	}
 
+	t0 := time.Now()
 	pred, err := a.model.Predict(imageData)
+	goMs := time.Since(t0).Milliseconds()
 	if err != nil {
 		runtime.LogDebugf(a.ctx, "[Predict] Error: %v", err)
 		return nil, err
 	}
 
-	fmt.Printf("[Predict] card_id=%s confidence=%.4f\n", pred.CardID, pred.Confidence)
+	if pred.DetectScore > 0 {
+		fmt.Printf("[Predict] card_id=%s confidence=%.4f margin=%.4f detect=%.2f confident=%t go=%dms payload=%dKB\n",
+			pred.CardID, pred.Confidence, pred.Margin, pred.DetectScore, pred.Confident, goMs, len(imageData)/1024)
+	} else {
+		fmt.Printf("[Predict] card_id=%s confidence=%.4f confident=%t go=%dms payload=%dKB\n",
+			pred.CardID, pred.Confidence, pred.Confident, goMs, len(imageData)/1024)
+	}
 	return pred, nil
 }

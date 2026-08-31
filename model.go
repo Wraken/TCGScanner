@@ -27,7 +27,18 @@ type ModelConfig struct {
 	NumClasses int    `json:"num_classes"`
 }
 
-const defaultImgSize = 224
+const (
+	defaultImgSize = 224
+	// classifierThreshold matches the value the frontend used to hardcode.
+	classifierThreshold = 0.99
+)
+
+// inferenceThreads is how many threads one model may use for one inference,
+// whichever runtime backs it. Half the logical cores leaves room for the
+// webcam preview and the UI, which render while the prediction loop runs.
+func inferenceThreads() int {
+	return max(1, runtime.NumCPU()/2)
+}
 
 func loadModelConfig(configPath string) ModelConfig {
 	data, err := os.ReadFile(configPath)
@@ -68,11 +79,7 @@ func NewModel(modelName, modelPath, labelsPath string) (*Model, error) {
 	}
 
 	options := tflite.NewInterpreterOptions()
-	threads := runtime.NumCPU() / 2
-	if threads < 1 {
-		threads = 1
-	}
-	options.SetNumThread(threads)
+	options.SetNumThread(inferenceThreads())
 
 	interpreter := tflite.NewInterpreter(model, options)
 	if interpreter == nil {
@@ -109,7 +116,43 @@ func (m *Model) Delete() {
 type Prediction struct {
 	CardID     string  `json:"card_id"`
 	Confidence float64 `json:"confidence"`
+	// Margin is how far Confidence leads the best *different* card. Only the
+	// embedding pipeline sets it; the classifier leaves it zero.
+	Margin float64 `json:"margin,omitempty"`
+	// Confident is the model's own verdict that this prediction is certain
+	// enough to lock the UI. Each pipeline decides on its own scale — a
+	// saturated softmax for the classifier, score-plus-margin for the
+	// embedding pipeline — so the frontend never hardcodes a threshold.
+	Confident bool `json:"confident"`
+	// DetectScore is the detector's confidence that a card is in frame. Only
+	// the embedding pipeline sets it; it is what to look at when tuning the
+	// detection threshold against real webcam footage.
+	DetectScore float64 `json:"detect_score,omitempty"`
+	// Box is the detected card's bounding box, normalized to [0,1] against the
+	// submitted frame (x,y = top-left). Only the embedding pipeline sets it, so
+	// the UI can draw the contour where YOLO actually found the card. The
+	// classifier, which reads the whole frame, leaves it nil.
+	Box *BoxNorm `json:"box,omitempty"`
 }
+
+// BoxNorm is an axis-aligned box in normalized frame coordinates ([0,1]).
+type BoxNorm struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+	W float64 `json:"w"`
+	H float64 `json:"h"`
+}
+
+// Predictor is implemented by both model pipelines: the TFLite classifier
+// (*Model) and the YOLO + embedding pipeline (*EmbeddingModel). Each returns a
+// Prediction whose Confident field carries its own lock decision.
+type Predictor interface {
+	Predict(base64Frame string) (*Prediction, error)
+	Name() string
+	Delete()
+}
+
+func (m *Model) Name() string { return m.name }
 
 func (m *Model) Predict(base64Frame string) (*Prediction, error) {
 	imgData, err := base64.StdEncoding.DecodeString(base64Frame)
@@ -175,6 +218,9 @@ func getBestPrediction(output []float32, labels map[int]string) *Prediction {
 	return &Prediction{
 		CardID:     cardID,
 		Confidence: float64(bestVal),
+		// The classifier's softmax saturates near 1 for a sure prediction, so
+		// a near-saturated top score is the lock condition.
+		Confident: float64(bestVal) >= classifierThreshold,
 	}
 }
 

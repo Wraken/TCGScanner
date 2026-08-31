@@ -56,9 +56,11 @@ def generate_gradient_bg(size):
     t = np.linspace(0, 1, size, dtype=np.float32)
 
     if direction == "horizontal":
-        bg = c1 * (1 - t)[np.newaxis, :, np.newaxis] + c2 * t[np.newaxis, :, np.newaxis]
+        row = c1 * (1 - t)[:, np.newaxis] + c2 * t[:, np.newaxis]  # (size, 3)
+        bg = np.broadcast_to(row[np.newaxis, :, :], (size, size, 3))
     elif direction == "vertical":
-        bg = c1 * (1 - t)[:, np.newaxis, np.newaxis] + c2 * t[:, np.newaxis, np.newaxis]
+        col = c1 * (1 - t)[:, np.newaxis] + c2 * t[:, np.newaxis]  # (size, 3)
+        bg = np.broadcast_to(col[:, np.newaxis, :], (size, size, 3))
     else:
         t2 = np.add.outer(t, t) / 2  # shape (size, size), values in [0, 1]
         bg = c1 * (1 - t2[:, :, np.newaxis]) + c2 * t2[:, :, np.newaxis]

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -104,5 +105,66 @@ func loadCardImageFrom(imagesDir, cardID string) (string, error) {
 }
 
 func loadCardImage(cardID, modelName string) (string, error) {
-	return loadCardImageFrom(filepath.Join(".", "models", modelName, "images"), cardID)
+	return loadCardImageFrom(modelImagesDir(modelName), cardID)
+}
+
+func modelImagesDir(modelName string) string {
+	return filepath.Join(".", "models", modelName, "images")
+}
+
+// gameOfCard returns the game sub-directory the manifest files cardID under
+// ("onepiece/OP01-025.webp" -> "onepiece"). Unknown ids and flat entries
+// return "".
+func gameOfCard(imagesDir, cardID string) string {
+	rel, ok := cardImageManifest(imagesDir)[cardID]
+	if !ok {
+		return ""
+	}
+	if i := strings.IndexByte(rel, '/'); i > 0 {
+		return rel[:i]
+	}
+	return ""
+}
+
+// manifestGames returns the sorted distinct games of a manifest.
+func manifestGames(imagesDir string) []string {
+	seen := map[string]bool{}
+	for _, rel := range cardImageManifest(imagesDir) {
+		if i := strings.IndexByte(rel, '/'); i > 0 {
+			seen[rel[:i]] = true
+		}
+	}
+	games := make([]string, 0, len(seen))
+	for g := range seen {
+		games = append(games, g)
+	}
+	sort.Strings(games)
+	return games
+}
+
+// allModelImagesDirs lists the images dir of every model under ./models.
+func allModelImagesDirs() []string {
+	entries, err := os.ReadDir(filepath.Join(".", "models"))
+	if err != nil {
+		return nil
+	}
+	var dirs []string
+	for _, e := range entries {
+		if e.IsDir() {
+			dirs = append(dirs, modelImagesDir(e.Name()))
+		}
+	}
+	return dirs
+}
+
+// gameResolver resolves a card id through several manifests, first hit wins.
+func gameResolver(imagesDirs []string) func(cardID string) string {
+	return func(cardID string) string {
+		for _, dir := range imagesDirs {
+			if g := gameOfCard(dir, cardID); g != "" {
+				return g
+			}
+		}
+		return ""
+	}
 }

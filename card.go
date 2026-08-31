@@ -62,3 +62,41 @@ func deleteCard(db *sql.DB, id int) error {
 	_, err := db.Exec(`DELETE FROM cards WHERE id = ?`, id)
 	return err
 }
+
+// backfillCardGames fills cards.game for rows where it is still unknown.
+// Runs on every startup: cards scanned before a game's images were installed
+// heal themselves once the manifest knows their id.
+func backfillCardGames(db *sql.DB, resolve func(cardID string) string) (int, error) {
+	rows, err := db.Query(`SELECT DISTINCT card_id FROM cards WHERE game = ''`)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return 0, err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+
+	total := 0
+	for _, id := range ids {
+		g := resolve(id)
+		if g == "" {
+			continue
+		}
+		res, err := db.Exec(`UPDATE cards SET game = ? WHERE card_id = ? AND game = ''`, g, id)
+		if err != nil {
+			return total, err
+		}
+		if n, err := res.RowsAffected(); err == nil {
+			total += int(n)
+		}
+	}
+	return total, nil
+}

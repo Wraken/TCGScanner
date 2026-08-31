@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -153,6 +154,46 @@ func TestLoadCardImageRealModel(t *testing.T) {
 		if !e.IsDir() && e.Name() != imageManifestFile {
 			t.Errorf("stale flat file in images/: %s", e.Name())
 		}
+	}
+}
+
+func TestGameOfCard(t *testing.T) {
+	dir := t.TempDir()
+	manifest := `{"OP01-025": "onepiece/OP01-025.webp", "flat-001": "flat-001.webp"}`
+	if err := os.WriteFile(filepath.Join(dir, "manifest.json"), []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if g := gameOfCard(dir, "OP01-025"); g != "onepiece" {
+		t.Errorf("gameOfCard = %q, want onepiece", g)
+	}
+	if g := gameOfCard(dir, "flat-001"); g != "" {
+		t.Errorf("flat entry should have no game, got %q", g)
+	}
+	if g := gameOfCard(dir, "unknown"); g != "" {
+		t.Errorf("unknown id should have no game, got %q", g)
+	}
+}
+
+func TestManifestGames(t *testing.T) {
+	dir := t.TempDir()
+	manifest := `{"a": "pokemon/a.webp", "b": "onepiece/b.webp", "c": "pokemon/c.webp", "d": "d.webp"}`
+	if err := os.WriteFile(filepath.Join(dir, "manifest.json"), []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got := manifestGames(dir)
+	want := []string{"onepiece", "pokemon"}
+	if !slices.Equal(got, want) {
+		t.Errorf("manifestGames = %v, want %v", got, want)
+	}
+}
+
+func TestGameOfCardRealModel(t *testing.T) {
+	dir := modelImagesDir("tcg")
+	if _, err := os.Stat(filepath.Join(dir, "manifest.json")); err != nil {
+		t.Skip("models/tcg not present")
+	}
+	if g := gameOfCard(dir, "sv01-020"); g != "pokemon" {
+		t.Errorf("sv01-020 game = %q, want pokemon", g)
 	}
 }
 

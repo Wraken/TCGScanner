@@ -40,7 +40,7 @@ export function useCollection() {
 
   function setActiveCustom(id: number) {
     setActiveCustomId(id);
-    SetActiveCustom(id);
+    SetActiveCustom(id).catch((e) => LogDebug(`[Collections] setActive error: ${e}`));
   }
 
   async function createCustom(name: string): Promise<Collection | null> {
@@ -66,7 +66,7 @@ export function useCollection() {
   async function deleteCustom(id: number) {
     try {
       await DeleteCollection(id);
-      if (activeCustomId === id) setActiveCustomId(0);
+      setActiveCustomId((prev) => (prev === id ? 0 : prev));
       await refresh();
     } catch (e) {
       LogDebug(`[Collections] delete error: ${e}`);

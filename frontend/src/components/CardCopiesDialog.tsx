@@ -64,7 +64,7 @@ export function CardCopiesDialog({
                     ))}
                   </SelectContent>
                 </Select>
-                <button className="n-btn n-btn-secondary n-btn-icon" onClick={() => onDelete(c.id)}>
+                <button className="n-btn n-btn-secondary n-btn-icon" title="Supprimer cet exemplaire" onClick={() => onDelete(c.id)}>
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>

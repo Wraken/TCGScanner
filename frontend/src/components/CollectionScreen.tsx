@@ -44,24 +44,36 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
         if (cancelled) return;
         const list = (rows ?? []) as CollectionCard[];
         setCards(list);
-        // One image per distinct card id, loaded after the grid renders.
+        // One image per distinct card id, loaded after the grid renders, in
+        // bounded batches so the view renders progressively instead of
+        // waiting on the slowest of potentially hundreds of IPC calls.
         const seen = new Map<string, string>();
         for (const c of list) if (!seen.has(c.card_id)) seen.set(c.card_id, c.model_name);
-        const imgs: Record<string, string> = {};
-        await Promise.all(
-          [...seen.entries()].map(([id, model]) =>
-            GetCardImageByModel(id, model)
-              .then((img: string) => { imgs[id] = img; })
-              .catch(() => {})
-          )
-        );
-        if (!cancelled) setImages(imgs);
+        const entries = [...seen.entries()];
+        const BATCH = 12;
+        for (let i = 0; i < entries.length; i += BATCH) {
+          if (cancelled) return;
+          const chunk = entries.slice(i, i + BATCH);
+          const imgs: Record<string, string> = {};
+          await Promise.all(
+            chunk.map(([id, model]) =>
+              GetCardImageByModel(id, model)
+                .then((img: string) => { imgs[id] = img; })
+                .catch(() => {})
+            )
+          );
+          if (cancelled) return;
+          setImages((prev) => ({ ...prev, ...imgs }));
+        }
       })
       .catch((e) => LogDebug(`[CollectionScreen] ${e}`));
     return () => { cancelled = true; };
   }, [target.game, target.other_bucket, target.collection_id]);
 
-  const groups = useMemo(() => {
+  // Unfiltered per-card_id aggregation. Kept separate from `groups` so the
+  // copies dialog (looked up against this) never goes empty just because
+  // the active search/foil filter no longer matches the card being edited.
+  const allGroups = useMemo(() => {
     const map = new Map<string, CardGroup>();
     for (const c of cards) {
       let g = map.get(c.card_id);
@@ -72,7 +84,11 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
       if (c.foil) g.foil++; else g.normal++;
       g.copies.push(c);
     }
-    let list = [...map.values()].sort((a, b) => a.card_id.localeCompare(b.card_id));
+    return [...map.values()].sort((a, b) => a.card_id.localeCompare(b.card_id));
+  }, [cards]);
+
+  const groups = useMemo(() => {
+    let list = allGroups;
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter((g) => g.card_id.toLowerCase().includes(q));
@@ -80,14 +96,21 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
     if (foilFilter === "normal") list = list.filter((g) => g.normal > 0);
     if (foilFilter === "foil") list = list.filter((g) => g.foil > 0);
     return list;
-  }, [cards, search, foilFilter]);
+  }, [allGroups, search, foilFilter]);
 
   const title =
     target.collection_id != null && target.collection_id !== 0
       ? collection.customs.find((c) => c.id === target.collection_id)?.name ?? "Collection"
       : gameLabel(target.other_bucket ? "" : target.game ?? "");
 
-  const openGroup = openCard ? groups.find((g) => g.card_id === openCard) ?? null : null;
+  const openGroup = openCard ? allGroups.find((g) => g.card_id === openCard) ?? null : null;
+
+  // Auto-close the dialog once the card it's showing has no copies left
+  // (last copy deleted, or the last foil toggled while the last remaining
+  // copy stops matching — allGroups only drops the entry once truly empty).
+  useEffect(() => {
+    if (openCard && !allGroups.some((g) => g.card_id === openCard)) setOpenCard(null);
+  }, [allGroups, openCard]);
 
   async function refreshCards() {
     try {
@@ -211,7 +234,13 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
       ) : (
         <div className="grid gap-[14px]" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))" }}>
           {groups.map((g) => (
-            <div key={g.card_id} className="flex flex-col gap-1.5 cursor-pointer" onClick={() => setOpenCard(g.card_id)}>
+            <button
+              type="button"
+              key={g.card_id}
+              className="flex flex-col gap-1.5 w-full"
+              style={{ textAlign: "inherit", padding: 0 }}
+              onClick={() => setOpenCard(g.card_id)}
+            >
               <div
                 className="relative rounded-lg overflow-hidden"
                 style={{ aspectRatio: "63 / 88", background: "var(--n-surface)" }}
@@ -233,7 +262,7 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
                 <span className="font-mono n-n400" style={{ fontSize: "11px" }}>{g.card_id}</span>
                 <span className="n-n500" style={{ fontSize: "11px" }}>×{g.normal + g.foil}</span>
               </div>
-            </div>
+            </button>
           ))}
         </div>
       )}

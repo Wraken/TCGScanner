@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   DeleteCollection,
   ExportCSV,
+  GetActiveCustom,
   GetCustomCollections,
   GetGameCollections,
   ListExportPresets,
@@ -26,6 +27,7 @@ export function useCollection() {
     ListExportPresets()
       .then((p) => setExportPresets((p ?? []) as ExportPreset[]))
       .catch(() => {});
+    GetActiveCustom().then(setActiveCustomId).catch(() => {});
   }, []);
 
   async function refresh() {

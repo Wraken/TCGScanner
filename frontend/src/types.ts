@@ -24,16 +24,33 @@ export interface Prediction {
 export interface Collection {
   id: number;
   name: string;
-  started_at: string;
+  created_at: string;
   card_count: number;
+}
+
+export interface GameCollection {
+  game: string;
+  card_count: number;
+  foil_count: number;
 }
 
 export interface CollectionCard {
   id: number;
   card_id: string;
+  game: string;
+  // Custom collection this copy belongs to; 0 = none.
+  collection_id: number;
   foil: boolean;
   model_name: string;
   scanned_at: string;
+}
+
+// Selects one view: a game, the unknown-game bucket, or a custom collection.
+// Exactly one field set (the backend rejects anything else).
+export interface CardFilter {
+  game?: string;
+  other_bucket?: boolean;
+  collection_id?: number;
 }
 
 export type ExportField = "card_id" | "normal_count" | "foil_count" | "total_count";

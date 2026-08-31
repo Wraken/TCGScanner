@@ -23,7 +23,17 @@ export function formatDate(s: string): string {
 }
 
 export function formatCollectionLabel(c: Collection): string {
-  return c.name.trim()
-    ? `${c.name} (${c.card_count})`
-    : `#${c.id} · ${formatDate(c.started_at)} (${c.card_count})`;
+  return `${c.name} (${c.card_count})`;
+}
+
+const GAME_LABELS: Record<string, string> = {
+  pokemon: "Pokémon",
+  onepiece: "One Piece",
+  lorcana: "Lorcana",
+  riftbound: "Riftbound",
+  "": "Autres",
+};
+
+export function gameLabel(game: string): string {
+  return GAME_LABELS[game] ?? game;
 }

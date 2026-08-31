@@ -1,151 +1,109 @@
 import { useEffect, useState } from "react";
 import {
-  DeleteCard,
-  ExportCollectionCSV,
-  UpdateCard,
-  GetCardImageByModel,
-  GetCollectionCards,
-  GetCollections,
-  GetCurrentCollectionID,
+  DeleteCollection,
+  ExportCSV,
+  GetCustomCollections,
+  GetGameCollections,
   ListExportPresets,
-  NewCollection,
+  NewCustomCollection,
   RenameCollection,
-  SetCollection,
+  SetActiveCustom,
 } from "../../wailsjs/go/main/App";
 import { LogDebug } from "../../wailsjs/runtime/runtime";
-import type { Collection, CollectionCard, ExportConfig, ExportPreset } from "@/types";
+import type { CardFilter, Collection, ExportConfig, ExportPreset, GameCollection } from "@/types";
 
 export function useCollection() {
-  const [collections, setCollections] = useState<Collection[]>([]);
-  const [currentCollectionId, setCurrentCollectionId] = useState<number>(0);
-  const [renaming, setRenaming] = useState(false);
-  const [renameValue, setRenameValue] = useState("");
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailCards, setDetailCards] = useState<CollectionCard[]>([]);
-  const [detailImages, setDetailImages] = useState<Record<string, string>>({});
-  const [exportOpen, setExportOpen] = useState(false);
+  const [games, setGames] = useState<GameCollection[]>([]);
+  const [customs, setCustoms] = useState<Collection[]>([]);
+  // Custom collection new scans are also filed under; 0 = none. In-memory
+  // only, on purpose: it resets to "aucune" on every app start.
+  const [activeCustomId, setActiveCustomId] = useState(0);
+  const [exportTarget, setExportTarget] = useState<CardFilter | null>(null);
   const [exportPresets, setExportPresets] = useState<ExportPreset[]>([]);
 
   useEffect(() => {
-    Promise.all([GetCollections(), GetCurrentCollectionID(), ListExportPresets()])
-      .then(([list, id, presets]) => {
-        setCollections(list ?? []);
-        setCurrentCollectionId(id);
-        setExportPresets((presets ?? []) as ExportPreset[]);
-      })
+    refresh();
+    ListExportPresets()
+      .then((p) => setExportPresets((p ?? []) as ExportPreset[]))
       .catch(() => {});
   }, []);
 
-  async function refreshCollections() {
-    const updated = await GetCollections();
-    if (updated) setCollections(updated);
-  }
-
-  async function handleNewCollection() {
+  async function refresh() {
     try {
-      const c = await NewCollection();
-      setCollections((prev) => [c, ...prev]);
-      setCurrentCollectionId(c.id);
-    } catch {}
-  }
-
-  function handleSetCollection(idStr: string) {
-    const id = parseInt(idStr, 10);
-    if (isNaN(id)) return;
-    SetCollection(id);
-    setCurrentCollectionId(id);
-  }
-
-  async function handleRenameSubmit() {
-    try {
-      await RenameCollection(currentCollectionId, renameValue.trim());
-      await refreshCollections();
-      setRenaming(false);
+      const [g, c] = await Promise.all([GetGameCollections(), GetCustomCollections()]);
+      setGames((g ?? []) as GameCollection[]);
+      setCustoms((c ?? []) as Collection[]);
     } catch (e) {
-      LogDebug(`[Rename] Error: ${e}`);
+      LogDebug(`[Collections] refresh error: ${e}`);
     }
   }
 
-  async function openCollectionDetail() {
-    try {
-      const cards = await GetCollectionCards(currentCollectionId);
-      setDetailCards(cards ?? []);
-      setDetailImages({});
-      setDetailOpen(true);
-      const imgs: Record<string, string> = {};
-      const seen = new Map<string, string>();
-      for (const c of cards ?? []) {
-        if (!seen.has(c.card_id)) seen.set(c.card_id, c.model_name);
-      }
-      await Promise.all(
-        [...seen.entries()].map(([cardId, modelName]) =>
-          GetCardImageByModel(cardId, modelName)
-            .then((img: string) => { imgs[cardId] = img; })
-            .catch(() => {})
-        )
-      );
-      setDetailImages({ ...imgs });
-    } catch {}
+  function setActiveCustom(id: number) {
+    setActiveCustomId(id);
+    SetActiveCustom(id);
   }
 
-  async function handleDeleteCard(id: number) {
+  async function createCustom(name: string): Promise<Collection | null> {
     try {
-      await DeleteCard(id);
-      setDetailCards((prev) => prev.filter((c) => c.id !== id));
-      setCollections((prev) =>
-        prev.map((c) =>
-          c.id === currentCollectionId ? { ...c, card_count: c.card_count - 1 } : c
-        )
-      );
+      const c = (await NewCustomCollection(name)) as Collection;
+      setCustoms((prev) => [c, ...prev]);
+      return c;
     } catch (e) {
-      LogDebug(`[DeleteCard] Error: ${e}`);
+      LogDebug(`[Collections] create error: ${e}`);
+      return null;
     }
   }
 
-  async function handleUpdateCard(updated: CollectionCard) {
+  async function renameCustom(id: number, name: string) {
     try {
-      await UpdateCard(updated);
-      setDetailCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      await RenameCollection(id, name);
+      await refresh();
     } catch (e) {
-      LogDebug(`[UpdateCard] Error: ${e}`);
+      LogDebug(`[Collections] rename error: ${e}`);
     }
   }
 
-  function handleExport() {
-    if (currentCollectionId) setExportOpen(true);
+  async function deleteCustom(id: number) {
+    try {
+      await DeleteCollection(id);
+      if (activeCustomId === id) setActiveCustomId(0);
+      await refresh();
+    } catch (e) {
+      LogDebug(`[Collections] delete error: ${e}`);
+    }
   }
 
-  async function handleExportConfirm(config: ExportConfig) {
+  function openExport(f: CardFilter) {
+    setExportTarget(f);
+  }
+
+  function closeExport() {
+    setExportTarget(null);
+  }
+
+  async function confirmExport(config: ExportConfig) {
+    if (!exportTarget) return;
     try {
-      await ExportCollectionCSV(currentCollectionId, config);
+      await ExportCSV(exportTarget, config);
     } catch (e) {
-      LogDebug(`[Export] Error: ${e}`);
+      LogDebug(`[Export] error: ${e}`);
     }
-    setExportOpen(false);
+    setExportTarget(null);
   }
 
   return {
-    collections,
-    currentCollectionId,
-    renaming,
-    setRenaming,
-    renameValue,
-    setRenameValue,
-    handleNewCollection,
-    handleSetCollection,
-    handleRenameSubmit,
-    refreshCollections,
-    openCollectionDetail,
-    handleDeleteCard,
-    handleUpdateCard,
-    handleExport,
-    handleExportConfirm,
-    exportOpen,
-    setExportOpen,
+    games,
+    customs,
+    activeCustomId,
+    refresh,
+    setActiveCustom,
+    createCustom,
+    renameCustom,
+    deleteCustom,
+    exportTarget,
+    openExport,
+    closeExport,
     exportPresets,
-    detailOpen,
-    setDetailOpen,
-    detailCards,
-    detailImages,
+    confirmExport,
   };
 }

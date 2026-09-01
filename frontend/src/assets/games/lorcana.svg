@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 280" preserveAspectRatio="xMidYMid slice">
+  <!-- Original abstract artwork: enchanted ink motif -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b1930"/>
+      <stop offset="1" stop-color="#131222"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.42" cy="0.4" r="0.7">
+      <stop offset="0" stop-color="#9184d9" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#9184d9" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ink" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#b3a8ec"/>
+      <stop offset="0.6" stop-color="#9184d9"/>
+      <stop offset="1" stop-color="#d9b84f"/>
+    </linearGradient>
+  </defs>
+  <rect width="300" height="280" fill="url(#bg)"/>
+  <rect width="300" height="280" fill="url(#glow)"/>
+  <!-- ink swirl -->
+  <path d="M70 210 C60 150 110 96 168 92 C216 89 244 122 238 156 C232 190 198 206 172 196 C148 187 140 162 152 146 C162 132 182 132 190 144"
+        fill="none" stroke="url(#ink)" stroke-width="7" stroke-linecap="round" opacity="0.9"/>
+  <path d="M70 210 C64 158 108 104 164 100" fill="none" stroke="#9184d9" stroke-width="2" stroke-linecap="round" opacity="0.35"/>
+  <!-- ink droplet at the swirl tip -->
+  <circle cx="192" cy="146" r="5" fill="#d9b84f" opacity="0.95"/>
+  <!-- sparkle stars -->
+  <g fill="#d9b84f">
+    <path d="M228 64 C229.5 58 230.5 57 236 55.5 C230.5 54 229.5 53 228 47 C226.5 53 225.5 54 220 55.5 C225.5 57 226.5 58 228 64 Z" opacity="0.9"/>
+    <path d="M84 84 C85 80 85.7 79.3 90 78 C85.7 76.7 85 76 84 72 C83 76 82.3 76.7 78 78 C82.3 79.3 83 80 84 84 Z" opacity="0.7"/>
+  </g>
+  <g fill="#b3a8ec">
+    <path d="M242 226 C243 222 243.7 221.3 248 220 C243.7 218.7 243 218 242 214 C241 218 240.3 218.7 236 220 C240.3 221.3 241 222 242 226 Z" opacity="0.8"/>
+    <circle cx="110" cy="238" r="2" opacity="0.6"/>
+    <circle cx="58" cy="60" r="1.7" opacity="0.5"/>
+    <circle cx="262" cy="120" r="1.7" opacity="0.55"/>
+  </g>
+</svg>

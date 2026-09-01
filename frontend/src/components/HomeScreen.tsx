@@ -1,6 +1,19 @@
 import { Camera, FolderOpen, ImageIcon } from "lucide-react";
 import { gameLabel } from "@/lib/utils";
 import type { Collection, GameCollection } from "@/types";
+import pokemonCover from "@/assets/games/pokemon.svg";
+import onepieceCover from "@/assets/games/onepiece.svg";
+import lorcanaCover from "@/assets/games/lorcana.svg";
+import riftboundCover from "@/assets/games/riftbound.svg";
+
+// Original in-house artwork (no trademarked logos — the repo is public).
+// Unknown games and the "Autres" bucket fall back to the icon placeholder.
+const GAME_COVERS: Record<string, string> = {
+  pokemon: pokemonCover,
+  onepiece: onepieceCover,
+  lorcana: lorcanaCover,
+  riftbound: riftboundCover,
+};
 
 interface Props {
   games: GameCollection[];
@@ -72,11 +85,17 @@ export function HomeScreen({ games, customs, onScan, onOpenGame, onOpenCustom }:
               onClick={() => onOpenGame(g.game)}
             >
               <div
-                className="flex flex-col items-center justify-center gap-2"
+                className="flex flex-col items-center justify-center gap-2 overflow-hidden"
                 style={{ height: "280px", background: "var(--n-bg)" }}
               >
-                <ImageIcon className="w-6 h-6 n-n600" />
-                <span className="text-xs n-n500">{gameLabel(g.game)}</span>
+                {GAME_COVERS[g.game] ? (
+                  <img src={GAME_COVERS[g.game]} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <>
+                    <ImageIcon className="w-6 h-6 n-n600" />
+                    <span className="text-xs n-n500">{gameLabel(g.game)}</span>
+                  </>
+                )}
               </div>
               <div style={{ padding: "14px 16px 16px" }} className="flex flex-col gap-2.5">
                 <div className="flex items-baseline justify-between gap-2">

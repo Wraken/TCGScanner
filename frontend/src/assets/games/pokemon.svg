@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 280" preserveAspectRatio="xMidYMid slice">
+  <!-- Original abstract artwork (no trademarked shapes): electric storm motif -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b1d2e"/>
+      <stop offset="1" stop-color="#121420"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.42" r="0.65">
+      <stop offset="0" stop-color="#f2c744" stop-opacity="0.28"/>
+      <stop offset="0.55" stop-color="#e8a33d" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#e8a33d" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="bolt" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#f7dd7a"/>
+      <stop offset="0.5" stop-color="#f2c744"/>
+      <stop offset="1" stop-color="#e08f35"/>
+    </linearGradient>
+  </defs>
+  <rect width="300" height="280" fill="url(#bg)"/>
+  <rect width="300" height="280" fill="url(#glow)"/>
+  <!-- faint back bolts -->
+  <path d="M232 60 L204 122 H222 L198 176 L238 116 H218 L244 60 Z" fill="#f2c744" opacity="0.10"/>
+  <path d="M74 118 L52 168 H66 L48 212 L80 164 H64 L86 118 Z" fill="#f2c744" opacity="0.12"/>
+  <!-- main bolt -->
+  <path d="M172 34 L112 160 H148 L118 248 L198 120 H160 L200 34 Z" fill="url(#bolt)" opacity="0.92"/>
+  <!-- sparks -->
+  <g fill="#f7dd7a">
+    <circle cx="96" cy="70" r="2.4" opacity="0.7"/>
+    <circle cx="228" cy="196" r="2" opacity="0.6"/>
+    <circle cx="60" cy="246" r="1.8" opacity="0.5"/>
+    <circle cx="250" cy="150" r="1.5" opacity="0.45"/>
+    <circle cx="136" cy="52" r="1.6" opacity="0.5"/>
+  </g>
+</svg>

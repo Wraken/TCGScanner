@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 280" preserveAspectRatio="xMidYMid slice">
+  <!-- Original abstract artwork: ocean voyage motif (compass and waves) -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#141a2b"/>
+      <stop offset="1" stop-color="#0f131e"/>
+    </linearGradient>
+    <linearGradient id="wave1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4f9cd9" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#4f9cd9" stop-opacity="0.04"/>
+    </linearGradient>
+    <linearGradient id="wave2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2e6ea8" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#2e6ea8" stop-opacity="0.06"/>
+    </linearGradient>
+  </defs>
+  <rect width="300" height="280" fill="url(#bg)"/>
+  <!-- compass rings -->
+  <circle cx="150" cy="112" r="66" fill="none" stroke="#4f9cd9" stroke-opacity="0.45" stroke-width="2"/>
+  <circle cx="150" cy="112" r="50" fill="none" stroke="#4f9cd9" stroke-opacity="0.2" stroke-width="1"/>
+  <g stroke="#4f9cd9" stroke-opacity="0.35" stroke-width="1.5">
+    <line x1="150" y1="38" x2="150" y2="50"/>
+    <line x1="150" y1="174" x2="150" y2="186"/>
+    <line x1="76" y1="112" x2="88" y2="112"/>
+    <line x1="212" y1="112" x2="224" y2="112"/>
+  </g>
+  <!-- compass star: north in red, others in blue -->
+  <path d="M150 58 L159 103 L150 112 L141 103 Z" fill="#d95757" opacity="0.95"/>
+  <path d="M204 112 L159 121 L150 112 L159 103 Z" fill="#4f9cd9" opacity="0.8"/>
+  <path d="M150 166 L141 121 L150 112 L159 121 Z" fill="#3a7cb8" opacity="0.8"/>
+  <path d="M96 112 L141 103 L150 112 L141 121 Z" fill="#4f9cd9" opacity="0.8"/>
+  <circle cx="150" cy="112" r="4" fill="#dce8f2" opacity="0.9"/>
+  <!-- waves -->
+  <path d="M0 216 C40 200 70 232 110 218 C150 204 180 236 220 222 C255 210 280 228 300 218 V280 H0 Z" fill="url(#wave1)"/>
+  <path d="M0 240 C45 226 80 254 125 242 C170 230 205 258 250 246 C270 241 288 248 300 244 V280 H0 Z" fill="url(#wave2)"/>
+</svg>

@@ -272,7 +272,7 @@ func (a *App) ExportCSV(f CardFilter, config ExportConfig) (string, error) {
 	}
 	name := f.Game
 	if f.OtherBucket {
-		name = "autres"
+		name = "other"
 	}
 	if f.CollectionID != 0 {
 		if c, err := getCollection(a.db, f.CollectionID); err == nil {

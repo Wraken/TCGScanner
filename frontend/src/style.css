@@ -175,7 +175,7 @@
 .n-btn-icon { width: 36px; height: 36px; padding: 0; }
 .n-btn-block { width: 100%; }
 
-/* Segmented control (Finition: Normale / Foil). */
+/* Segmented control (Finish: Normal / Foil). */
 .n-seg-opt {
   flex: 1; padding: 7px 12px; font-size: 13px; cursor: pointer;
   background: transparent; color: hsl(var(--foreground)); border: 0;

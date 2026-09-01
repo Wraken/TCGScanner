@@ -159,15 +159,15 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
       {/* Title row */}
       <div className="flex items-center gap-3">
         <h2 className="text-[28px] leading-tight">{title}</h2>
-        <span className="n-tag n-tag-neutral">{cards.length} carte{cards.length > 1 ? "s" : ""}</span>
+        <span className="n-tag n-tag-neutral">{cards.length} card{cards.length !== 1 ? "s" : ""}</span>
         <div className="ml-auto flex items-center gap-2">
           {target.collection_id != null && target.collection_id !== 0 && (
             <>
               <button
                 className="n-btn n-btn-secondary n-btn-icon"
-                title="Renommer"
+                title="Rename"
                 onClick={async () => {
-                  const name = window.prompt("Nouveau nom :", title)?.trim();
+                  const name = window.prompt("New name:", title)?.trim();
                   if (name) await collection.renameCustom(target.collection_id!, name);
                 }}
               >
@@ -175,9 +175,9 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
               </button>
               <button
                 className="n-btn n-btn-secondary n-btn-icon"
-                title="Supprimer la collection (les cartes sont conservées)"
+                title="Delete the collection (cards are kept)"
                 onClick={async () => {
-                  if (!window.confirm(`Supprimer « ${title} » ? Les cartes restent dans leurs jeux.`)) return;
+                  if (!window.confirm(`Delete "${title}"? The cards stay in their games.`)) return;
                   await collection.deleteCustom(target.collection_id!);
                   onChangeTarget(collection.games[0]?.game ? { game: collection.games[0].game } : { other_bucket: true });
                 }}
@@ -188,11 +188,11 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
           )}
           <button className="n-btn n-btn-secondary" onClick={() => collection.openExport(target)}>
             <Upload className="w-4 h-4" />
-            Exporter
+            Export
           </button>
           <button className="n-btn n-btn-primary" onClick={onScan}>
             <Camera className="w-4 h-4" />
-            Scanner
+            Scan
           </button>
         </div>
       </div>
@@ -207,12 +207,12 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher un ID…"
+            placeholder="Search an ID…"
             className="bg-transparent outline-none text-sm flex-1 min-w-0"
           />
         </div>
         <div className="flex rounded-md overflow-hidden" style={{ border: "1px solid var(--n-divider)" }}>
-          {([["all", "Toutes"], ["normal", "Normales"], ["foil", "Foil"]] as const).map(([v, label], i) => (
+          {([["all", "All"], ["normal", "Normal"], ["foil", "Foil"]] as const).map(([v, label], i) => (
             <button
               key={v}
               className="n-seg-opt"
@@ -229,7 +229,7 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
       {/* Grid */}
       {groups.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
-          <p className="text-sm n-n500">Aucune carte dans cette vue.</p>
+          <p className="text-sm n-n500">No cards in this view.</p>
         </div>
       ) : (
         <div className="grid gap-[14px]" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))" }}>
@@ -258,7 +258,7 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
                 <span
                   className="flex items-center gap-1.5"
                   style={{ fontSize: "11px" }}
-                  title={`${g.normal} normale${g.normal > 1 ? "s" : ""} · ${g.foil} foil${g.foil > 1 ? "s" : ""}`}
+                  title={`${g.normal} normal · ${g.foil} foil${g.foil !== 1 ? "s" : ""}`}
                 >
                   {g.normal > 0 && <span className="n-n500">×{g.normal}</span>}
                   {g.foil > 0 && <span style={{ color: "var(--n-accent)" }}>✦{g.foil}</span>}
@@ -272,7 +272,7 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
       {/* Footer line */}
       {cards.length > 0 && (
         <p className="text-xs n-n500">
-          {cards.length} carte{cards.length > 1 ? "s" : ""} · {groups.length} unique{groups.length > 1 ? "s" : ""} — triées par numéro
+          {cards.length} card{cards.length !== 1 ? "s" : ""} · {groups.length} unique — sorted by number
         </p>
       )}
 

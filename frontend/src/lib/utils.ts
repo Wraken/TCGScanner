@@ -31,7 +31,7 @@ const GAME_LABELS: Record<string, string> = {
   onepiece: "One Piece",
   lorcana: "Lorcana",
   riftbound: "Riftbound",
-  "": "Autres",
+  "": "Other",
 };
 
 export function gameLabel(game: string): string {

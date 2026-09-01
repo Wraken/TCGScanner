@@ -7,7 +7,7 @@ import lorcanaCover from "@/assets/games/lorcana.svg";
 import riftboundCover from "@/assets/games/riftbound.svg";
 
 // Original in-house artwork (no trademarked logos — the repo is public).
-// Unknown games and the "Autres" bucket fall back to the icon placeholder.
+// Unknown games and the "Other" bucket fall back to the icon placeholder.
 const GAME_COVERS: Record<string, string> = {
   pokemon: pokemonCover,
   onepiece: onepieceCover,
@@ -26,7 +26,7 @@ interface Props {
 }
 
 function fmt(n: number): string {
-  return n.toLocaleString("fr-FR");
+  return n.toLocaleString("en-US");
 }
 
 export function HomeScreen({ games, customs, covers, onScan, onOpenGame, onOpenCustom }: Props) {
@@ -35,10 +35,10 @@ export function HomeScreen({ games, customs, covers, onScan, onOpenGame, onOpenC
   const trackedGames = games.filter((g) => g.game !== "").length;
 
   const stats = [
-    { value: fmt(totalCards), label: "Cartes" },
+    { value: fmt(totalCards), label: "Cards" },
     { value: fmt(totalFoils), label: "Foils" },
-    { value: fmt(trackedGames), label: "Jeux suivis" },
-    { value: fmt(customs.length), label: "Collections custom" },
+    { value: fmt(trackedGames), label: "Games tracked" },
+    { value: fmt(customs.length), label: "Custom collections" },
   ];
 
   return (
@@ -47,15 +47,15 @@ export function HomeScreen({ games, customs, covers, onScan, onOpenGame, onOpenC
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-[32px] leading-tight">Ta collection</h2>
+            <h2 className="text-[32px] leading-tight">Your collection</h2>
             <p className="mt-1 text-sm n-n400">
-              {trackedGames} jeu{trackedGames > 1 ? "x" : ""} suivi{trackedGames > 1 ? "s" : ""} —{" "}
-              {fmt(totalCards)} carte{totalCards > 1 ? "s" : ""}
+              {trackedGames} game{trackedGames !== 1 ? "s" : ""} tracked —{" "}
+              {fmt(totalCards)} card{totalCards !== 1 ? "s" : ""}
             </p>
           </div>
           <button onClick={onScan} className="n-btn n-btn-primary shrink-0">
             <Camera className="w-4 h-4" />
-            Scanner des cartes
+            Scan cards
           </button>
         </div>
 
@@ -105,12 +105,12 @@ export function HomeScreen({ games, customs, covers, onScan, onOpenGame, onOpenC
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="text-base font-medium">{gameLabel(g.game)}</span>
                   <span className="text-xs n-n400">
-                    {fmt(g.card_count)} carte{g.card_count > 1 ? "s" : ""}
+                    {fmt(g.card_count)} card{g.card_count !== 1 ? "s" : ""}
                   </span>
                 </div>
                 <div className="flex items-center justify-between" style={{ fontSize: "11px" }}>
                   <span className="n-n500">
-                    {fmt(g.foil_count)} foil{g.foil_count > 1 ? "s" : ""}
+                    {fmt(g.foil_count)} foil{g.foil_count !== 1 ? "s" : ""}
                   </span>
                 </div>
               </div>
@@ -128,7 +128,7 @@ export function HomeScreen({ games, customs, covers, onScan, onOpenGame, onOpenC
                 className="n-n500"
                 style={{ fontSize: "11px", letterSpacing: "0.08em", textTransform: "uppercase" }}
               >
-                Collections custom
+                Custom collections
               </span>
               <div className="flex flex-wrap gap-2">
                 {customs.map((c) => (

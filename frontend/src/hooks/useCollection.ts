@@ -18,7 +18,7 @@ export function useCollection() {
   const [games, setGames] = useState<GameCollection[]>([]);
   const [customs, setCustoms] = useState<Collection[]>([]);
   // Custom collection new scans are also filed under; 0 = none. In-memory
-  // only, on purpose: it resets to "aucune" on every app start.
+  // only, on purpose: it resets to "no collection" on every app start.
   const [activeCustomId, setActiveCustomId] = useState(0);
   const [exportTarget, setExportTarget] = useState<CardFilter | null>(null);
   const [exportPresets, setExportPresets] = useState<ExportPreset[]>([]);

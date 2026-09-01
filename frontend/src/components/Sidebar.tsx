@@ -26,11 +26,11 @@ export function Sidebar({ screen, onNavigate }: Props) {
       <nav className="flex flex-col gap-1">
         <button className="n-nav" data-active={screen === "home"} onClick={() => onNavigate("home")}>
           <LayoutGrid className="w-[18px] h-[18px]" />
-          Accueil
+          Home
         </button>
         <button className="n-nav" data-active={screen === "scan"} onClick={() => onNavigate("scan")}>
           <Camera className="w-[18px] h-[18px]" />
-          Scanner
+          Scan
         </button>
         <button className="n-nav" data-active={screen === "collection"} onClick={() => onNavigate("collection")}>
           <Layers className="w-[18px] h-[18px]" />
@@ -42,9 +42,9 @@ export function Sidebar({ screen, onNavigate }: Props) {
         </button>
       </nav>
 
-      <button className="n-nav mt-auto" disabled title="Bientôt disponible">
+      <button className="n-nav mt-auto" disabled title="Coming soon">
         <Settings className="w-[18px] h-[18px]" />
-        Réglages
+        Settings
       </button>
     </aside>
   );

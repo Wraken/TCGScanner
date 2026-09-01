@@ -28,8 +28,8 @@ interface RecentScan {
   image: string | null;
 }
 
-function frPercent(v: number): string {
-  return (v * 100).toFixed(1).replace(".", ",");
+function pct(v: number): string {
+  return (v * 100).toFixed(1);
 }
 
 const PREFERRED_MODEL = "tcg";
@@ -82,13 +82,13 @@ export function ScanScreen({ model, collection }: Props) {
   }
 
   async function handleNewCustom() {
-    const name = window.prompt("Nom de la nouvelle collection :")?.trim();
+    const name = window.prompt("Name of the new collection:")?.trim();
     if (!name) return;
     const c = await collection.createCustom(name);
     if (c) {
       collection.setActiveCustom(c.id);
     } else {
-      setSaveError("Création de la collection impossible");
+      setSaveError("Could not create the collection");
     }
   }
 
@@ -104,7 +104,7 @@ export function ScanScreen({ model, collection }: Props) {
           <div className="max-w-[380px] flex-1">
             <Select value={camera.selectedCamera} onValueChange={camera.setSelectedCamera}>
               <SelectTrigger>
-                <SelectValue placeholder="Sélectionner une caméra" />
+                <SelectValue placeholder="Select a camera" />
               </SelectTrigger>
               <SelectContent>
                 {camera.cameras.map((cam) => (
@@ -120,7 +120,7 @@ export function ScanScreen({ model, collection }: Props) {
               className="w-1.5 h-1.5 rounded-full"
               style={{ background: scanning ? "var(--n-accent)" : "var(--n-neutral-500)" }}
             />
-            {scanning ? "Détection active" : "En pause"}
+            {scanning ? "Detecting" : "Paused"}
           </span>
         </div>
 
@@ -132,7 +132,7 @@ export function ScanScreen({ model, collection }: Props) {
               <p className="text-sm n-n400 max-w-xs">{camera.cameraError}</p>
               <button className="n-btn n-btn-secondary" onClick={camera.initCameras}>
                 <RefreshCw className="w-4 h-4" />
-                Réessayer
+                Retry
               </button>
             </div>
           ) : (
@@ -180,7 +180,7 @@ export function ScanScreen({ model, collection }: Props) {
                     fontFamily="ui-monospace, monospace"
                     fontSize={videoSize.h * 0.022}
                   >
-                    carte · {frPercent(pred.prediction!.confidence)} %
+                    card · {pct(pred.prediction!.confidence)}%
                   </text>
                 </svg>
               )}
@@ -194,7 +194,7 @@ export function ScanScreen({ model, collection }: Props) {
             className="n-n500 shrink-0"
             style={{ fontSize: "11px", letterSpacing: "0.08em", textTransform: "uppercase" }}
           >
-            Derniers scans
+            Recent scans
           </span>
           <div className="flex items-center gap-3">
             {recent.length === 0 ? (
@@ -225,7 +225,7 @@ export function ScanScreen({ model, collection }: Props) {
       >
         {/* Optional custom collection new scans are also filed under */}
         <div>
-          <label className="block text-xs n-n400 mb-1.5">Ajouter aussi à</label>
+          <label className="block text-xs n-n400 mb-1.5">Also add to</label>
           <div className="flex items-center gap-2">
             <Select
               value={String(collection.activeCustomId)}
@@ -235,7 +235,7 @@ export function ScanScreen({ model, collection }: Props) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="0">aucune collection</SelectItem>
+                <SelectItem value="0">no collection</SelectItem>
                 {collection.customs.map((c) => (
                   <SelectItem key={c.id} value={String(c.id)}>
                     {formatCollectionLabel(c)}
@@ -245,7 +245,7 @@ export function ScanScreen({ model, collection }: Props) {
             </Select>
             <button
               className="n-btn n-btn-secondary n-btn-icon shrink-0"
-              title="Nouvelle collection custom"
+              title="New custom collection"
               onClick={handleNewCustom}
             >
               <Plus className="w-4 h-4" />
@@ -255,7 +255,7 @@ export function ScanScreen({ model, collection }: Props) {
 
         {/* Detected tag */}
         {detected && (
-          <span className="n-tag n-tag-accent self-start">Carte détectée</span>
+          <span className="n-tag n-tag-accent self-start">Card detected</span>
         )}
 
         {/* Crop / matched reference image */}
@@ -266,13 +266,13 @@ export function ScanScreen({ model, collection }: Props) {
           {pred.cardImage ? (
             <img src={pred.cardImage} alt={pred.editedCardID} className="w-full h-full object-contain" />
           ) : (
-            <span className="text-xs n-n600 font-mono">recadrage de la carte</span>
+            <span className="text-xs n-n600 font-mono">card crop</span>
           )}
         </div>
 
         {/* Card ID */}
         <div>
-          <label className="block text-xs n-n400 mb-1.5">ID de la carte</label>
+          <label className="block text-xs n-n400 mb-1.5">Card ID</label>
           <input
             value={pred.editedCardID}
             onChange={(e) => pred.updateEditedCardID(e.target.value)}
@@ -283,8 +283,8 @@ export function ScanScreen({ model, collection }: Props) {
           {pred.prediction && (
             <p className="mt-2 text-center text-xs n-n400">
               {pred.editedCardID !== pred.prediction.card_id && pred.editedCardID.trim()
-                ? "ID corrigé manuellement"
-                : `${frPercent(pred.prediction.confidence)} % de confiance`}
+                ? "ID corrected manually"
+                : `${pct(pred.prediction.confidence)}% confidence`}
             </p>
           )}
           {pred.predictionError && (
@@ -294,10 +294,10 @@ export function ScanScreen({ model, collection }: Props) {
 
         {/* Finish */}
         <div>
-          <label className="block text-xs n-n400 mb-1.5">Finition</label>
+          <label className="block text-xs n-n400 mb-1.5">Finish</label>
           <div className="flex rounded-md overflow-hidden" style={{ border: "1px solid var(--n-divider)" }}>
             <button className="n-seg-opt" data-active={!pred.foil} onClick={() => pred.setFoil(false)}>
-              Normale
+              Normal
             </button>
             <button
               className="n-seg-opt"
@@ -313,7 +313,7 @@ export function ScanScreen({ model, collection }: Props) {
         {/* Actions */}
         <div className="flex gap-2 mt-2">
           <button className="n-btn n-btn-secondary flex-1" onClick={handleCancel}>
-            Annuler
+            Cancel
           </button>
           <button
             className="n-btn n-btn-primary flex-1"
@@ -321,7 +321,7 @@ export function ScanScreen({ model, collection }: Props) {
             onClick={handleSave}
           >
             <Check className="w-4 h-4" />
-            Valider
+            Save
           </button>
         </div>
 
@@ -330,7 +330,7 @@ export function ScanScreen({ model, collection }: Props) {
         ) : (
           lastSaved && (
             <p className="text-center text-xs n-n400">
-              {lastSaved.card_id} ajouté à {gameLabel(lastSaved.game)}
+              {lastSaved.card_id} added to {gameLabel(lastSaved.game)}
             </p>
           )
         )}
@@ -347,7 +347,7 @@ export function ScanScreen({ model, collection }: Props) {
                 }}
               >
                 <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Choisir un modèle" />
+                  <SelectValue placeholder="Choose a model" />
                 </SelectTrigger>
                 <SelectContent>
                   {model.models.map((m) => (
@@ -362,12 +362,12 @@ export function ScanScreen({ model, collection }: Props) {
             <>
               <span className="flex items-center gap-1.5 n-n500 min-w-0">
                 <span className="truncate">
-                  Modèle {model.modelLoading ? "…" : model.selectedModel || "aucun"}
+                  Model {model.modelLoading ? "…" : model.selectedModel || "none"}
                 </span>
                 {model.modelLoaded && <CircleCheck className="w-3.5 h-3.5 n-brand shrink-0" />}
               </span>
               <button className="n-brand shrink-0" onClick={() => setChangingModel(true)} style={{ fontSize: "12px" }}>
-                changer
+                change
               </button>
             </>
           )}

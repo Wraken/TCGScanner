@@ -252,15 +252,17 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
                     <ImageIcon className="w-5 h-5 n-n600" />
                   </div>
                 )}
-                {g.foil > 0 && (
-                  <span className="absolute top-2 right-2 n-tag n-tag-accent" style={{ fontSize: "10px" }}>
-                    FOIL
-                  </span>
-                )}
               </div>
               <div className="flex items-center justify-between px-0.5">
                 <span className="font-mono n-n400" style={{ fontSize: "11px" }}>{g.card_id}</span>
-                <span className="n-n500" style={{ fontSize: "11px" }}>×{g.normal + g.foil}</span>
+                <span
+                  className="flex items-center gap-1.5"
+                  style={{ fontSize: "11px" }}
+                  title={`${g.normal} normale${g.normal > 1 ? "s" : ""} · ${g.foil} foil${g.foil > 1 ? "s" : ""}`}
+                >
+                  {g.normal > 0 && <span className="n-n500">×{g.normal}</span>}
+                  {g.foil > 0 && <span style={{ color: "var(--n-accent)" }}>✦{g.foil}</span>}
+                </span>
               </div>
             </button>
           ))}

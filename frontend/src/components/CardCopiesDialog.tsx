@@ -31,16 +31,16 @@ export function CardCopiesDialog({
 }: Props) {
   return (
     <Dialog open={cardId !== null} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[80vh] flex flex-col">
+      <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="font-mono">{cardId} · {copies.length} {copies.length !== 1 ? "copies" : "copy"}</DialogTitle>
         </DialogHeader>
-        <div className="flex gap-4 min-h-0">
+        <div className="flex gap-6 min-h-0">
           <div
-            className="w-40 shrink-0 rounded-lg overflow-hidden self-start"
-            style={{ background: "var(--n-surface)" }}
+            className="w-72 shrink-0 rounded-lg overflow-hidden self-start"
+            style={{ aspectRatio: "63 / 88", background: "var(--n-surface)" }}
           >
-            {image && <img src={image} alt={cardId ?? ""} className="w-full object-contain" />}
+            {image && <img src={image} alt={cardId ?? ""} className="w-full h-full object-cover" />}
           </div>
           <div className="flex-1 overflow-y-auto flex flex-col gap-2">
             {copies.map((c) => (

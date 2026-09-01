@@ -1,4 +1,6 @@
+import { useEffect, useRef, useState } from "react";
 import { Camera, FolderOpen, ImageIcon } from "lucide-react";
+import { GetGameCover } from "../../wailsjs/go/main/App";
 import { gameLabel } from "@/lib/utils";
 import type { Collection, GameCollection } from "@/types";
 import pokemonCover from "@/assets/games/pokemon.svg";
@@ -28,6 +30,26 @@ function fmt(n: number): string {
 }
 
 export function HomeScreen({ games, customs, onScan, onOpenGame, onOpenCustom }: Props) {
+  // Bundle-provided covers (images/<game>/_cover.*) take precedence over the
+  // built-in SVG art; games without either keep the icon placeholder.
+  const [covers, setCovers] = useState<Record<string, string>>({});
+  const requestedCovers = useRef(new Set<string>());
+  useEffect(() => {
+    let cancelled = false;
+    for (const g of games) {
+      if (!g.game || requestedCovers.current.has(g.game)) continue;
+      requestedCovers.current.add(g.game);
+      GetGameCover(g.game)
+        .then((img) => {
+          if (!cancelled) setCovers((prev) => ({ ...prev, [g.game]: img }));
+        })
+        .catch(() => {});
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [games]);
+
   const totalCards = games.reduce((s, g) => s + g.card_count, 0);
   const totalFoils = games.reduce((s, g) => s + g.foil_count, 0);
   const trackedGames = games.filter((g) => g.game !== "").length;
@@ -76,7 +98,9 @@ export function HomeScreen({ games, customs, onScan, onOpenGame, onOpenCustom }:
 
         {/* Game tiles */}
         <div className="grid gap-[18px]" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
-          {games.map((g) => (
+          {games.map((g) => {
+            const cover = covers[g.game] ?? GAME_COVERS[g.game];
+            return (
             <button
               key={g.game || "__other"}
               type="button"
@@ -88,8 +112,8 @@ export function HomeScreen({ games, customs, onScan, onOpenGame, onOpenCustom }:
                 className="flex flex-col items-center justify-center gap-2 overflow-hidden"
                 style={{ height: "280px", background: "var(--n-bg)" }}
               >
-                {GAME_COVERS[g.game] ? (
-                  <img src={GAME_COVERS[g.game]} alt="" className="w-full h-full object-cover" />
+                {cover ? (
+                  <img src={cover} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <>
                     <ImageIcon className="w-6 h-6 n-n600" />
@@ -111,7 +135,8 @@ export function HomeScreen({ games, customs, onScan, onOpenGame, onOpenCustom }:
                 </div>
               </div>
             </button>
-          ))}
+            );
+          })}
         </div>
 
         {/* Custom collections */}

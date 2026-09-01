@@ -12,6 +12,10 @@ Copies models/tcg/ (scripts side) into the app's models/<name>/ directory:
                                        through ONNX Runtime instead of a JS loop.
   - images/<game>/                   : reference PNGs converted to webp (resized),
                                        one sub-directory per game
+  - images/<game>/_cover.webp        : optional game tile artwork (from a
+                                       _cover.* file in the source dir, or
+                                       dropped in by hand); never in the
+                                       manifest, never pruned
   - images/manifest.json             : card id -> path relative to images/, read
                                        by the app (one map lookup, no dir walk)
 
@@ -148,6 +152,7 @@ def main() -> None:
         img_dest = dest / "images"
         img_dest.mkdir(exist_ok=True)
         sources = {}  # stem -> (game, source path)
+        covers = {}  # game -> source path of its optional _cover.* art
         for spec in args.images:
             game, _, d = spec.partition("=")
             if not game or not d:
@@ -155,13 +160,22 @@ def main() -> None:
             for p in sorted(Path(d).iterdir()):
                 if p.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}:
                     continue
+                # _cover.* is the game's tile artwork, not a card: converted
+                # alongside the cards but kept out of the manifest.
+                if p.stem == "_cover":
+                    covers[game] = p
+                    continue
                 if p.stem in sources:
                     print(f"  WARNING: {p.stem} in {d} shadows {sources[p.stem][1].parent}")
                 sources[p.stem] = (game, p)
         for game in sorted({g for g, _ in sources.values()}):
             (img_dest / game).mkdir(exist_ok=True)
+        for game in covers:
+            (img_dest / game).mkdir(exist_ok=True)
         jobs = [(p, img_dest / game / (stem + ".webp"), args.width)
                 for stem, (game, p) in sorted(sources.items())]
+        jobs += [(p, img_dest / game / "_cover.webp", args.width)
+                 for game, p in sorted(covers.items())]
         done = 0
         with ProcessPoolExecutor(max_workers=8) as ex:
             for i, converted in enumerate(ex.map(convert_image, jobs, chunksize=16)):
@@ -179,8 +193,11 @@ def main() -> None:
 
         # Files from a previous layout (e.g. the old flat images/<id>.webp) would
         # leave the app dir carrying two copies of every card — drop them.
+        # Cover art (_cover.*) may also be dropped straight into the app dir by
+        # hand, so anything with that stem survives the pruning.
         expected = {manifest_path} | {img_dest / rel for rel in manifest.values()}
-        stale = [p for p in img_dest.rglob("*") if p.is_file() and p not in expected]
+        stale = [p for p in img_dest.rglob("*")
+                 if p.is_file() and p not in expected and p.stem != "_cover"]
         if stale:
             if args.keep_stale:
                 print(f"  {len(stale)} stale files kept (--keep-stale), e.g. {stale[0].name}")

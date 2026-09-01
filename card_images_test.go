@@ -228,3 +228,31 @@ func TestLoadCardImageManifestEscapeIgnored(t *testing.T) {
 		t.Error("path escaping the images dir must not resolve")
 	}
 }
+
+func TestLoadGameCover(t *testing.T) {
+	dirA := t.TempDir()
+	dirB := t.TempDir()
+	writeTestFile(t, filepath.Join(dirB, "pokemon", "_cover.webp"), "webp-bytes")
+
+	// Found in the second dir; data URL carries the right mime.
+	url, err := loadGameCoverFrom([]string{dirA, dirB}, "pokemon")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mime, payload := decodeDataURL(t, url)
+	if mime != "image/webp" || payload != "webp-bytes" {
+		t.Errorf("got mime %q payload %q", mime, payload)
+	}
+
+	// Missing cover -> error.
+	if _, err := loadGameCoverFrom([]string{dirA, dirB}, "lorcana"); err == nil {
+		t.Error("missing cover should error")
+	}
+
+	// Hostile game names never touch the filesystem outside the images dirs.
+	for _, g := range []string{"", "..", "../x", `a\b`, "a/b"} {
+		if _, err := loadGameCoverFrom([]string{dirB}, g); err == nil {
+			t.Errorf("game %q should be rejected", g)
+		}
+	}
+}

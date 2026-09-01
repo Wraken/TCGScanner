@@ -163,6 +163,31 @@ func allModelImagesDirs() []string {
 	return dirs
 }
 
+// A game's cover art lives at images/<game>/_cover.<ext> in the model
+// bundle — distributed with the card images, never committed to the repo
+// (official artwork stays out of git). The underscore keeps it clear of the
+// card-id namespace, and package_app_model.py preserves it when pruning.
+const gameCoverStem = "_cover"
+
+// loadGameCoverFrom returns the first cover found for game across imagesDirs
+// as a base64 data URL. The game name is used as a path segment, so anything
+// that is not a plain directory name is rejected.
+func loadGameCoverFrom(imagesDirs []string, game string) (string, error) {
+	if game == "" || game == "." || game == ".." || strings.ContainsAny(game, `/\`) {
+		return "", fmt.Errorf("invalid game name %q", game)
+	}
+	for _, dir := range imagesDirs {
+		for _, ext := range cardImageExts {
+			data, err := os.ReadFile(filepath.Join(dir, game, gameCoverStem+"."+ext))
+			if err != nil {
+				continue
+			}
+			return "data:" + mimeForExt(ext) + ";base64," + base64.StdEncoding.EncodeToString(data), nil
+		}
+	}
+	return "", fmt.Errorf("no cover for game %q", game)
+}
+
 // gameResolver resolves a card id through several manifests, first hit wins.
 func gameResolver(imagesDirs []string) func(cardID string) string {
 	return func(cardID string) string {

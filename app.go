@@ -241,6 +241,13 @@ func (a *App) SaveCard(cardID string, foil bool) (CollectionCard, error) {
 	return getCard(a.db, id)
 }
 
+// GetGameCover serves the optional bundle-provided cover art of a game
+// (images/<game>/_cover.<ext>); the frontend falls back to its built-in
+// artwork when this errors.
+func (a *App) GetGameCover(game string) (string, error) {
+	return loadGameCoverFrom(allModelImagesDirs(), game)
+}
+
 func (a *App) GetCardImageByModel(cardID, modelName string) (string, error) {
 	if modelName == "" {
 		return "", fmt.Errorf("no model name provided")

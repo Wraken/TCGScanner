@@ -33,6 +33,7 @@ function App() {
           <HomeScreen
             games={collection.games}
             customs={collection.customs}
+            covers={collection.gameCovers}
             onScan={() => setScreen("scan")}
             onOpenGame={openGame}
             onOpenCustom={openCustom}

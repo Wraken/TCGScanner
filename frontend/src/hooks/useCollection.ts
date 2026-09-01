@@ -5,6 +5,7 @@ import {
   GetActiveCustom,
   GetCustomCollections,
   GetGameCollections,
+  GetGameCover,
   ListExportPresets,
   NewCustomCollection,
   RenameCollection,
@@ -21,6 +22,27 @@ export function useCollection() {
   const [activeCustomId, setActiveCustomId] = useState(0);
   const [exportTarget, setExportTarget] = useState<CardFilter | null>(null);
   const [exportPresets, setExportPresets] = useState<ExportPreset[]>([]);
+  // Bundle cover art per game (images/<game>/_cover.*). Cached here — this
+  // hook lives in App and never unmounts — so screen navigation never
+  // refetches. Games without a cover are simply absent from the map, and get
+  // retried on every refresh: dropping a _cover file while the app runs makes
+  // it appear after the next scan/refresh.
+  const [gameCovers, setGameCovers] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    for (const g of games) {
+      if (!g.game || g.game in gameCovers) continue;
+      GetGameCover(g.game)
+        .then((img) => {
+          if (!cancelled) setGameCovers((prev) => (g.game in prev ? prev : { ...prev, [g.game]: img }));
+        })
+        .catch(() => {});
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [games]);
 
   useEffect(() => {
     refresh();
@@ -96,6 +118,7 @@ export function useCollection() {
   return {
     games,
     customs,
+    gameCovers,
     activeCustomId,
     refresh,
     setActiveCustom,

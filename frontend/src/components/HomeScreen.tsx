@@ -1,6 +1,4 @@
-import { useEffect, useRef, useState } from "react";
 import { Camera, FolderOpen, ImageIcon } from "lucide-react";
-import { GetGameCover } from "../../wailsjs/go/main/App";
 import { gameLabel } from "@/lib/utils";
 import type { Collection, GameCollection } from "@/types";
 import pokemonCover from "@/assets/games/pokemon.svg";
@@ -20,6 +18,8 @@ const GAME_COVERS: Record<string, string> = {
 interface Props {
   games: GameCollection[];
   customs: Collection[];
+  // Bundle cover art per game, cached app-wide by useCollection.
+  covers: Record<string, string>;
   onScan: () => void;
   onOpenGame: (game: string) => void;
   onOpenCustom: (id: number) => void;
@@ -29,27 +29,7 @@ function fmt(n: number): string {
   return n.toLocaleString("fr-FR");
 }
 
-export function HomeScreen({ games, customs, onScan, onOpenGame, onOpenCustom }: Props) {
-  // Bundle-provided covers (images/<game>/_cover.*) take precedence over the
-  // built-in SVG art; games without either keep the icon placeholder.
-  const [covers, setCovers] = useState<Record<string, string>>({});
-  const requestedCovers = useRef(new Set<string>());
-  useEffect(() => {
-    let cancelled = false;
-    for (const g of games) {
-      if (!g.game || requestedCovers.current.has(g.game)) continue;
-      requestedCovers.current.add(g.game);
-      GetGameCover(g.game)
-        .then((img) => {
-          if (!cancelled) setCovers((prev) => ({ ...prev, [g.game]: img }));
-        })
-        .catch(() => {});
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [games]);
-
+export function HomeScreen({ games, customs, covers, onScan, onOpenGame, onOpenCustom }: Props) {
   const totalCards = games.reduce((s, g) => s + g.card_count, 0);
   const totalFoils = games.reduce((s, g) => s + g.foil_count, 0);
   const trackedGames = games.filter((g) => g.game !== "").length;

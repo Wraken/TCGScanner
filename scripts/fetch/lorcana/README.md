@@ -20,7 +20,24 @@ the fetcher is resumable and incremental (re-run after each set release).
 go run .                 # every set (~3200 cards, ~2.4 GB of PNG)
 go run . -sets 1,9,P1    # specific sets
 go run . -list           # print all set codes
+go run . -meta           # write cards.json (metadata) instead of downloading images
 ```
+
+## Metadata
+
+`go run . -meta` writes `cards.json`: a map of card id -> `{name, set,
+set_name, number, rarity, type, colors}` (the app's common metadata format).
+Ids match the image file names (`1-207`, `P1-4`), so the two modes stay in
+sync automatically.
+
+- `name` is `<name> - <version>` when the card has a version/subtitle (e.g.
+  `"Ariel - On Human Legs"`); just `<name>` otherwise.
+- `type` joins the API's `type` array with `" / "`.
+- `colors` is the card's ink(s) (`inks` for multi-ink cards, else `[ink]`);
+  `[]` if neither is present.
+
+Runs in a few seconds (one request per set, same as image mode without the
+downloads).
 
 ## Catalog as of 2026-08 (22 sets, 3192 cards)
 

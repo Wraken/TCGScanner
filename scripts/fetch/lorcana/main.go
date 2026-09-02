@@ -42,6 +42,7 @@ const (
 	quality   = "large" // small | normal | large
 	delay     = 80 * time.Millisecond
 	minBytes  = 3000 // guard against error pages / empty bodies
+	metaFile  = "cards.json"
 )
 
 type setStub struct {
@@ -54,11 +55,31 @@ type setsResponse struct {
 }
 
 type card struct {
-	CollectorNumber string `json:"collector_number"`
-	Name            string `json:"name"`
-	ImageURIs       struct {
+	CollectorNumber string   `json:"collector_number"`
+	Name            string   `json:"name"`
+	Version         string   `json:"version"`
+	Rarity          string   `json:"rarity"`
+	Ink             string   `json:"ink"`
+	Inks            []string `json:"inks"`
+	Type            []string `json:"type"`
+	Set             struct {
+		Code string `json:"code"`
+		Name string `json:"name"`
+	} `json:"set"`
+	ImageURIs struct {
 		Digital map[string]string `json:"digital"`
 	} `json:"image_uris"`
+}
+
+// meta is the app's common metadata record (see the card metadata spec).
+type meta struct {
+	Name    string   `json:"name"`
+	Set     string   `json:"set"`
+	SetName string   `json:"set_name"`
+	Number  string   `json:"number"`
+	Rarity  string   `json:"rarity"`
+	Type    string   `json:"type"`
+	Colors  []string `json:"colors"`
 }
 
 var client = &http.Client{Timeout: 30 * time.Second}
@@ -103,6 +124,12 @@ func download(url, outPath string) bool {
 	return os.WriteFile(outPath, buf.Bytes(), 0o644) == nil
 }
 
+// cardID mirrors the image file naming: <set>-<collector_number> with "/"
+// replaced ("1-207", "P1-4"), so metadata keys equal index labels.
+func cardID(setCode, collectorNumber string) string {
+	return setCode + "-" + strings.ReplaceAll(collectorNumber, "/", "-")
+}
+
 func fetchSet(setCode string) (downloaded, skipped, failed int) {
 	var cards []card
 	if err := getJSON(fmt.Sprintf("%s/sets/%s/cards", apiBase, setCode), &cards); err != nil {
@@ -115,7 +142,7 @@ func fetchSet(setCode string) (downloaded, skipped, failed int) {
 		if url == "" {
 			continue // no scan available
 		}
-		id := setCode + "-" + strings.ReplaceAll(c.CollectorNumber, "/", "-")
+		id := cardID(setCode, c.CollectorNumber)
 		outPath := filepath.Join(imagesDir, id+".png")
 		if _, err := os.Stat(outPath); err == nil {
 			skipped++
@@ -145,9 +172,56 @@ func allSetCodes() ([]string, error) {
 	return codes, nil
 }
 
+func fetchMeta(sets []string) error {
+	cards := map[string]meta{}
+	for _, code := range sets {
+		var list []card
+		if err := getJSON(fmt.Sprintf("%s/sets/%s/cards", apiBase, code), &list); err != nil {
+			fmt.Printf("  %s: set fetch failed: %v\n", code, err)
+			continue
+		}
+		for _, c := range list {
+			name := c.Name
+			if c.Version != "" {
+				name += " - " + c.Version
+			}
+			colors := c.Inks
+			if len(colors) == 0 && c.Ink != "" {
+				colors = []string{c.Ink}
+			}
+			if colors == nil {
+				colors = []string{}
+			}
+			cards[cardID(code, c.CollectorNumber)] = meta{
+				Name: name, Set: code, SetName: c.Set.Name, Number: c.CollectorNumber,
+				Rarity: c.Rarity, Type: strings.Join(c.Type, " / "), Colors: colors,
+			}
+		}
+		fmt.Printf("  %s: %d cards\n", code, len(list))
+		time.Sleep(delay)
+	}
+	out, err := os.Create(metaFile)
+	if err != nil {
+		return err
+	}
+	enc := json.NewEncoder(out)
+	enc.SetIndent("", " ")
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(cards); err != nil {
+		out.Close()
+		return err
+	}
+	if err := out.Close(); err != nil {
+		return err
+	}
+	fmt.Printf("Done: %d cards in %s\n", len(cards), metaFile)
+	return nil
+}
+
 func main() {
 	setsFlag := flag.String("sets", "", "comma-separated set codes (default: every set)")
 	list := flag.Bool("list", false, "print all set codes and exit")
+	metaFlag := flag.Bool("meta", false, "write cards.json (metadata) instead of downloading images")
 	flag.Parse()
 
 	if *list {
@@ -175,6 +249,14 @@ func main() {
 			os.Exit(1)
 		}
 		sets = codes
+	}
+
+	if *metaFlag {
+		if err := fetchMeta(sets); err != nil {
+			fmt.Println("metadata failed:", err)
+			os.Exit(1)
+		}
+		return
 	}
 
 	if err := os.MkdirAll(imagesDir, 0o755); err != nil {

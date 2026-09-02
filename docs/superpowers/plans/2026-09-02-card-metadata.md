@@ -440,6 +440,7 @@ git commit -m "feat: card details dialog shows bundle metadata"
 
 **Interfaces:**
 - Produces (pure, unit-tested): `metadata_coverage(labels: list[str], manifest: dict[str, str], metadata: dict[str, dict]) -> dict[str, list[str]]` — for every game that has a metadata file, the index labels of that game (per the manifest) missing from it.
+- Also produces `fill_variant_fallbacks(labels, manifest, metadata) -> dict[str, int]`: for labels missing from their game's metadata whose base id (variant suffix `_p<N>` / `_r<N>` stripped) IS present, copies the base entry under the variant id (same name/set/rarity — a parallel art of the same card); returns the count added per game. Runs BEFORE the coverage report.
 - CLI: `--metadata GAME=FILE` (repeatable, defaults below), `--skip-metadata`.
 
 - [ ] **Step 1: Failing test** — create `scripts/embeddingtest/test_package_app_model.py`:
@@ -447,7 +448,7 @@ git commit -m "feat: card details dialog shows bundle metadata"
 ```python
 import unittest
 
-from package_app_model import metadata_coverage
+from package_app_model import fill_variant_fallbacks, metadata_coverage
 
 
 class MetadataCoverageTest(unittest.TestCase):
@@ -467,6 +468,17 @@ class MetadataCoverageTest(unittest.TestCase):
         # Only games WITH a metadata file are reported; weird-1 (not in the
         # manifest) and lorcana (no file) are ignored.
         self.assertEqual(got, {"onepiece": ["OP01-026"], "pokemon": ["sv01-020"]})
+
+    def test_variant_fallback_copies_base_entry(self):
+        labels = ["OP01-025", "OP01-025_p2", "OP01-025_r1", "OP01-030_p1"]
+        manifest = {l: f"onepiece/{l}.webp" for l in labels}
+        metadata = {"onepiece": {"OP01-025": {"name": "Zoro", "rarity": "SR"}}}
+        added = fill_variant_fallbacks(labels, manifest, metadata)
+        self.assertEqual(added, {"onepiece": 2})
+        self.assertEqual(metadata["onepiece"]["OP01-025_p2"], {"name": "Zoro", "rarity": "SR"})
+        self.assertEqual(metadata["onepiece"]["OP01-025_r1"], {"name": "Zoro", "rarity": "SR"})
+        # No base card -> still missing, reported by the coverage check.
+        self.assertEqual(metadata_coverage(labels, manifest, metadata), {"onepiece": ["OP01-030_p1"]})
 
 
 if __name__ == "__main__":
@@ -496,7 +508,28 @@ def metadata_coverage(labels, manifest, metadata):
         if game in metadata and label not in metadata[game]:
             by_game.setdefault(game, []).append(label)
     return {g: sorted(m) for g, m in by_game.items()}
+
+
+VARIANT_SUFFIX = re.compile(r"_[pr]\d+$")
+
+
+def fill_variant_fallbacks(labels, manifest, metadata):
+    """Give variant ids (OP01-025_p2) the metadata of their base card when the
+    source lacks the variant itself. Mutates `metadata`; returns added per game."""
+    added = {}
+    for label in labels:
+        rel = manifest.get(label, "")
+        game = rel.split("/", 1)[0] if "/" in rel else ""
+        if game not in metadata or label in metadata[game]:
+            continue
+        base = VARIANT_SUFFIX.sub("", label)
+        if base != label and base in metadata[game]:
+            metadata[game][label] = dict(metadata[game][base])
+            added[game] = added.get(game, 0) + 1
+    return added
 ```
+
+(add `import re` to the module imports)
 
 Add the CLI options next to `--images`:
 
@@ -534,6 +567,10 @@ Add a step 5 after the images block (before `print("done.")`), which also works 
             print(f"  metadata: {game}: {len(cards)} cards")
         manifest_path = dest / "images" / "manifest.json"
         manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
+        for game, n in fill_variant_fallbacks(labels, manifest, metadata).items():
+            (meta_dest / f"{game}.json").write_text(
+                json.dumps(metadata[game], indent=1, sort_keys=True, ensure_ascii=False), encoding="utf-8")
+            print(f"  metadata: {game}: {n} variant ids filled from their base card")
         for game, missing in metadata_coverage(labels, manifest, metadata).items():
             print(f"  WARNING: {game}: {len(missing)} index labels without metadata "
                   f"(e.g. {missing[:5]})")
@@ -550,7 +587,7 @@ git commit -m "feat: package card metadata per game with coverage warnings"
 
 ---
 
-### Task 4: One Piece metadata fetcher (vegapull-records)
+### Task 4: One Piece metadata fetcher (punk-records)
 
 **Files:**
 - Create: `scripts/fetch/onepiece/main.go`
@@ -558,21 +595,24 @@ git commit -m "feat: package card metadata per game with coverage warnings"
 - Create: `scripts/fetch/onepiece/.gitignore` (content: `cache/`)
 
 **Interfaces:**
-- Produces: `scripts/fetch/onepiece/cards.json` in the common format. Source: raw files of github.com/Coko7/vegapull-records — `data/english/packs.json` (`[{id, raw_title, title_parts:{prefix,title,label}}]`, label like `OP-01`, `EB-02`, `ST-01`, `PRB-01`) and `data/english/cards_<pack id>.json` (`[{id, pack_id, name, rarity, category, colors, ...}]`; `id` already carries variant suffixes such as `OP01-006_p3` / `EB01-006_r1`, i.e. exactly our index labels). Reprint packs (PRB-01…) list cards under their ORIGINAL ids — first occurrence wins.
+- Produces: `scripts/fetch/onepiece/cards.json` in the common format. Source: **punk-records** (github.com/buhbbl/punk-records, a vegapull-generated dataset refreshed regularly — generated 2026-08-28 at plan time, OP-01→OP-17, EB-01→EB-04, PRB-01/02, ST-01→ST-36, promos), two raw files:
+  - `english/index/cards_by_id.json` — object keyed by card id (variant ids such as `EB01-001_p1` are their own keys): `{card_id, name, rarity, category, colors, pack_id, cost, power, counter, types, attributes, keywords, img_url}`.
+  - `english/packs.json` — **object** keyed by pack id: `{id, raw_title, title_parts: {prefix, title, label}}`; `title_parts` fields may be null and labels are occasionally odd (`OP14-EB04`), so set names use a label map first and the card's own `pack_id` as fallback.
+  (The older `Coko7/vegapull-records` stops at OP-10 — do not use it.)
 
 - [ ] **Step 1: Write `main.go`** (pure download + transform; no images — the SAMPLE-watermarked images stay sourced as today):
 
 ```go
-// One Piece card metadata fetcher (vegapull-records dataset).
+// One Piece card metadata fetcher (punk-records dataset).
 //
-// Reads the English dataset published at github.com/Coko7/vegapull-records
-// (scraped from the official card list with vegapull) and writes cards.json
-// in the app's common metadata format. Card ids in the dataset already carry
-// the variant suffixes (OP01-006_p3, EB01-006_r1) used by our index labels.
+// Reads the English dataset of github.com/buhbbl/punk-records (generated with
+// vegapull from the official card list) and writes cards.json in the app's
+// common metadata format. Card ids in the dataset already carry the variant
+// suffixes (OP01-006_p3, EB01-006_r1) used by our index labels.
 //
 // Usage:
 //
-//	go run .            # download packs + every pack's cards, write cards.json
+//	go run .            # download the two source files into cache/, write cards.json
 //	go run . -offline   # rebuild cards.json from cache/ without downloading
 package main
 
@@ -589,26 +629,26 @@ import (
 )
 
 const (
-	rawBase  = "https://raw.githubusercontent.com/Coko7/vegapull-records/main/data/english"
+	rawBase  = "https://raw.githubusercontent.com/buhbbl/punk-records/main/english"
 	cacheDir = "cache"
 	outFile  = "cards.json"
-	delay    = 150 * time.Millisecond
 )
 
 type pack struct {
 	ID         string `json:"id"`
-	TitleParts struct {
+	RawTitle   string `json:"raw_title"`
+	TitleParts *struct {
 		Title string `json:"title"`
 		Label string `json:"label"` // "OP-01", "EB-02", "ST-01", "PRB-01"
 	} `json:"title_parts"`
 }
 
-type vegaCard struct {
-	ID       string   `json:"id"`
+type sourceCard struct {
 	Name     string   `json:"name"`
 	Rarity   string   `json:"rarity"`
 	Category string   `json:"category"`
 	Colors   []string `json:"colors"`
+	PackID   string   `json:"pack_id"`
 }
 
 // meta is the app's common metadata record (see the card metadata spec).
@@ -622,31 +662,28 @@ type meta struct {
 	Colors  []string `json:"colors"`
 }
 
-var client = &http.Client{Timeout: 60 * time.Second}
+var client = &http.Client{Timeout: 120 * time.Second}
 
-// fetch downloads name into cache/ unless offline, then returns its bytes.
-func fetch(name string, offline bool) ([]byte, error) {
-	path := filepath.Join(cacheDir, name)
+// fetch downloads rel (a path under rawBase) into cache/ unless offline, then
+// returns its bytes.
+func fetch(rel string, offline bool) ([]byte, error) {
+	path := filepath.Join(cacheDir, filepath.Base(rel))
 	if offline {
 		return os.ReadFile(path)
 	}
-	resp, err := client.Get(rawBase + "/" + name)
+	resp, err := client.Get(rawBase + "/" + rel)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d for %s", resp.StatusCode, name)
+		return nil, fmt.Errorf("HTTP %d for %s", resp.StatusCode, rel)
 	}
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
-		return nil, err
-	}
-	time.Sleep(delay)
-	return data, nil
+	return data, os.WriteFile(path, data, 0o644)
 }
 
 // setCode turns a pack label ("OP-01") into the id prefix ("OP01").
@@ -675,51 +712,55 @@ func main() {
 		fmt.Println("packs.json:", err)
 		os.Exit(1)
 	}
-	var packs []pack
+	var packs map[string]pack
 	if err := json.Unmarshal(data, &packs); err != nil {
 		fmt.Println("packs.json:", err)
 		os.Exit(1)
 	}
-	setNames := map[string]string{} // "OP01" -> "ROMANCE DAWN"
-	for _, p := range packs {
-		if p.TitleParts.Label != "" {
-			setNames[setCode(p.TitleParts.Label)] = p.TitleParts.Title
+	byLabel := map[string]string{} // "OP01" -> "ROMANCE DAWN"
+	byPack := map[string]string{}  // "569001" -> "Straw Hat Crew"
+	for id, p := range packs {
+		if p.TitleParts == nil {
+			continue
+		}
+		if p.TitleParts.Title != "" {
+			byPack[id] = p.TitleParts.Title
+		}
+		if p.TitleParts.Label != "" && p.TitleParts.Title != "" {
+			byLabel[setCode(p.TitleParts.Label)] = p.TitleParts.Title
 		}
 	}
 
-	cards := map[string]meta{}
-	for _, p := range packs {
-		name := "cards_" + p.ID + ".json"
-		data, err := fetch(name, *offline)
-		if err != nil {
-			fmt.Printf("  %s (%s): %v\n", name, p.TitleParts.Label, err)
-			continue
+	data, err = fetch("index/cards_by_id.json", *offline)
+	if err != nil {
+		fmt.Println("cards_by_id.json:", err)
+		os.Exit(1)
+	}
+	var source map[string]sourceCard
+	if err := json.Unmarshal(data, &source); err != nil {
+		fmt.Println("cards_by_id.json:", err)
+		os.Exit(1)
+	}
+
+	cards := make(map[string]meta, len(source))
+	noSetName := 0
+	for id, c := range source {
+		set, number := split(id)
+		setName, ok := byLabel[set]
+		if !ok {
+			setName = byPack[c.PackID] // odd labels such as "OP14-EB04"
 		}
-		var list []vegaCard
-		if err := json.Unmarshal(data, &list); err != nil {
-			fmt.Printf("  %s: %v\n", name, err)
-			continue
+		if setName == "" {
+			noSetName++
 		}
-		added := 0
-		for _, c := range list {
-			if c.ID == "" {
-				continue
-			}
-			if _, seen := cards[c.ID]; seen {
-				continue // reprint packs list cards under their original ids
-			}
-			set, number := split(c.ID)
-			colors := c.Colors
-			if colors == nil {
-				colors = []string{}
-			}
-			cards[c.ID] = meta{
-				Name: c.Name, Set: set, SetName: setNames[set], Number: number,
-				Rarity: c.Rarity, Type: c.Category, Colors: colors,
-			}
-			added++
+		colors := c.Colors
+		if colors == nil {
+			colors = []string{}
 		}
-		fmt.Printf("  %-8s %-40s %4d cards, %4d new\n", p.TitleParts.Label, p.TitleParts.Title, len(list), added)
+		cards[id] = meta{
+			Name: c.Name, Set: set, SetName: setName, Number: number,
+			Rarity: c.Rarity, Type: c.Category, Colors: colors,
+		}
 	}
 
 	// encoding/json sorts map keys, so the file is deterministic and diff-friendly.
@@ -736,28 +777,28 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	fmt.Printf("Done: %d cards in %s\n", len(cards), outFile)
+	fmt.Printf("Done: %d cards in %s (%d packs, %d cards without a set name)\n", len(cards), outFile, len(packs), noSetName)
 }
 ```
 
-- [ ] **Step 2: Run it:** `cd scripts/fetch/onepiece && go run .` — expect ~40 packs listed and `Done: N cards` with N ≥ 2167 (our OP index labels). Then verify coverage against the index:
+- [ ] **Step 2: Run it:** `cd scripts/fetch/onepiece && go run .` — expect `Done: ~4800 cards`. Then verify coverage against the index:
 
 ```bash
 python -c "
 import json; c=json.load(open('cards.json')); m=json.load(open('../../../models/tcg/images/manifest.json'))
-op=[l for l,p in m.items() if p.startswith('onepiece/')]
+op=[l for l,p in m.items() if p.startswith('onepiece/') or l.startswith('PRB')]
 miss=[l for l in op if l not in c]; print(len(op),'OP labels,',len(miss),'missing, e.g.',miss[:10])"
 ```
 
-Expected: 0 missing (if a handful are missing, list them in the report — do not hand-edit cards.json).
+Expected at plan time: ~167 missing, all variant ids (`OP01-006_p2`, `EB01-014_p2`…) whose base card exists — the packager's base-id fallback (Task 3) covers them. Report the exact count; do not hand-edit cards.json. (`PRB*` labels are One Piece cards that the current app manifest still files under riftbound until the next packaging — hence the `or` in the filter.)
 
-- [ ] **Step 3: README.md** — short: what the source is, the two commands, the id-suffix note, and that images are NOT fetched here.
+- [ ] **Step 3: README.md** — short: the source (punk-records, refreshed by its maintainer; run `go run .` again to pick up new sets), the two commands, the id-suffix note, that images are NOT fetched here, and that `Coko7/vegapull-records` is stale (OP-10) and must not be used.
 
 - [ ] **Step 4: Commit** (cards.json is committed; cache/ is ignored):
 
 ```bash
 git add scripts/fetch/onepiece/main.go scripts/fetch/onepiece/README.md scripts/fetch/onepiece/.gitignore scripts/fetch/onepiece/cards.json
-git commit -m "feat: one piece metadata fetcher from vegapull-records"
+git commit -m "feat: one piece metadata fetcher from punk-records"
 ```
 
 ---
@@ -1086,6 +1127,7 @@ var setNames = map[string]string{
 	"ogs": "Origins",
 	"sfd": "Spiritforged",
 	"unl": "Unleashed",
+	"ven": "Vendetta",
 }
 
 // split returns the set prefix and number of an id: "ogn-299-star-298" ->
@@ -1156,7 +1198,7 @@ func main() {
 	// ... existing image download code unchanged from here ...
 ```
 
-- [ ] **Step 2: README** — extend the "To refresh / add a NEW SET" instructions: when extracting the card array from the gallery JS chunk, keep for every card `name`, `rarity`, `domains` (array) and `type` alongside `id/publicCode/imageUrl`; document `go run . -meta`; state that today's `parsedcards.json` carries no names yet, so `cards.json` stays empty until the next extraction; note the `setNames` map to maintain (ven / PRB01 / PRB02 currently unknown → empty set_name).
+- [ ] **Step 2: README** — extend the "To refresh / add a NEW SET" instructions: when extracting the card array from the gallery JS chunk, keep for every card `name`, `rarity`, `domains` (array) and `type` alongside `id/publicCode/imageUrl`; document `go run . -meta`; state that today's `parsedcards.json` carries no names yet, so `cards.json` stays empty until the next extraction; note the `setNames` map to maintain (unknown prefixes get an empty set_name). PRB01/PRB02 are NOT Riftbound (One Piece premium boosters, moved to the onepiece images on 2026-09-02).
 
 - [ ] **Step 3: Build + run:** `cd scripts/fetch/riftbound && go build ./... && go run . -meta` → `Done: 0 cards with metadata ... (1189 entries had no name)` and a `cards.json` containing `{}`. Confirm `go run .` (image mode) still skips the existing images exactly as before (Ctrl-C after a few lines is fine).
 
@@ -1179,6 +1221,8 @@ Not a subagent task. In order:
 - [ ] `go test ./... -count=1` — `TestLookupCardInfoRealBundle` must now PASS (not skip).
 - [ ] `wails dev`: open a Pokémon, a Lorcana and a One Piece card from the collection screen — name as title, id subtitle, tags row; open a Riftbound card — dialog unchanged (no metadata yet).
 - [ ] Update the distribution memory note: `metadata/` is part of `core.zip`.
+- [ ] The packaging run also regenerates the manifest with the 39 `PRB01/PRB02` images now under `images/onepiece/` (they were misfiled under riftbound) — confirm they show under One Piece in the app afterwards.
+- [ ] Out of scope, follow-up: OP15–OP17 (and any newer sets) are NOT in the index yet — that is an index refresh (fetch the new images, `add_to_index.py`, repackage), not metadata.
 
 ---
 

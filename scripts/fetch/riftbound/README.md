@@ -29,9 +29,13 @@ variant), so cards.json keys match the index labels.
 Output fields per card: `name`, `set`, `set_name`, `number`, `rarity`,
 `type`, `colors`.
 
-- `set` is the upper-cased id prefix (`OGN`), `number` the second id segment
-  (`001`; `299` for `ogn-299-star-298`), `colors` is `domains` as-is (`[]`
-  when absent), `rarity`/`type` are copied through.
+- `set` is the upper-cased id prefix (`OGN`), `number` is the printed
+  collector number from `publicCode` (the substring after the first `-`, cut
+  at `/` when present) -- `001` for `OGN-001/298`, `299*` for the star
+  variant `OGN-299*/298`, `T03`/`R01`/`SP1` for token and promo codes like
+  `SFD-T03`, `VEN-R01`, `VEN-SP1/006`; falls back to the second id segment
+  when `publicCode` is empty. `colors` is `domains` as-is (`[]` when absent),
+  `rarity`/`type` are copied through.
 - `name` is normalised like the other fetchers: NBSP -> space, curly
   apostrophe -> straight.
 - `set_name` comes from the `setNames` map in main.go; extend it when a new

@@ -62,26 +62,44 @@ func split(id string) (set, number string) {
 	return set, number
 }
 
+// numberOf returns the printed collector number for a card. When PublicCode
+// is present (e.g. "OGN-299*/298", "SFD-T03", "VEN-SP1/006") it is the
+// substring after the first "-", cut at "/" when present: "299*", "T03",
+// "SP1". This preserves the "*" star-variant marker and upper-case
+// token/promo codes that split(c.ID) loses. Falls back to split(c.ID)'s
+// number when PublicCode is empty.
+func numberOf(c Card) string {
+	if c.PublicCode == "" {
+		_, number := split(c.ID)
+		return number
+	}
+	_, rest, _ := strings.Cut(c.PublicCode, "-")
+	number, _, _ := strings.Cut(rest, "/")
+	return number
+}
+
 // writeMeta turns the enriched parsedcards.json entries (those carrying a
 // name) into cards.json; entries without a name are skipped, so the file is
 // empty until the gallery extraction is redone with metadata fields.
 func writeMeta(cards []Card) error {
 	out := map[string]meta{}
+	skipped := 0
 	for _, c := range cards {
 		if c.Name == "" {
+			skipped++
 			continue
 		}
 		if _, dup := out[c.ID]; dup {
 			fmt.Printf("  duplicate id %s\n", c.ID)
 		}
-		set, number := split(c.ID)
+		set, _ := split(c.ID)
 		colors := c.Domains
 		if colors == nil {
 			colors = []string{}
 		}
 		out[c.ID] = meta{
 			Name: nameCleaner.Replace(c.Name), Set: strings.ToUpper(set), SetName: setNames[strings.ToLower(set)],
-			Number: number, Rarity: c.Rarity, Type: c.Type, Colors: colors,
+			Number: numberOf(c), Rarity: c.Rarity, Type: c.Type, Colors: colors,
 		}
 	}
 	f, err := os.Create(metaFile)
@@ -98,7 +116,7 @@ func writeMeta(cards []Card) error {
 	if err := f.Close(); err != nil {
 		return err
 	}
-	fmt.Printf("Done: %d cards with metadata in %s (%d entries had no name)\n", len(out), metaFile, len(cards)-len(out))
+	fmt.Printf("Done: %d cards with metadata in %s (%d entries had no name)\n", len(out), metaFile, skipped)
 	return nil
 }
 

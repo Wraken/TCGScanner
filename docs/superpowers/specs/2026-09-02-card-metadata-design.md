@@ -77,13 +77,19 @@ resumable/incremental like the image fetchers. These files are committed
   pack_id), `number` = id suffix, `type` = `category`. Ids already carry the
   `_p1`/`_r1` variant suffixes used by the index labels; variants the source
   lacks get their base card's entry from the packager (see below).
+  The same fetcher, with `-images`, downloads every card's official image
+  (`img_url`, SAMPLE-watermarked) into `scripts/fetch/onepiece/images/` —
+  the copies the app ships, per the One Piece image policy; the
+  de-watermarked training copies stay under `scripts/embeddingtest/images/`.
 - **riftbound**: `parsedcards.json` only has id/publicCode/imageUrl. The
   gallery JS bundle (see the fetcher README) also carries name, rarity,
   domain and type; the manual DevTools extraction step is extended to keep
   those fields. Until the user redoes that extraction, the riftbound
   `cards.json` may be missing or partial — the app copes (see below).
 
-`package_app_model.py` gains `--metadata GAME=FILE` (defaults mirroring
+`package_app_model.py` reads images from `scripts/fetch/<game>/images/` for
+all four games (unified layout; `scripts/embeddingtest/images/` becomes
+training-only), gains `--metadata GAME=FILE` (defaults mirroring
 `--images`), copies each file to `models/tcg/metadata/<game>.json`, fills
 variant ids (`_p<N>`/`_r<N>`) missing from the source with their base
 card's entry, and prints a coverage line per game: index labels of that

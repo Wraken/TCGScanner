@@ -442,6 +442,7 @@ git commit -m "feat: card details dialog shows bundle metadata"
 - Produces (pure, unit-tested): `metadata_coverage(labels: list[str], manifest: dict[str, str], metadata: dict[str, dict]) -> dict[str, list[str]]` — for every game that has a metadata file, the index labels of that game (per the manifest) missing from it.
 - Also produces `fill_variant_fallbacks(labels, manifest, metadata) -> dict[str, int]`: for labels missing from their game's metadata whose base id (variant suffix `_p<N>` / `_r<N>` stripped) IS present, copies the base entry under the variant id (same name/set/rarity — a parallel art of the same card); returns the count added per game. Runs BEFORE the coverage report.
 - CLI: `--metadata GAME=FILE` (repeatable, defaults below), `--skip-metadata`.
+- Also: the `--images` defaults switch to the fetcher dirs for EVERY game (`onepiece=../fetch/onepiece/images`, `riftbound=../fetch/riftbound/images`, lorcana and pokemon already there). `scripts/embeddingtest/images/<game>/` stays the TRAINING source only (de-watermarked One Piece copies live there).
 
 - [ ] **Step 1: Failing test** — create `scripts/embeddingtest/test_package_app_model.py`:
 
@@ -531,6 +532,15 @@ def fill_variant_fallbacks(labels, manifest, metadata):
 
 (add `import re` to the module imports)
 
+Change the `--images` defaults so all four games read the fetcher output (the training copies under `scripts/embeddingtest/images/` are no longer packaged — One Piece there is de-watermarked, the app must ship the official SAMPLE images):
+
+```python
+                    default=["onepiece=../fetch/onepiece/images", "riftbound=../fetch/riftbound/images",
+                             "lorcana=../fetch/lorcana/images", "pokemon=../fetch/pokemon/images"],
+```
+
+and in the docstring, note next to the `images/<game>/` line: "sources default to scripts/fetch/<game>/images/ (training dirs are not packaged)".
+
 Add the CLI options next to `--images`:
 
 ```python
@@ -592,7 +602,7 @@ git commit -m "feat: package card metadata per game with coverage warnings"
 **Files:**
 - Create: `scripts/fetch/onepiece/main.go`
 - Create: `scripts/fetch/onepiece/README.md`
-- Create: `scripts/fetch/onepiece/.gitignore` (content: `cache/`)
+- Create: `scripts/fetch/onepiece/.gitignore` (content: `cache/` and `images/`)
 
 **Interfaces:**
 - Produces: `scripts/fetch/onepiece/cards.json` in the common format. Source: **punk-records** (github.com/buhbbl/punk-records, a vegapull-generated dataset refreshed regularly — generated 2026-08-28 at plan time, OP-01→OP-17, EB-01→EB-04, PRB-01/02, ST-01→ST-36, promos), two raw files:
@@ -600,7 +610,9 @@ git commit -m "feat: package card metadata per game with coverage warnings"
   - `english/packs.json` — **object** keyed by pack id: `{id, raw_title, title_parts: {prefix, title, label}}`; `title_parts` fields may be null and labels are occasionally odd (`OP14-EB04`), so set names use a label map first and the card's own `pack_id` as fallback.
   (The older `Coko7/vegapull-records` stops at OP-10 — do not use it.)
 
-- [ ] **Step 1: Write `main.go`** (pure download + transform; no images — the SAMPLE-watermarked images stay sourced as today):
+- Also produces, with `-images`: `scripts/fetch/onepiece/images/<id>.png` — the official card images (SAMPLE-watermarked, which is what the app displays by policy) downloaded from each card's `img_url`, resumable (existing files skipped). This replaces the historical vegapull image pull; the de-watermarked training copies stay in `scripts/embeddingtest/images/onepiece/` and are NOT produced here.
+
+- [ ] **Step 1: Write `main.go`**:
 
 ```go
 // One Piece card metadata fetcher (punk-records dataset).
@@ -613,6 +625,7 @@ git commit -m "feat: package card metadata per game with coverage warnings"
 // Usage:
 //
 //	go run .            # download the two source files into cache/, write cards.json
+//	go run . -images    # same, then download every card image into images/ (resumable)
 //	go run . -offline   # rebuild cards.json from cache/ without downloading
 package main
 
@@ -624,14 +637,18 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
 
 const (
-	rawBase  = "https://raw.githubusercontent.com/buhbbl/punk-records/main/english"
-	cacheDir = "cache"
-	outFile  = "cards.json"
+	rawBase   = "https://raw.githubusercontent.com/buhbbl/punk-records/main/english"
+	cacheDir  = "cache"
+	outFile   = "cards.json"
+	imagesDir = "images"
+	delay     = 80 * time.Millisecond
+	minBytes  = 3000 // guard against error pages / empty bodies
 )
 
 type pack struct {
@@ -649,6 +666,7 @@ type sourceCard struct {
 	Category string   `json:"category"`
 	Colors   []string `json:"colors"`
 	PackID   string   `json:"pack_id"`
+	ImgURL   string   `json:"img_url"`
 }
 
 // meta is the app's common metadata record (see the card metadata spec).
@@ -699,8 +717,61 @@ func split(id string) (set, number string) {
 	return set, number
 }
 
+func download(url, outPath string) bool {
+	req, _ := http.NewRequest(http.MethodGet, url, nil)
+	req.Header.Set("User-Agent", "TCGScanner card fetcher (personal ML project)")
+	resp, err := client.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return false
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil || len(data) < minBytes {
+		return false
+	}
+	return os.WriteFile(outPath, data, 0o644) == nil
+}
+
+// fetchImages downloads every card's official image into images/<id>.png,
+// skipping files already present (resumable, incremental per new set).
+func fetchImages(source map[string]sourceCard) error {
+	if err := os.MkdirAll(imagesDir, 0o755); err != nil {
+		return err
+	}
+	ids := make([]string, 0, len(source))
+	for id := range source {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	downloaded, skipped, failed := 0, 0, 0
+	for _, id := range ids {
+		c := source[id]
+		if c.ImgURL == "" {
+			continue
+		}
+		outPath := filepath.Join(imagesDir, id+".png")
+		if _, err := os.Stat(outPath); err == nil {
+			skipped++
+			continue
+		}
+		if download(c.ImgURL, outPath) {
+			downloaded++
+		} else {
+			failed++
+			fmt.Printf("  image failed: %s\n", id)
+		}
+		time.Sleep(delay)
+	}
+	fmt.Printf("Images: %d downloaded, %d skipped, %d failed (%d cards)\n", downloaded, skipped, failed, len(ids))
+	return nil
+}
+
 func main() {
 	offline := flag.Bool("offline", false, "rebuild from cache/ without downloading")
+	images := flag.Bool("images", false, "also download every card image into images/ (official site, SAMPLE-watermarked)")
 	flag.Parse()
 	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
 		fmt.Println("cannot create cache dir:", err)
@@ -778,6 +849,13 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Printf("Done: %d cards in %s (%d packs, %d cards without a set name)\n", len(cards), outFile, len(packs), noSetName)
+
+	if *images {
+		if err := fetchImages(source); err != nil {
+			fmt.Println("images:", err)
+			os.Exit(1)
+		}
+	}
 }
 ```
 
@@ -792,7 +870,9 @@ miss=[l for l in op if l not in c]; print(len(op),'OP labels,',len(miss),'missin
 
 Expected at plan time: ~167 missing, all variant ids (`OP01-006_p2`, `EB01-014_p2`…) whose base card exists — the packager's base-id fallback (Task 3) covers them. Report the exact count; do not hand-edit cards.json. (`PRB*` labels are One Piece cards that the current app manifest still files under riftbound until the next packaging — hence the `or` in the filter.)
 
-- [ ] **Step 3: README.md** — short: the source (punk-records, refreshed by its maintainer; run `go run .` again to pick up new sets), the two commands, the id-suffix note, that images are NOT fetched here, and that `Coko7/vegapull-records` is stale (OP-10) and must not be used.
+- [ ] **Step 2b: Smoke the image mode without the full download:** run `go run . -images` and interrupt it (Ctrl-C) after ~20 files; check `images/` holds `EB01-001.png`, `EB01-001_p1.png`… as real PNGs (> 3 KB), then delete nothing — the run is resumable. Task 8 does the full fetch.
+
+- [ ] **Step 3: README.md** — short: the source (punk-records, refreshed by its maintainer; run `go run .` again to pick up new sets), the three commands, the id-suffix note, that `-images` downloads the official SAMPLE-watermarked images (the app's display policy; the de-watermarked training copies live elsewhere), and that `Coko7/vegapull-records` is stale (OP-10) and must not be used.
 
 - [ ] **Step 4: Commit** (cards.json is committed; cache/ is ignored):
 
@@ -1217,11 +1297,12 @@ Not a subagent task. In order:
 
 - [ ] Run the full Pokémon metadata fetch: `cd scripts/fetch/pokemon && go run . -meta` (~30 min, resumable; re-run if interrupted). Commit the completed `cards.json` (`chore: pokemon metadata catalog`).
 - [ ] (User) Redo the Riftbound gallery extraction keeping name/rarity/domains/type, replace `parsedcards.json`, run `go run . -meta`, commit both files. Can happen later — everything else works without it.
-- [ ] Package: `cd scripts/embeddingtest && python package_app_model.py --skip-images` (images are up to date; the metadata step runs regardless). Read the coverage lines: onepiece and lorcana must report 0 missing (or the exact stragglers), pokemon 0 after the full fetch, riftbound "not found, skipped" or 0 cards until the extraction is redone.
+- [ ] First full One Piece image fetch: `cd scripts/fetch/onepiece && go run . -images` (~4.8k images at 80 ms ≈ 7–10 min, resumable). Then repopulate `scripts/fetch/riftbound/images/` — it is EMPTY today (the 1189 PNGs were moved to the training dir on 2026-08-26): copy them back with `cp scripts/embeddingtest/images/riftbound/*.png scripts/fetch/riftbound/images/` (same files, no watermark question for Riftbound), or re-download with `cd scripts/fetch/riftbound && go run .` (~1189 files from the Riot CDN).
+- [ ] Package WITH images this time: `cd scripts/embeddingtest && python package_app_model.py` — the One Piece images are re-sourced from `fetch/onepiece/images/` (official SAMPLE versions replace the de-watermarked ones in the app), `PRB01/PRB02` land under `images/onepiece/`, and the metadata step runs. Read the coverage lines: onepiece and lorcana must report 0 missing after variant fallbacks (or the exact stragglers), pokemon 0 after the full fetch, riftbound "not found, skipped" or 0 cards until the extraction is redone. Expect a "labels have no source image" warning of 0 and extra OP15–OP17 images packaged ahead of the index (harmless).
 - [ ] `go test ./... -count=1` — `TestLookupCardInfoRealBundle` must now PASS (not skip).
 - [ ] `wails dev`: open a Pokémon, a Lorcana and a One Piece card from the collection screen — name as title, id subtitle, tags row; open a Riftbound card — dialog unchanged (no metadata yet).
 - [ ] Update the distribution memory note: `metadata/` is part of `core.zip`.
-- [ ] The packaging run also regenerates the manifest with the 39 `PRB01/PRB02` images now under `images/onepiece/` (they were misfiled under riftbound) — confirm they show under One Piece in the app afterwards.
+- [ ] Confirm in the app that `PRB01/PRB02` cards now show under One Piece and that One Piece previews carry the SAMPLE watermark (display policy).
 - [ ] Out of scope, follow-up: OP15–OP17 (and any newer sets) are NOT in the index yet — that is an index refresh (fetch the new images, `add_to_index.py`, repackage), not metadata.
 
 ---

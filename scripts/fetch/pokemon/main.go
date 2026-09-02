@@ -30,9 +30,11 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -111,7 +113,9 @@ func getJSON(url string, out any) error {
 }
 
 func download(url, outPath string) bool {
-	resp, err := client.Get(url)
+	req, _ := http.NewRequest(http.MethodGet, url, nil)
+	req.Header.Set("User-Agent", "TCGScanner card fetcher (personal ML project)")
+	resp, err := client.Do(req)
 	if err != nil {
 		return false
 	}
@@ -154,12 +158,19 @@ func fetchSet(lang, setID string) (downloaded, skipped, failed int) {
 	return
 }
 
-func loadMeta() map[string]meta {
+func loadMeta() (map[string]meta, error) {
 	cards := map[string]meta{}
-	if data, err := os.ReadFile(metaFile); err == nil {
-		_ = json.Unmarshal(data, &cards)
+	data, err := os.ReadFile(metaFile)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return cards, nil
+		}
+		return nil, err
 	}
-	return cards
+	if err := json.Unmarshal(data, &cards); err != nil {
+		return nil, fmt.Errorf("%s: %w (fix it or delete it to restart from scratch)", metaFile, err)
+	}
+	return cards, nil
 }
 
 // saveMeta writes atomically (tmp + rename) so an interrupted flush never
@@ -175,9 +186,11 @@ func saveMeta(cards map[string]meta) error {
 	enc.SetEscapeHTML(false)
 	if err := enc.Encode(cards); err != nil {
 		out.Close()
+		os.Remove(tmp)
 		return err
 	}
 	if err := out.Close(); err != nil {
+		os.Remove(tmp)
 		return err
 	}
 	return os.Rename(tmp, metaFile)
@@ -187,7 +200,10 @@ func saveMeta(cards map[string]meta) error {
 // request per card (the set listing lacks rarity/category/types). Resumable:
 // ids already present are skipped, progress is flushed every flushEvery cards.
 func fetchMeta(lang string, sets []string) error {
-	cards := loadMeta()
+	cards, err := loadMeta()
+	if err != nil {
+		return err
+	}
 	fmt.Printf("%d cards already in %s\n", len(cards), metaFile)
 	pending, failed := 0, 0
 	for _, setID := range sets {
@@ -286,6 +302,10 @@ func main() {
 	}
 
 	if *metaFlag {
+		if *lang != "en" {
+			fmt.Println("metadata: cards.json is English-only (ids are language-independent); use -lang en")
+			os.Exit(1)
+		}
 		if err := fetchMeta(*lang, sets); err != nil {
 			fmt.Println("metadata:", err)
 			os.Exit(1)

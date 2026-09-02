@@ -13,6 +13,8 @@ anti-scraping. Enumerates sets properly (no guessing set codes):
     go run . -lang fr             # French scans
     go run . -list                # print all set ids
     go run . -meta                # write cards.json (metadata) instead of downloading images
+    go run . -meta -sets sv01     # metadata for one set (unlike Lorcana, -sets is
+                                   # safe with -meta here -- entries accumulate)
 
 Files: images/<card.id>.png (base1-1.png, sv03-125.png -- globally unique
 stable ids). Resumable (existing skipped), 80ms/req. Copy into
@@ -37,12 +39,13 @@ a partial batch. On completion it prints how many requests failed and exits
 non-zero if any did -- the already-fetched cards are still saved, so just
 re-run the same command to fill in the gaps.
 
+Existing ids are never re-fetched: to refresh an entry (e.g. after a TCGdex
+correction), delete it from `cards.json` -- or delete the file entirely --
+and re-run.
+
 - `type` is the API's `category` (`"Pokemon"`, `"Trainer"`, or `"Energy"`).
 - `colors` is the API's `types` array (elemental types, e.g. `["Grass"]`);
   `[]` for Trainer/Energy cards, which have none.
 - Names are normalised: NBSP → space and curly `’` → straight `'`, so the
   corpus is uniform for later search/matching.
-
-First run on this machine: TCGdex was unreachable on 2026-09-02 when this
-was written; `cards.json` is produced by the packaging step (see the
-metadata plan, Task 8).
+- `-meta` is English-only (`-lang en`).

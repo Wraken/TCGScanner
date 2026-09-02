@@ -63,7 +63,6 @@ type card struct {
 	Inks            []string `json:"inks"`
 	Type            []string `json:"type"`
 	Set             struct {
-		Code string `json:"code"`
 		Name string `json:"name"`
 	} `json:"set"`
 	ImageURIs struct {
@@ -83,6 +82,12 @@ type meta struct {
 }
 
 var client = &http.Client{Timeout: 30 * time.Second}
+
+// nameCleaner normalises card names before they're written to cards.json:
+// NBSP -> space (one occurrence, set 3-94) and curly apostrophe -> straight
+// (11 occurrences, set 4, vs. 226 straight elsewhere), so the corpus is
+// uniform for later search/matching.
+var nameCleaner = strings.NewReplacer(" ", " ", "’", "'")
 
 func getJSON(url string, out any) error {
 	req, _ := http.NewRequest(http.MethodGet, url, nil)
@@ -174,16 +179,18 @@ func allSetCodes() ([]string, error) {
 
 func fetchMeta(sets []string) error {
 	cards := map[string]meta{}
+	failed := 0
 	for _, code := range sets {
 		var list []card
 		if err := getJSON(fmt.Sprintf("%s/sets/%s/cards", apiBase, code), &list); err != nil {
 			fmt.Printf("  %s: set fetch failed: %v\n", code, err)
+			failed++
 			continue
 		}
 		for _, c := range list {
-			name := c.Name
+			name := nameCleaner.Replace(c.Name)
 			if c.Version != "" {
-				name += " - " + c.Version
+				name += " - " + nameCleaner.Replace(c.Version)
 			}
 			colors := c.Inks
 			if len(colors) == 0 && c.Ink != "" {
@@ -192,13 +199,20 @@ func fetchMeta(sets []string) error {
 			if colors == nil {
 				colors = []string{}
 			}
-			cards[cardID(code, c.CollectorNumber)] = meta{
+			id := cardID(code, c.CollectorNumber)
+			if _, dup := cards[id]; dup {
+				fmt.Printf("  %s: duplicate id %s\n", code, id)
+			}
+			cards[id] = meta{
 				Name: name, Set: code, SetName: c.Set.Name, Number: c.CollectorNumber,
 				Rarity: c.Rarity, Type: strings.Join(c.Type, " / "), Colors: colors,
 			}
 		}
 		fmt.Printf("  %s: %d cards\n", code, len(list))
 		time.Sleep(delay)
+	}
+	if failed > 0 {
+		return fmt.Errorf("%d set(s) failed; %s not written", failed, metaFile)
 	}
 	out, err := os.Create(metaFile)
 	if err != nil {
@@ -237,7 +251,7 @@ func main() {
 
 	var sets []string
 	if *setsFlag != "" {
-		for _, s := range strings.Split(*setsFlag, ",") {
+		for s := range strings.SplitSeq(*setsFlag, ",") {
 			if s = strings.TrimSpace(s); s != "" {
 				sets = append(sets, s)
 			}

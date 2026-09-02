@@ -35,6 +35,12 @@ sync automatically.
 - `type` joins the API's `type` array with `" / "`.
 - `colors` is the card's ink(s) (`inks` for multi-ink cards, else `[ink]`);
   `[]` if neither is present.
+- Names are normalised: NBSP → space and curly `’` → straight `'`, so the
+  corpus is uniform for later search/matching.
+
+`-meta` always rewrites the whole catalog and fails (leaving the previous
+`cards.json` untouched) if any set fetch fails, so don't combine it with
+`-sets` for the committed file — a partial run would silently drop cards.
 
 Runs in a few seconds (one request per set, same as image mode without the
 downloads).

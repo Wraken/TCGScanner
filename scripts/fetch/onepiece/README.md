@@ -5,13 +5,17 @@ Reads the English dataset of [buhbbl/punk-records](https://github.com/buhbbl/pun
 maintainer after every new set) and writes `cards.json` in the app's common
 metadata format (`name, set, set_name, number, rarity, type, colors`).
 
-    go run .            # download packs.json + cards_by_id.json into cache/, write cards.json
-    go run . -images    # same, then download every card image into images/ (resumable)
-    go run . -offline   # rebuild cards.json from cache/ without downloading
+    go run .                     # download packs.json + cards_by_id.json into cache/, write cards.json
+    go run . -images             # same, then download every card image into images/ (resumable)
+    go run . -offline            # rebuild cards.json from cache/ without downloading
+    go run . -offline -images    # rebuild cards.json from cache/, THEN still download images
 
 Re-run `go run .` whenever punk-records picks up a new set -- both source
 files and `cards.json` are rebuilt from scratch (deterministic, diff-friendly:
-`encoding/json` sorts map keys).
+`encoding/json` sorts map keys). `-offline` only applies to the two source
+JSON files (packs.json, cards_by_id.json); `-images` always hits the network
+regardless of `-offline`. A full `-images` run is ~4,800 files at 80ms/req
+plus request latency -- roughly 10-15 minutes.
 
 ## Id suffixes
 

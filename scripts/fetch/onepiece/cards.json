@@ -47,7 +47,7 @@
   ]
  },
  "EB01-003": {
-  "name": "Kid &amp; Killer",
+  "name": "Kid & Killer",
   "set": "EB01",
   "set_name": "MEMORIAL COLLECTION",
   "number": "003",
@@ -58,7 +58,7 @@
   ]
  },
  "EB01-003_p1": {
-  "name": "Kid &amp; Killer",
+  "name": "Kid & Killer",
   "set": "EB01",
   "set_name": "MEMORIAL COLLECTION",
   "number": "003",
@@ -69,7 +69,7 @@
   ]
  },
  "EB01-003_p2": {
-  "name": "Kid &amp; Killer",
+  "name": "Kid & Killer",
   "set": "EB01",
   "set_name": "MEMORIAL COLLECTION",
   "number": "003",
@@ -80,7 +80,7 @@
   ]
  },
  "EB01-003_p3": {
-  "name": "Kid &amp; Killer",
+  "name": "Kid & Killer",
   "set": "EB01",
   "set_name": "MEMORIAL COLLECTION",
   "number": "003",
@@ -91,7 +91,7 @@
   ]
  },
  "EB01-003_p4": {
-  "name": "Kid &amp; Killer",
+  "name": "Kid & Killer",
   "set": "EB01",
   "set_name": "MEMORIAL COLLECTION",
   "number": "003",
@@ -102,7 +102,7 @@
   ]
  },
  "EB01-003_p5": {
-  "name": "Kid &amp; Killer",
+  "name": "Kid & Killer",
   "set": "EB01",
   "set_name": "MEMORIAL COLLECTION",
   "number": "003",
@@ -1916,7 +1916,7 @@
   ]
  },
  "EB02-035": {
-  "name": "Sanji &amp; Pudding",
+  "name": "Sanji & Pudding",
   "set": "EB02",
   "set_name": "Anime 25th Collection",
   "number": "035",
@@ -1927,7 +1927,7 @@
   ]
  },
  "EB02-035_p1": {
-  "name": "Sanji &amp; Pudding",
+  "name": "Sanji & Pudding",
   "set": "EB02",
   "set_name": "Anime 25th Collection",
   "number": "035",
@@ -3405,7 +3405,7 @@
  "EB04-001": {
   "name": "Jewelry Bonney",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "001",
   "rarity": "Leader",
   "type": "Leader",
@@ -3417,7 +3417,7 @@
  "EB04-001_p1": {
   "name": "Jewelry Bonney",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "001",
   "rarity": "Leader",
   "type": "Leader",
@@ -3429,7 +3429,7 @@
  "EB04-002": {
   "name": "Jewelry Bonney",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "002",
   "rarity": "Rare",
   "type": "Character",
@@ -3440,7 +3440,7 @@
  "EB04-002_p1": {
   "name": "Jewelry Bonney",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "002",
   "rarity": "Rare",
   "type": "Character",
@@ -3449,9 +3449,9 @@
   ]
  },
  "EB04-003": {
-  "name": "Smoker &amp; Tashigi",
+  "name": "Smoker & Tashigi",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "003",
   "rarity": "Rare",
   "type": "Character",
@@ -3460,9 +3460,9 @@
   ]
  },
  "EB04-003_p1": {
-  "name": "Smoker &amp; Tashigi",
+  "name": "Smoker & Tashigi",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "003",
   "rarity": "Special",
   "type": "Character",
@@ -3473,7 +3473,7 @@
  "EB04-004": {
   "name": "Zeff",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "004",
   "rarity": "Common",
   "type": "Character",
@@ -3484,7 +3484,7 @@
  "EB04-005": {
   "name": "Trafalgar Law",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "005",
   "rarity": "Common",
   "type": "Character",
@@ -3495,7 +3495,7 @@
  "EB04-006": {
   "name": "Moda",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "006",
   "rarity": "Common",
   "type": "Character",
@@ -3506,7 +3506,7 @@
  "EB04-007": {
   "name": "Roronoa Zoro",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "007",
   "rarity": "SuperRare",
   "type": "Character",
@@ -3517,7 +3517,7 @@
  "EB04-007_p1": {
   "name": "Roronoa Zoro",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "007",
   "rarity": "SuperRare",
   "type": "Character",
@@ -3528,7 +3528,7 @@
  "EB04-007_p2": {
   "name": "Roronoa Zoro",
   "set": "EB04",
-  "set_name": "THE WORLD’S STRONGEST WARRIORS",
+  "set_name": "",
   "number": "007",
   "rarity": "Special",
   "type": "Character",
@@ -3539,7 +3539,7 @@
  "EB04-008": {
   "name": "Distorted Future",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "008",
   "rarity": "Rare",
   "type": "Event",
@@ -3550,7 +3550,7 @@
  "EB04-009": {
   "name": "It's My Student's Farewell. I Want It to Be Proper.",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "009",
   "rarity": "Common",
   "type": "Event",
@@ -3561,7 +3561,7 @@
  "EB04-010": {
   "name": "Lulucia Kingdom",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "010",
   "rarity": "Common",
   "type": "Stage",
@@ -3572,7 +3572,7 @@
  "EB04-011": {
   "name": "Scaled Neptunian",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "011",
   "rarity": "Common",
   "type": "Character",
@@ -3583,7 +3583,7 @@
  "EB04-012": {
   "name": "Kikunojo",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "012",
   "rarity": "SuperRare",
   "type": "Character",
@@ -3594,7 +3594,7 @@
  "EB04-012_p1": {
   "name": "Kikunojo",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "012",
   "rarity": "SuperRare",
   "type": "Character",
@@ -3605,7 +3605,7 @@
  "EB04-013": {
   "name": "Carrot",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "013",
   "rarity": "SuperRare",
   "type": "Character",
@@ -3616,7 +3616,7 @@
  "EB04-013_p1": {
   "name": "Carrot",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "013",
   "rarity": "SuperRare",
   "type": "Character",
@@ -3627,7 +3627,7 @@
  "EB04-014": {
   "name": "Kozuki Sukiyaki",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "014",
   "rarity": "Common",
   "type": "Character",
@@ -3638,7 +3638,7 @@
  "EB04-015": {
   "name": "Jinbe",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "015",
   "rarity": "Rare",
   "type": "Character",
@@ -3649,7 +3649,7 @@
  "EB04-016": {
   "name": "Bird Neptunian",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "016",
   "rarity": "Common",
   "type": "Character",
@@ -3660,7 +3660,7 @@
  "EB04-017": {
   "name": "Mystoms",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "017",
   "rarity": "Common",
   "type": "Character",
@@ -3671,7 +3671,7 @@
  "EB04-018": {
   "name": "Megalo",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "018",
   "rarity": "Rare",
   "type": "Character",
@@ -3682,7 +3682,7 @@
  "EB04-018_p1": {
   "name": "Megalo",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "018",
   "rarity": "Rare",
   "type": "Character",
@@ -3693,7 +3693,7 @@
  "EB04-019": {
   "name": "Eleclaw",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "019",
   "rarity": "Rare",
   "type": "Event",
@@ -3704,7 +3704,7 @@
  "EB04-020": {
   "name": "Shark Brick Fist",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "020",
   "rarity": "Common",
   "type": "Event",
@@ -3715,7 +3715,7 @@
  "EB04-021": {
   "name": "Igaram",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "021",
   "rarity": "Common",
   "type": "Character",
@@ -3726,7 +3726,7 @@
  "EB04-022": {
   "name": "Issho",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "022",
   "rarity": "Rare",
   "type": "Character",
@@ -3737,7 +3737,7 @@
  "EB04-022_p1": {
   "name": "Issho",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "022",
   "rarity": "Rare",
   "type": "Character",
@@ -3746,9 +3746,9 @@
   ]
  },
  "EB04-023": {
-  "name": "Chaka &amp; Pell",
+  "name": "Chaka & Pell",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "023",
   "rarity": "Rare",
   "type": "Character",
@@ -3759,7 +3759,7 @@
  "EB04-024": {
   "name": "Terracotta",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "024",
   "rarity": "Common",
   "type": "Character",
@@ -3770,7 +3770,7 @@
  "EB04-025": {
   "name": "Nefeltari Vivi",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "025",
   "rarity": "SuperRare",
   "type": "Character",
@@ -3781,7 +3781,7 @@
  "EB04-025_p1": {
   "name": "Nefeltari Vivi",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "025",
   "rarity": "SuperRare",
   "type": "Character",
@@ -3792,7 +3792,7 @@
  "EB04-026": {
   "name": "Bluegrass",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "026",
   "rarity": "Common",
   "type": "Character",
@@ -3803,7 +3803,7 @@
  "EB04-026_r1": {
   "name": "Bluegrass",
   "set": "EB04",
-  "set_name": "BLUE Kuzan",
+  "set_name": "",
   "number": "026",
   "rarity": "Common",
   "type": "Character",
@@ -3814,7 +3814,7 @@
  "EB04-027": {
   "name": "Boa Hancock",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "027",
   "rarity": "Rare",
   "type": "Character",
@@ -3825,7 +3825,7 @@
  "EB04-028": {
   "name": "Ice Time",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "028",
   "rarity": "Rare",
   "type": "Event",
@@ -3847,7 +3847,7 @@
  "EB04-028_p2": {
   "name": "Ice Time",
   "set": "EB04",
-  "set_name": "BLUE Kuzan",
+  "set_name": "",
   "number": "028",
   "rarity": "Rare",
   "type": "Event",
@@ -3858,7 +3858,7 @@
  "EB04-029": {
   "name": "I Heard the Sound...of a Lady's Teardrops Falling",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "029",
   "rarity": "Uncommon",
   "type": "Event",
@@ -3869,7 +3869,7 @@
  "EB04-030": {
   "name": "Kaido",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "030",
   "rarity": "Rare",
   "type": "Character",
@@ -3880,7 +3880,7 @@
  "EB04-031": {
   "name": "King",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "031",
   "rarity": "Rare",
   "type": "Character",
@@ -3891,7 +3891,7 @@
  "EB04-031_p1": {
   "name": "King",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "031",
   "rarity": "Rare",
   "type": "Character",
@@ -3902,7 +3902,7 @@
  "EB04-032": {
   "name": "Queen",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "032",
   "rarity": "Rare",
   "type": "Character",
@@ -3913,7 +3913,7 @@
  "EB04-033": {
   "name": "Groggy Monsters",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "033",
   "rarity": "Common",
   "type": "Character",
@@ -3924,7 +3924,7 @@
  "EB04-034": {
   "name": "Charlotte Pudding",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "034",
   "rarity": "Common",
   "type": "Character",
@@ -3935,7 +3935,7 @@
  "EB04-035": {
   "name": "Hitokiri Kamazo",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "035",
   "rarity": "Common",
   "type": "Character",
@@ -3946,7 +3946,7 @@
  "EB04-036": {
   "name": "Foxy",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "036",
   "rarity": "SuperRare",
   "type": "Character",
@@ -3957,7 +3957,7 @@
  "EB04-036_p1": {
   "name": "Foxy",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "036",
   "rarity": "SuperRare",
   "type": "Character",
@@ -3968,7 +3968,7 @@
  "EB04-037": {
   "name": "Porche",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "037",
   "rarity": "Common",
   "type": "Character",
@@ -3977,9 +3977,9 @@
   ]
  },
  "EB04-038": {
-  "name": "Rosinante &amp; Law",
+  "name": "Rosinante & Law",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "038",
   "rarity": "SuperRare",
   "type": "Character",
@@ -3988,9 +3988,9 @@
   ]
  },
  "EB04-038_p1": {
-  "name": "Rosinante &amp; Law",
+  "name": "Rosinante & Law",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "038",
   "rarity": "SuperRare",
   "type": "Character",
@@ -4001,7 +4001,7 @@
  "EB04-039": {
   "name": "Eustass\"Captain\"Kid",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "039",
   "rarity": "Rare",
   "type": "Character",
@@ -4012,7 +4012,7 @@
  "EB04-039_p1": {
   "name": "Eustass\"Captain\"Kid",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "039",
   "rarity": "Special",
   "type": "Character",
@@ -4023,7 +4023,7 @@
  "EB04-040": {
   "name": "Flame Dragon Torch",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "040",
   "rarity": "Rare",
   "type": "Event",
@@ -4034,7 +4034,7 @@
  "EB04-041": {
   "name": "Stealth Black",
   "set": "EB04",
-  "set_name": "THE AZURE SEA’S SEVEN",
+  "set_name": "",
   "number": "041",
   "rarity": "Common",
   "type": "Event",
@@ -4045,7 +4045,7 @@
  "EB04-042": {
   "name": "Alpha",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "042",
   "rarity": "Common",
   "type": "Character",
@@ -4056,7 +4056,7 @@
  "EB04-043": {
   "name": "Kaku",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "043",
   "rarity": "Rare",
   "type": "Character",
@@ -4067,7 +4067,7 @@
  "EB04-043_p1": {
   "name": "Kaku",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "043",
   "rarity": "Rare",
   "type": "Character",
@@ -4078,7 +4078,7 @@
  "EB04-044": {
   "name": "Koby",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "044",
   "rarity": "SuperRare",
   "type": "Character",
@@ -4089,7 +4089,7 @@
  "EB04-044_p1": {
   "name": "Koby",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "044",
   "rarity": "SuperRare",
   "type": "Character",
@@ -4100,7 +4100,7 @@
  "EB04-044_p2": {
   "name": "Koby",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "044",
   "rarity": "SuperRare",
   "type": "Character",
@@ -4111,7 +4111,7 @@
  "EB04-045": {
   "name": "Ginny",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "045",
   "rarity": "Common",
   "type": "Character",
@@ -4122,7 +4122,7 @@
  "EB04-046": {
   "name": "Doll",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "046",
   "rarity": "Common",
   "type": "Character",
@@ -4133,7 +4133,7 @@
  "EB04-047": {
   "name": "Helmeppo",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "047",
   "rarity": "Rare",
   "type": "Character",
@@ -4144,7 +4144,7 @@
  "EB04-048": {
   "name": "Rob Lucci",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "048",
   "rarity": "SuperRare",
   "type": "Character",
@@ -4155,7 +4155,7 @@
  "EB04-048_p1": {
   "name": "Rob Lucci",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "048",
   "rarity": "SuperRare",
   "type": "Character",
@@ -4166,7 +4166,7 @@
  "EB04-049": {
   "name": "Finger Pistol Yellow Lotus",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "049",
   "rarity": "Common",
   "type": "Event",
@@ -4177,7 +4177,7 @@
  "EB04-050": {
   "name": "I'll Whip You Into Shape. ♡",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "050",
   "rarity": "Rare",
   "type": "Event",
@@ -4188,7 +4188,7 @@
  "EB04-051": {
   "name": "Emet",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "051",
   "rarity": "Common",
   "type": "Character",
@@ -4199,7 +4199,7 @@
  "EB04-052": {
   "name": "Sanji",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "052",
   "rarity": "Rare",
   "type": "Character",
@@ -4210,7 +4210,7 @@
  "EB04-052_p1": {
   "name": "Sanji",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "052",
   "rarity": "Rare",
   "type": "Character",
@@ -4221,7 +4221,7 @@
  "EB04-053": {
   "name": "Sentomaru",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "053",
   "rarity": "Rare",
   "type": "Character",
@@ -4232,7 +4232,7 @@
  "EB04-054": {
   "name": "Bartholomew Kuma",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "054",
   "rarity": "Rare",
   "type": "Character",
@@ -4243,7 +4243,7 @@
  "EB04-054_p1": {
   "name": "Bartholomew Kuma",
   "set": "EB04",
-  "set_name": "THE TIME OF BATTLE",
+  "set_name": "",
   "number": "054",
   "rarity": "Special",
   "type": "Character",
@@ -4254,7 +4254,7 @@
  "EB04-055": {
   "name": "Bartholomew Kuma",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "055",
   "rarity": "Common",
   "type": "Character",
@@ -4265,7 +4265,7 @@
  "EB04-056": {
   "name": "Pacifista",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "056",
   "rarity": "Common",
   "type": "Character",
@@ -4276,7 +4276,7 @@
  "EB04-057": {
   "name": "Vegapunk",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "057",
   "rarity": "Common",
   "type": "Character",
@@ -4287,7 +4287,7 @@
  "EB04-058": {
   "name": "Borsalino",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "058",
   "rarity": "SuperRare",
   "type": "Character",
@@ -4298,7 +4298,7 @@
  "EB04-058_p1": {
   "name": "Borsalino",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "058",
   "rarity": "SuperRare",
   "type": "Character",
@@ -4309,7 +4309,7 @@
  "EB04-059": {
   "name": "Black Rope Dragon Twister",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "059",
   "rarity": "Rare",
   "type": "Event",
@@ -4320,7 +4320,7 @@
  "EB04-060": {
   "name": "Gum-Gum Hawk Gatling",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "060",
   "rarity": "Common",
   "type": "Event",
@@ -4331,7 +4331,7 @@
  "EB04-061": {
   "name": "Monkey.D.Luffy",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "061",
   "rarity": "SecretRare",
   "type": "Character",
@@ -4342,7 +4342,7 @@
  "EB04-061_p1": {
   "name": "Monkey.D.Luffy",
   "set": "EB04",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "061",
   "rarity": "SecretRare",
   "type": "Character",
@@ -4353,7 +4353,7 @@
  "EB04-061_p2": {
   "name": "Monkey.D.Luffy",
   "set": "EB04",
-  "set_name": "THE WORLD’S STRONGEST WARRIORS",
+  "set_name": "",
   "number": "061",
   "rarity": "SecretRare",
   "type": "Character",
@@ -10406,7 +10406,7 @@
   ]
  },
  "OP03-053": {
-  "name": "Yosaku &amp; Johnny",
+  "name": "Yosaku & Johnny",
   "set": "OP03",
   "set_name": "PILLARS OF STRENGTH",
   "number": "053",
@@ -10659,7 +10659,7 @@
   ]
  },
  "OP03-061": {
-  "name": "Kiwi &amp; Mozu",
+  "name": "Kiwi & Mozu",
   "set": "OP03",
   "set_name": "PILLARS OF STRENGTH",
   "number": "061",
@@ -10703,7 +10703,7 @@
   ]
  },
  "OP03-065": {
-  "name": "Chimney &amp; Gonbe",
+  "name": "Chimney & Gonbe",
   "set": "OP03",
   "set_name": "PILLARS OF STRENGTH",
   "number": "065",
@@ -13445,7 +13445,7 @@
   ]
  },
  "OP04-073": {
-  "name": "Mr.13 &amp; Ms.Friday",
+  "name": "Mr.13 & Ms.Friday",
   "set": "OP04",
   "set_name": "KINGDOMS OF INTRIGUE",
   "number": "073",
@@ -13522,7 +13522,7 @@
   ]
  },
  "OP04-078": {
-  "name": "Oimo &amp; Kashii",
+  "name": "Oimo & Kashii",
   "set": "OP04",
   "set_name": "KINGDOMS OF INTRIGUE",
   "number": "078",
@@ -20377,7 +20377,7 @@
   ]
  },
  "OP07-009": {
-  "name": "Dogura &amp; Magura",
+  "name": "Dogura & Magura",
   "set": "OP07",
   "set_name": "500 YEARS IN THE FUTURE",
   "number": "009",
@@ -24679,7 +24679,7 @@
   ]
  },
  "OP08-119": {
-  "name": "Kaido &amp; Linlin",
+  "name": "Kaido & Linlin",
   "set": "OP08",
   "set_name": "TWO LEGENDS",
   "number": "119",
@@ -24690,7 +24690,7 @@
   ]
  },
  "OP08-119_p1": {
-  "name": "Kaido &amp; Linlin",
+  "name": "Kaido & Linlin",
   "set": "OP08",
   "set_name": "TWO LEGENDS",
   "number": "119",
@@ -24778,7 +24778,7 @@
   ]
  },
  "OP09-003": {
-  "name": "Shachi &amp; Penguin",
+  "name": "Shachi & Penguin",
   "set": "OP09",
   "set_name": "EMPERORS IN THE NEW WORLD",
   "number": "003",
@@ -29592,7 +29592,7 @@
   ]
  },
  "OP10-110": {
-  "name": "Heat &amp; Wire",
+  "name": "Heat & Wire",
   "set": "OP10",
   "set_name": "ROYAL BLOOD",
   "number": "110",
@@ -32739,7 +32739,7 @@
   ]
  },
  "OP12-055": {
-  "name": "Mohji &amp; Cabaji",
+  "name": "Mohji & Cabaji",
   "set": "OP12",
   "set_name": "LEGACY OF THE MASTER",
   "number": "055",
@@ -33973,7 +33973,7 @@
   ]
  },
  "OP13-007": {
-  "name": "Ace &amp; Sabo &amp; Luffy",
+  "name": "Ace & Sabo & Luffy",
   "set": "OP13",
   "set_name": "CARRYING ON HIS WILL",
   "number": "007",
@@ -33984,7 +33984,7 @@
   ]
  },
  "OP13-007_p1": {
-  "name": "Ace &amp; Sabo &amp; Luffy",
+  "name": "Ace & Sabo & Luffy",
   "set": "OP13",
   "set_name": "CARRYING ON HIS WILL",
   "number": "007",
@@ -35922,7 +35922,7 @@
  "OP14-005_p1": {
   "name": "Killer",
   "set": "OP14",
-  "set_name": "Other Product Card",
+  "set_name": "THE AZURE SEA’S SEVEN",
   "number": "005",
   "rarity": "Common",
   "type": "Character",
@@ -35931,7 +35931,7 @@
   ]
  },
  "OP14-006": {
-  "name": "Shachi &amp; Penguin",
+  "name": "Shachi & Penguin",
   "set": "OP14",
   "set_name": "THE AZURE SEA’S SEVEN",
   "number": "006",
@@ -36054,7 +36054,7 @@
  "OP14-014_p1": {
   "name": "Eustass\"Captain\"Kid",
   "set": "OP14",
-  "set_name": "Other Product Card",
+  "set_name": "THE AZURE SEA’S SEVEN",
   "number": "014",
   "rarity": "Rare",
   "type": "Character",
@@ -36065,7 +36065,7 @@
  "OP14-014_p2": {
   "name": "Eustass\"Captain\"Kid",
   "set": "OP14",
-  "set_name": "Other Product Card",
+  "set_name": "THE AZURE SEA’S SEVEN",
   "number": "014",
   "rarity": "Rare",
   "type": "Character",
@@ -36076,7 +36076,7 @@
  "OP14-014_p3": {
   "name": "Eustass\"Captain\"Kid",
   "set": "OP14",
-  "set_name": "Promotion card",
+  "set_name": "THE AZURE SEA’S SEVEN",
   "number": "014",
   "rarity": "Rare",
   "type": "Character",
@@ -36109,7 +36109,7 @@
  "OP14-015_r1": {
   "name": "Roronoa Zoro",
   "set": "OP14",
-  "set_name": "RED Monkey.D.Luffy",
+  "set_name": "THE AZURE SEA’S SEVEN",
   "number": "015",
   "rarity": "Rare",
   "type": "Character",
@@ -36296,7 +36296,7 @@
  "OP14-029_p1": {
   "name": "Tashigi",
   "set": "OP14",
-  "set_name": "THE TIME OF BATTLE",
+  "set_name": "THE AZURE SEA’S SEVEN",
   "number": "029",
   "rarity": "Special",
   "type": "Character",
@@ -36307,7 +36307,7 @@
  "OP14-029_p2": {
   "name": "Tashigi",
   "set": "OP14",
-  "set_name": "Promotion card",
+  "set_name": "THE AZURE SEA’S SEVEN",
   "number": "029",
   "rarity": "Rare",
   "type": "Character",
@@ -36316,7 +36316,7 @@
   ]
  },
  "OP14-030": {
-  "name": "Chaka &amp; Pell",
+  "name": "Chaka & Pell",
   "set": "OP14",
   "set_name": "THE AZURE SEA’S SEVEN",
   "number": "030",
@@ -36384,7 +36384,7 @@
  "OP14-033_p2": {
   "name": "Perona",
   "set": "OP14",
-  "set_name": "Promotion card",
+  "set_name": "THE AZURE SEA’S SEVEN",
   "number": "033",
   "rarity": "SuperRare",
   "type": "Character",
@@ -36439,7 +36439,7 @@
  "OP14-037_p1": {
   "name": "For Fun",
   "set": "OP14",
-  "set_name": "Other Product Card",
+  "set_name": "THE AZURE SEA’S SEVEN",
   "number": "037",
   "rarity": "Rare",
   "type": "Event",
@@ -36551,7 +36551,7 @@
  "OP14-043_p1": {
   "name": "Aladine",
   "set": "OP14",
-  "set_name": "Promotion card",
+  "set_name": "THE AZURE SEA’S SEVEN",
   "number": "043",
   "rarity": "Rare",
   "type": "Character",
@@ -36947,7 +36947,7 @@
  "OP14-074_p1": {
   "name": "Monet",
   "set": "OP14",
-  "set_name": "Promotion card",
+  "set_name": "THE AZURE SEA’S SEVEN",
   "number": "074",
   "rarity": "Rare",
   "type": "Character",
@@ -37103,7 +37103,7 @@
  "OP14-084_p2": {
   "name": "Ms. All Sunday",
   "set": "OP14",
-  "set_name": "THE TIME OF BATTLE",
+  "set_name": "THE AZURE SEA’S SEVEN",
   "number": "084",
   "rarity": "Special",
   "type": "Character",
@@ -37147,7 +37147,7 @@
  "OP14-087_p1": {
   "name": "Miss.Valentine(Mikita)",
   "set": "OP14",
-  "set_name": "Promotion card",
+  "set_name": "THE AZURE SEA’S SEVEN",
   "number": "087",
   "rarity": "Rare",
   "type": "Character",
@@ -37323,7 +37323,7 @@
  "OP14-099_p1": {
   "name": "Disappointed?",
   "set": "OP14",
-  "set_name": "Other Product Card",
+  "set_name": "THE AZURE SEA’S SEVEN",
   "number": "099",
   "rarity": "Uncommon",
   "type": "Event",
@@ -37433,7 +37433,7 @@
  "OP14-107_p1": {
   "name": "Shakuyaku",
   "set": "OP14",
-  "set_name": "Other Product Card",
+  "set_name": "THE AZURE SEA’S SEVEN",
   "number": "107",
   "rarity": "Uncommon",
   "type": "Character",
@@ -37455,7 +37455,7 @@
  "OP14-108_p1": {
   "name": "Silvers Rayleigh",
   "set": "OP14",
-  "set_name": "Other Product Card",
+  "set_name": "THE AZURE SEA’S SEVEN",
   "number": "108",
   "rarity": "Rare",
   "type": "Character",
@@ -37466,7 +37466,7 @@
  "OP14-108_p2": {
   "name": "Silvers Rayleigh",
   "set": "OP14",
-  "set_name": "Promotion card",
+  "set_name": "THE AZURE SEA’S SEVEN",
   "number": "108",
   "rarity": "Rare",
   "type": "Character",
@@ -37477,7 +37477,7 @@
  "OP14-108_p3": {
   "name": "Silvers Rayleigh",
   "set": "OP14",
-  "set_name": "THE WORLD’S STRONGEST WARRIORS",
+  "set_name": "THE AZURE SEA’S SEVEN",
   "number": "108",
   "rarity": "Special",
   "type": "Character",
@@ -37697,7 +37697,7 @@
  "OP15-001": {
   "name": "Krieg",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "001",
   "rarity": "Leader",
   "type": "Leader",
@@ -37709,7 +37709,7 @@
  "OP15-001_p1": {
   "name": "Krieg",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "001",
   "rarity": "Leader",
   "type": "Leader",
@@ -37721,7 +37721,7 @@
  "OP15-002": {
   "name": "Lucy",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "002",
   "rarity": "Leader",
   "type": "Leader",
@@ -37733,7 +37733,7 @@
  "OP15-002_p1": {
   "name": "Lucy",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "002",
   "rarity": "Leader",
   "type": "Leader",
@@ -37745,7 +37745,7 @@
  "OP15-003": {
   "name": "Alvida",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "003",
   "rarity": "Rare",
   "type": "Character",
@@ -37756,7 +37756,7 @@
  "OP15-003_p1": {
   "name": "Alvida",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "003",
   "rarity": "Rare",
   "type": "Character",
@@ -37767,7 +37767,7 @@
  "OP15-004": {
   "name": "Sea Cat",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "004",
   "rarity": "Common",
   "type": "Character",
@@ -37778,7 +37778,7 @@
  "OP15-005": {
   "name": "Cabaji",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "005",
   "rarity": "Common",
   "type": "Character",
@@ -37789,7 +37789,7 @@
  "OP15-006": {
   "name": "Cavendish",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "006",
   "rarity": "Uncommon",
   "type": "Character",
@@ -37800,7 +37800,7 @@
  "OP15-007": {
   "name": "Gin",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "007",
   "rarity": "SuperRare",
   "type": "Character",
@@ -37811,7 +37811,7 @@
  "OP15-007_p1": {
   "name": "Gin",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "007",
   "rarity": "SuperRare",
   "type": "Character",
@@ -37822,7 +37822,7 @@
  "OP15-008": {
   "name": "Krieg",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "008",
   "rarity": "SuperRare",
   "type": "Character",
@@ -37833,7 +37833,7 @@
  "OP15-008_p1": {
   "name": "Krieg",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "008",
   "rarity": "SuperRare",
   "type": "Character",
@@ -37844,7 +37844,7 @@
  "OP15-009": {
   "name": "Koby",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "009",
   "rarity": "Uncommon",
   "type": "Character",
@@ -37855,7 +37855,7 @@
  "OP15-010": {
   "name": "Nezumi",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "010",
   "rarity": "Common",
   "type": "Character",
@@ -37866,7 +37866,7 @@
  "OP15-011": {
   "name": "Pearl",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "011",
   "rarity": "Rare",
   "type": "Character",
@@ -37877,7 +37877,7 @@
  "OP15-012": {
   "name": "Buggy",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "012",
   "rarity": "Common",
   "type": "Character",
@@ -37888,7 +37888,7 @@
  "OP15-013": {
   "name": "Pincers",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "013",
   "rarity": "Common",
   "type": "Character",
@@ -37899,7 +37899,7 @@
  "OP15-014": {
   "name": "Bartolomeo",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "014",
   "rarity": "Rare",
   "type": "Character",
@@ -37910,7 +37910,7 @@
  "OP15-015": {
   "name": "Higuma",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "015",
   "rarity": "Common",
   "type": "Character",
@@ -37921,7 +37921,7 @@
  "OP15-016": {
   "name": "Fullbody",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "016",
   "rarity": "Uncommon",
   "type": "Character",
@@ -37932,7 +37932,7 @@
  "OP15-017": {
   "name": "Morgan",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "017",
   "rarity": "Common",
   "type": "Character",
@@ -37943,7 +37943,7 @@
  "OP15-018": {
   "name": "Mohji",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "018",
   "rarity": "Common",
   "type": "Character",
@@ -37954,7 +37954,7 @@
  "OP15-019": {
   "name": "Barrier Bulls",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "019",
   "rarity": "Uncommon",
   "type": "Event",
@@ -37965,7 +37965,7 @@
  "OP15-020": {
   "name": "Fire Fist",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "020",
   "rarity": "Rare",
   "type": "Event",
@@ -37976,7 +37976,7 @@
  "OP15-021": {
   "name": "Just Watch Me, Ace!!!",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "021",
   "rarity": "Uncommon",
   "type": "Event",
@@ -37987,7 +37987,7 @@
  "OP15-022": {
   "name": "Brook",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "022",
   "rarity": "Leader",
   "type": "Leader",
@@ -37999,7 +37999,7 @@
  "OP15-022_p1": {
   "name": "Brook",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "022",
   "rarity": "Leader",
   "type": "Leader",
@@ -38011,7 +38011,7 @@
  "OP15-023": {
   "name": "Arlong",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "023",
   "rarity": "Rare",
   "type": "Character",
@@ -38022,7 +38022,7 @@
  "OP15-024": {
   "name": "Usopp",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "024",
   "rarity": "Rare",
   "type": "Character",
@@ -38033,7 +38033,7 @@
  "OP15-025": {
   "name": "Kuro",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "025",
   "rarity": "Rare",
   "type": "Character",
@@ -38044,7 +38044,7 @@
  "OP15-025_p1": {
   "name": "Kuro",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "025",
   "rarity": "Rare",
   "type": "Character",
@@ -38055,7 +38055,7 @@
  "OP15-026": {
   "name": "Jango",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "026",
   "rarity": "Uncommon",
   "type": "Character",
@@ -38066,7 +38066,7 @@
  "OP15-027": {
   "name": "Dracule Mihawk",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "027",
   "rarity": "Common",
   "type": "Character",
@@ -38077,7 +38077,7 @@
  "OP15-028": {
   "name": "Meowban Brothers",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "028",
   "rarity": "Uncommon",
   "type": "Character",
@@ -38088,7 +38088,7 @@
  "OP15-029": {
   "name": "Bartholomew Kuma",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "029",
   "rarity": "Common",
   "type": "Character",
@@ -38099,7 +38099,7 @@
  "OP15-030": {
   "name": "Hyouzou",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "030",
   "rarity": "Uncommon",
   "type": "Character",
@@ -38110,7 +38110,7 @@
  "OP15-031": {
   "name": "Purinpurin",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "031",
   "rarity": "Common",
   "type": "Character",
@@ -38121,7 +38121,7 @@
  "OP15-032": {
   "name": "Brook",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "032",
   "rarity": "SuperRare",
   "type": "Character",
@@ -38132,7 +38132,7 @@
  "OP15-032_p1": {
   "name": "Brook",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "032",
   "rarity": "SuperRare",
   "type": "Character",
@@ -38143,7 +38143,7 @@
  "OP15-033": {
   "name": "Hody Jones",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "033",
   "rarity": "Common",
   "type": "Character",
@@ -38154,7 +38154,7 @@
  "OP15-034": {
   "name": "Yorki",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "034",
   "rarity": "Common",
   "type": "Character",
@@ -38165,7 +38165,7 @@
  "OP15-035": {
   "name": "Laboon",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "035",
   "rarity": "Uncommon",
   "type": "Character",
@@ -38176,7 +38176,7 @@
  "OP15-036": {
   "name": "Ryuma",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "036",
   "rarity": "Common",
   "type": "Character",
@@ -38187,7 +38187,7 @@
  "OP15-036_r1": {
   "name": "Ryuma",
   "set": "OP15",
-  "set_name": "GREEN Roronoa Zoro",
+  "set_name": "",
   "number": "036",
   "rarity": "Common",
   "type": "Character",
@@ -38198,7 +38198,7 @@
  "OP15-037": {
   "name": "The Outcome Will Tell Us Who's Strong and Who's Weak",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "037",
   "rarity": "Uncommon",
   "type": "Event",
@@ -38209,7 +38209,7 @@
  "OP15-038": {
   "name": "It's an Order! Do Not Defy Me!!!",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "038",
   "rarity": "Rare",
   "type": "Event",
@@ -38220,7 +38220,7 @@
  "OP15-039": {
   "name": "Rebecca",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "039",
   "rarity": "Leader",
   "type": "Leader",
@@ -38231,7 +38231,7 @@
  "OP15-039_p1": {
   "name": "Rebecca",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "039",
   "rarity": "Leader",
   "type": "Leader",
@@ -38242,7 +38242,7 @@
  "OP15-040": {
   "name": "Viola",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "040",
   "rarity": "Rare",
   "type": "Character",
@@ -38253,7 +38253,7 @@
  "OP15-041": {
   "name": "Orlumbus",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "041",
   "rarity": "Uncommon",
   "type": "Character",
@@ -38264,7 +38264,7 @@
  "OP15-042": {
   "name": "Kyros",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "042",
   "rarity": "Rare",
   "type": "Character",
@@ -38275,7 +38275,7 @@
  "OP15-043": {
   "name": "Kelly Funk",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "043",
   "rarity": "Common",
   "type": "Character",
@@ -38286,7 +38286,7 @@
  "OP15-044": {
   "name": "Koala",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "044",
   "rarity": "Common",
   "type": "Character",
@@ -38297,7 +38297,7 @@
  "OP15-045": {
   "name": "Sai",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "045",
   "rarity": "Uncommon",
   "type": "Character",
@@ -38308,7 +38308,7 @@
  "OP15-046": {
   "name": "Sabo",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "046",
   "rarity": "SuperRare",
   "type": "Character",
@@ -38319,7 +38319,7 @@
  "OP15-046_p1": {
   "name": "Sabo",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "046",
   "rarity": "SuperRare",
   "type": "Character",
@@ -38330,7 +38330,7 @@
  "OP15-047": {
   "name": "Sanji",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "047",
   "rarity": "Rare",
   "type": "Character",
@@ -38341,7 +38341,7 @@
  "OP15-047_p1": {
   "name": "Sanji",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "047",
   "rarity": "Rare",
   "type": "Character",
@@ -38352,7 +38352,7 @@
  "OP15-048": {
   "name": "Chinjao",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "048",
   "rarity": "Common",
   "type": "Character",
@@ -38363,7 +38363,7 @@
  "OP15-049": {
   "name": "Hajrudin",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "049",
   "rarity": "Uncommon",
   "type": "Character",
@@ -38374,7 +38374,7 @@
  "OP15-050": {
   "name": "Bobby Funk",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "050",
   "rarity": "Common",
   "type": "Character",
@@ -38385,7 +38385,7 @@
  "OP15-051": {
   "name": "Monkey.D.Luffy",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "051",
   "rarity": "Uncommon",
   "type": "Character",
@@ -38396,7 +38396,7 @@
  "OP15-052": {
   "name": "Leo",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "052",
   "rarity": "Uncommon",
   "type": "Character",
@@ -38407,7 +38407,7 @@
  "OP15-053": {
   "name": "Rebecca",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "053",
   "rarity": "SuperRare",
   "type": "Character",
@@ -38418,7 +38418,7 @@
  "OP15-053_p1": {
   "name": "Rebecca",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "053",
   "rarity": "SuperRare",
   "type": "Character",
@@ -38429,7 +38429,7 @@
  "OP15-054": {
   "name": "And No One Else Can Have It! It's Our Memento of Him",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "054",
   "rarity": "Common",
   "type": "Event",
@@ -38440,7 +38440,7 @@
  "OP15-055": {
   "name": "Go Ahead and Use 'Em, Mr. Luffy!!!",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "055",
   "rarity": "Rare",
   "type": "Event",
@@ -38451,7 +38451,7 @@
  "OP15-056": {
   "name": "Would You Let Me Eat the Flame-Flame Fruit?",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "056",
   "rarity": "Common",
   "type": "Event",
@@ -38462,7 +38462,7 @@
  "OP15-057": {
   "name": "Dressrosa Kingdom",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "057",
   "rarity": "Common",
   "type": "Stage",
@@ -38473,7 +38473,7 @@
  "OP15-058": {
   "name": "Enel",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "058",
   "rarity": "Leader",
   "type": "Leader",
@@ -38484,7 +38484,7 @@
  "OP15-058_p1": {
   "name": "Enel",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "058",
   "rarity": "Leader",
   "type": "Leader",
@@ -38495,7 +38495,7 @@
  "OP15-059": {
   "name": "Amazon",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "059",
   "rarity": "Common",
   "type": "Character",
@@ -38506,7 +38506,7 @@
  "OP15-060": {
   "name": "Enel",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "060",
   "rarity": "SuperRare",
   "type": "Character",
@@ -38517,7 +38517,7 @@
  "OP15-060_p1": {
   "name": "Enel",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "060",
   "rarity": "SuperRare",
   "type": "Character",
@@ -38528,7 +38528,7 @@
  "OP15-061": {
   "name": "Ohm",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "061",
   "rarity": "Rare",
   "type": "Character",
@@ -38539,7 +38539,7 @@
  "OP15-061_p1": {
   "name": "Ohm",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "061",
   "rarity": "Rare",
   "type": "Character",
@@ -38550,7 +38550,7 @@
  "OP15-062": {
   "name": "Captain Seamars",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "062",
   "rarity": "Uncommon",
   "type": "Character",
@@ -38561,7 +38561,7 @@
  "OP15-063": {
   "name": "Gedatsu",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "063",
   "rarity": "Rare",
   "type": "Character",
@@ -38572,7 +38572,7 @@
  "OP15-064": {
   "name": "Kotori",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "064",
   "rarity": "Common",
   "type": "Character",
@@ -38583,7 +38583,7 @@
  "OP15-065": {
   "name": "Goro",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "065",
   "rarity": "Common",
   "type": "Character",
@@ -38594,7 +38594,7 @@
  "OP15-066": {
   "name": "Satori",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "066",
   "rarity": "Rare",
   "type": "Character",
@@ -38605,7 +38605,7 @@
  "OP15-067": {
   "name": "Shura",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "067",
   "rarity": "Rare",
   "type": "Character",
@@ -38616,7 +38616,7 @@
  "OP15-068": {
   "name": "Heavenly Warriors",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "068",
   "rarity": "Common",
   "type": "Character",
@@ -38627,7 +38627,7 @@
  "OP15-069": {
   "name": "Nola",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "069",
   "rarity": "Uncommon",
   "type": "Character",
@@ -38638,7 +38638,7 @@
  "OP15-070": {
   "name": "Fuza",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "070",
   "rarity": "Common",
   "type": "Character",
@@ -38649,7 +38649,7 @@
  "OP15-071": {
   "name": "Holly",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "071",
   "rarity": "Common",
   "type": "Character",
@@ -38660,7 +38660,7 @@
  "OP15-072": {
   "name": "Hotori",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "072",
   "rarity": "Common",
   "type": "Character",
@@ -38671,7 +38671,7 @@
  "OP15-073": {
   "name": "Yama",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "073",
   "rarity": "Common",
   "type": "Character",
@@ -38682,7 +38682,7 @@
  "OP15-074": {
   "name": "Varie",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "074",
   "rarity": "Uncommon",
   "type": "Event",
@@ -38693,7 +38693,7 @@
  "OP15-075": {
   "name": "El Thor",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "075",
   "rarity": "Uncommon",
   "type": "Event",
@@ -38715,7 +38715,7 @@
  "OP15-076": {
   "name": "Lightning Beast Kiten",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "076",
   "rarity": "Uncommon",
   "type": "Event",
@@ -38726,7 +38726,7 @@
  "OP15-077": {
   "name": "Lightning Dragon",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "077",
   "rarity": "Rare",
   "type": "Event",
@@ -38737,7 +38737,7 @@
  "OP15-077_p1": {
   "name": "Lightning Dragon",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "077",
   "rarity": "Rare",
   "type": "Event",
@@ -38748,7 +38748,7 @@
  "OP15-078": {
   "name": "Mamaragan",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "078",
   "rarity": "SuperRare",
   "type": "Event",
@@ -38759,7 +38759,7 @@
  "OP15-078_p1": {
   "name": "Mamaragan",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "078",
   "rarity": "SuperRare",
   "type": "Event",
@@ -38770,7 +38770,7 @@
  "OP15-079": {
   "name": "Absalom",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "079",
   "rarity": "Common",
   "type": "Character",
@@ -38781,7 +38781,7 @@
  "OP15-080": {
   "name": "Oars",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "080",
   "rarity": "Rare",
   "type": "Character",
@@ -38792,7 +38792,7 @@
  "OP15-081": {
   "name": "Sanji",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "081",
   "rarity": "Uncommon",
   "type": "Character",
@@ -38803,7 +38803,7 @@
  "OP15-082": {
   "name": "Charlotte Lola",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "082",
   "rarity": "Common",
   "type": "Character",
@@ -38814,7 +38814,7 @@
  "OP15-083": {
   "name": "Spoil",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "083",
   "rarity": "Common",
   "type": "Character",
@@ -38825,7 +38825,7 @@
  "OP15-084": {
   "name": "Dr. Hogback",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "084",
   "rarity": "Common",
   "type": "Character",
@@ -38836,7 +38836,7 @@
  "OP15-085": {
   "name": "Tony Tony.Chopper",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "085",
   "rarity": "Rare",
   "type": "Character",
@@ -38847,7 +38847,7 @@
  "OP15-086": {
   "name": "Nami",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "086",
   "rarity": "SuperRare",
   "type": "Character",
@@ -38858,7 +38858,7 @@
  "OP15-086_p1": {
   "name": "Nami",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "086",
   "rarity": "SuperRare",
   "type": "Character",
@@ -38869,7 +38869,7 @@
  "OP15-087": {
   "name": "Nico Robin",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "087",
   "rarity": "Common",
   "type": "Character",
@@ -38880,7 +38880,7 @@
  "OP15-088": {
   "name": "Pirates Docking Six",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "088",
   "rarity": "Rare",
   "type": "Character",
@@ -38891,7 +38891,7 @@
  "OP15-089": {
   "name": "Franky",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "089",
   "rarity": "Uncommon",
   "type": "Character",
@@ -38902,7 +38902,7 @@
  "OP15-090": {
   "name": "Perona",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "090",
   "rarity": "Uncommon",
   "type": "Character",
@@ -38913,7 +38913,7 @@
  "OP15-091": {
   "name": "Margarita",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "091",
   "rarity": "Common",
   "type": "Character",
@@ -38924,7 +38924,7 @@
  "OP15-092": {
   "name": "Monkey.D.Luffy",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "092",
   "rarity": "Rare",
   "type": "Character",
@@ -38935,7 +38935,7 @@
  "OP15-092_p1": {
   "name": "Monkey.D.Luffy",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "092",
   "rarity": "Rare",
   "type": "Character",
@@ -38946,7 +38946,7 @@
  "OP15-093": {
   "name": "The Risky Brothers",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "093",
   "rarity": "Common",
   "type": "Character",
@@ -38957,7 +38957,7 @@
  "OP15-094": {
   "name": "Roronoa Zoro",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "094",
   "rarity": "Uncommon",
   "type": "Character",
@@ -38968,7 +38968,7 @@
  "OP15-095": {
   "name": "Gum-Gum Storm",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "095",
   "rarity": "Uncommon",
   "type": "Event",
@@ -38979,7 +38979,7 @@
  "OP15-096": {
   "name": "Swallow Bond en Avant",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "096",
   "rarity": "Rare",
   "type": "Event",
@@ -38990,7 +38990,7 @@
  "OP15-097": {
   "name": "I Find It Embarrassing as a Human Being",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "097",
   "rarity": "Common",
   "type": "Event",
@@ -39001,7 +39001,7 @@
  "OP15-098": {
   "name": "Monkey.D.Luffy",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "098",
   "rarity": "Leader",
   "type": "Leader",
@@ -39012,7 +39012,7 @@
  "OP15-098_p1": {
   "name": "Monkey.D.Luffy",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "098",
   "rarity": "Leader",
   "type": "Leader",
@@ -39023,7 +39023,7 @@
  "OP15-099": {
   "name": "Urouge",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "099",
   "rarity": "Uncommon",
   "type": "Character",
@@ -39034,7 +39034,7 @@
  "OP15-100": {
   "name": "Kamakiri",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "100",
   "rarity": "Common",
   "type": "Character",
@@ -39045,7 +39045,7 @@
  "OP15-101": {
   "name": "Kalgara",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "101",
   "rarity": "Uncommon",
   "type": "Character",
@@ -39056,7 +39056,7 @@
  "OP15-102": {
   "name": "Gan.Fall",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "102",
   "rarity": "Rare",
   "type": "Character",
@@ -39067,7 +39067,7 @@
  "OP15-103": {
   "name": "Genbo",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "103",
   "rarity": "Common",
   "type": "Character",
@@ -39078,7 +39078,7 @@
  "OP15-104": {
   "name": "Conis",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "104",
   "rarity": "Common",
   "type": "Character",
@@ -39089,7 +39089,7 @@
  "OP15-105": {
   "name": "Jewelry Bonney",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "105",
   "rarity": "Uncommon",
   "type": "Character",
@@ -39100,7 +39100,7 @@
  "OP15-106": {
   "name": "Octoballoon",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "106",
   "rarity": "Common",
   "type": "Character",
@@ -39111,7 +39111,7 @@
  "OP15-107": {
   "name": "Tony Tony.Chopper",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "107",
   "rarity": "Uncommon",
   "type": "Character",
@@ -39122,7 +39122,7 @@
  "OP15-108": {
   "name": "Nami",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "108",
   "rarity": "Rare",
   "type": "Character",
@@ -39144,7 +39144,7 @@
  "OP15-109": {
   "name": "Nico Robin",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "109",
   "rarity": "Rare",
   "type": "Character",
@@ -39155,7 +39155,7 @@
  "OP15-109_p1": {
   "name": "Nico Robin",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "109",
   "rarity": "Rare",
   "type": "Character",
@@ -39166,7 +39166,7 @@
  "OP15-110": {
   "name": "Braham",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "110",
   "rarity": "Common",
   "type": "Character",
@@ -39177,7 +39177,7 @@
  "OP15-111": {
   "name": "Mont Blanc Noland",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "111",
   "rarity": "Common",
   "type": "Character",
@@ -39188,7 +39188,7 @@
  "OP15-112": {
   "name": "Raki",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "112",
   "rarity": "Common",
   "type": "Character",
@@ -39199,7 +39199,7 @@
  "OP15-113": {
   "name": "Roronoa Zoro",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "113",
   "rarity": "SuperRare",
   "type": "Character",
@@ -39210,7 +39210,7 @@
  "OP15-113_p1": {
   "name": "Roronoa Zoro",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "113",
   "rarity": "SuperRare",
   "type": "Character",
@@ -39221,7 +39221,7 @@
  "OP15-114": {
   "name": "Wyper",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "114",
   "rarity": "SuperRare",
   "type": "Character",
@@ -39232,7 +39232,7 @@
  "OP15-114_p1": {
   "name": "Wyper",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "114",
   "rarity": "SuperRare",
   "type": "Character",
@@ -39243,7 +39243,7 @@
  "OP15-115": {
   "name": "Impact Dial",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "115",
   "rarity": "Common",
   "type": "Event",
@@ -39254,7 +39254,7 @@
  "OP15-116": {
   "name": "Gum-Gum Golden Rifle",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "116",
   "rarity": "Rare",
   "type": "Event",
@@ -39265,7 +39265,7 @@
  "OP15-116_p1": {
   "name": "Gum-Gum Golden Rifle",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "116",
   "rarity": "Rare",
   "type": "Event",
@@ -39276,7 +39276,7 @@
  "OP15-117": {
   "name": "Heso!!",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "117",
   "rarity": "Uncommon",
   "type": "Event",
@@ -39287,7 +39287,7 @@
  "OP15-118": {
   "name": "Enel",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "118",
   "rarity": "SecretRare",
   "type": "Character",
@@ -39298,7 +39298,7 @@
  "OP15-118_p1": {
   "name": "Enel",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "118",
   "rarity": "SecretRare",
   "type": "Character",
@@ -39309,7 +39309,7 @@
  "OP15-118_p2": {
   "name": "Enel",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "118",
   "rarity": "SecretRare",
   "type": "Character",
@@ -39320,7 +39320,7 @@
  "OP15-119": {
   "name": "Monkey.D.Luffy",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "119",
   "rarity": "SecretRare",
   "type": "Character",
@@ -39331,7 +39331,7 @@
  "OP15-119_p1": {
   "name": "Monkey.D.Luffy",
   "set": "OP15",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "119",
   "rarity": "SecretRare",
   "type": "Character",
@@ -40024,7 +40024,7 @@
   ]
  },
  "OP16-051": {
-  "name": "Mohji &amp; Cabaji",
+  "name": "Mohji & Cabaji",
   "set": "OP16",
   "set_name": "THE TIME OF BATTLE",
   "number": "051",
@@ -41038,7 +41038,7 @@
   ]
  },
  "OP17-004": {
-  "name": "Inuarashi &amp; Nekomamushi",
+  "name": "Inuarashi & Nekomamushi",
   "set": "OP17",
   "set_name": "THE WORLD’S STRONGEST WARRIORS",
   "number": "004",
@@ -41390,7 +41390,7 @@
   ]
  },
  "OP17-028": {
-  "name": "Bonk Punch &amp; Monster",
+  "name": "Bonk Punch & Monster",
   "set": "OP17",
   "set_name": "THE WORLD’S STRONGEST WARRIORS",
   "number": "028",
@@ -41852,7 +41852,7 @@
   ]
  },
  "OP17-060": {
-  "name": "Ulti &amp; Page One",
+  "name": "Ulti & Page One",
   "set": "OP17",
   "set_name": "THE WORLD’S STRONGEST WARRIORS",
   "number": "060",
@@ -42965,7 +42965,7 @@
  "P-014_p2": {
   "name": "Koby",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST",
+  "set_name": "",
   "number": "014",
   "rarity": "Promo",
   "type": "Character",
@@ -42976,7 +42976,7 @@
  "P-014_p3": {
   "name": "Koby",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST",
+  "set_name": "",
   "number": "014",
   "rarity": "Promo",
   "type": "Character",
@@ -42987,7 +42987,7 @@
  "P-014_r1": {
   "name": "Koby",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST",
+  "set_name": "",
   "number": "014",
   "rarity": "Promo",
   "type": "Character",
@@ -43218,7 +43218,7 @@
  "P-029_p3": {
   "name": "Bartolomeo",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST",
+  "set_name": "",
   "number": "029",
   "rarity": "Promo",
   "type": "Character",
@@ -43229,7 +43229,7 @@
  "P-029_p4": {
   "name": "Bartolomeo",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST",
+  "set_name": "",
   "number": "029",
   "rarity": "Promo",
   "type": "Character",
@@ -43240,7 +43240,7 @@
  "P-029_r1": {
   "name": "Bartolomeo",
   "set": "P",
-  "set_name": "Green Uta",
+  "set_name": "",
   "number": "029",
   "rarity": "Promo",
   "type": "Character",
@@ -43251,7 +43251,7 @@
  "P-029_r2": {
   "name": "Bartolomeo",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST",
+  "set_name": "",
   "number": "029",
   "rarity": "Promo",
   "type": "Character",
@@ -43295,7 +43295,7 @@
  "P-030_r1": {
   "name": "Jinbe",
   "set": "P",
-  "set_name": "Blue Donquixote Doflamingo",
+  "set_name": "",
   "number": "030",
   "rarity": "Promo",
   "type": "Character",
@@ -43416,7 +43416,7 @@
  "P-041_r1": {
   "name": "Monkey.D.Luffy",
   "set": "P",
-  "set_name": "Purple Monkey.D.Luffy",
+  "set_name": "",
   "number": "041",
   "rarity": "Promo",
   "type": "Character",
@@ -43449,7 +43449,7 @@
  "P-044": {
   "name": "Sabo",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "044",
   "rarity": "Promo",
   "type": "Character",
@@ -43460,7 +43460,7 @@
  "P-044_r1": {
   "name": "Sabo",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "044",
   "rarity": "Promo",
   "type": "Character",
@@ -43647,7 +43647,7 @@
  "P-053_p2": {
   "name": "Nami",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST",
+  "set_name": "",
   "number": "053",
   "rarity": "Promo",
   "type": "Character",
@@ -43658,7 +43658,7 @@
  "P-053_p3": {
   "name": "Nami",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST",
+  "set_name": "",
   "number": "053",
   "rarity": "Promo",
   "type": "Character",
@@ -43680,7 +43680,7 @@
  "P-053_r1": {
   "name": "Nami",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST",
+  "set_name": "",
   "number": "053",
   "rarity": "Promo",
   "type": "Character",
@@ -43713,7 +43713,7 @@
  "P-055_p2": {
   "name": "Monkey.D.Luffy",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST",
+  "set_name": "",
   "number": "055",
   "rarity": "Promo",
   "type": "Character",
@@ -43724,7 +43724,7 @@
  "P-055_p3": {
   "name": "Monkey.D.Luffy",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST",
+  "set_name": "",
   "number": "055",
   "rarity": "Promo",
   "type": "Character",
@@ -43746,7 +43746,7 @@
  "P-055_r1": {
   "name": "Monkey.D.Luffy",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST",
+  "set_name": "",
   "number": "055",
   "rarity": "Promo",
   "type": "Character",
@@ -43790,7 +43790,7 @@
  "P-057_p1": {
   "name": "Fleeting Lullaby",
   "set": "P",
-  "set_name": "Green Uta",
+  "set_name": "",
   "number": "057",
   "rarity": "Promo",
   "type": "Event",
@@ -43812,7 +43812,7 @@
  "P-058_p1": {
   "name": "Where the Wind Blows",
   "set": "P",
-  "set_name": "Green Uta",
+  "set_name": "",
   "number": "058",
   "rarity": "Promo",
   "type": "Event",
@@ -43834,7 +43834,7 @@
  "P-059_p1": {
   "name": "The World's Continuation",
   "set": "P",
-  "set_name": "Green Uta",
+  "set_name": "",
   "number": "059",
   "rarity": "Promo",
   "type": "Event",
@@ -43856,7 +43856,7 @@
  "P-060_p1": {
   "name": "Tot Musica",
   "set": "P",
-  "set_name": "Green Uta",
+  "set_name": "",
   "number": "060",
   "rarity": "Promo",
   "type": "Event",
@@ -43878,7 +43878,7 @@
  "P-061_r1": {
   "name": "Monkey.D.Luffy",
   "set": "P",
-  "set_name": "Green Uta",
+  "set_name": "",
   "number": "061",
   "rarity": "Promo",
   "type": "Character",
@@ -43887,7 +43887,7 @@
   ]
  },
  "P-062": {
-  "name": "Hody &amp; Hyouzou",
+  "name": "Hody & Hyouzou",
   "set": "P",
   "set_name": "Promotion card",
   "number": "062",
@@ -43900,7 +43900,7 @@
  "P-063": {
   "name": "Jinbe",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "063",
   "rarity": "Promo",
   "type": "Character",
@@ -43911,7 +43911,7 @@
  "P-063_p1": {
   "name": "Jinbe",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "063",
   "rarity": "Promo",
   "type": "Character",
@@ -43922,7 +43922,7 @@
  "P-063_r1": {
   "name": "Jinbe",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "063",
   "rarity": "Promo",
   "type": "Character",
@@ -43977,7 +43977,7 @@
  "P-068_p1": {
   "name": "Sanji",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "068",
   "rarity": "Promo",
   "type": "Character",
@@ -43988,7 +43988,7 @@
  "P-068_r1": {
   "name": "Sanji",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "068",
   "rarity": "Promo",
   "type": "Character",
@@ -44032,7 +44032,7 @@
  "P-069_p3": {
   "name": "Koala",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "069",
   "rarity": "Promo",
   "type": "Character",
@@ -44076,7 +44076,7 @@
  "P-069_r1": {
   "name": "Koala",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "069",
   "rarity": "Promo",
   "type": "Character",
@@ -44120,7 +44120,7 @@
  "P-070_p3": {
   "name": "Carrot",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "070",
   "rarity": "Promo",
   "type": "Character",
@@ -44131,7 +44131,7 @@
  "P-070_r1": {
   "name": "Carrot",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "070",
   "rarity": "Promo",
   "type": "Character",
@@ -44164,7 +44164,7 @@
  "P-073": {
   "name": "Sabo",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "073",
   "rarity": "Promo",
   "type": "Character",
@@ -44186,7 +44186,7 @@
  "P-073_r1": {
   "name": "Sabo",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "073",
   "rarity": "Promo",
   "type": "Character",
@@ -44197,7 +44197,7 @@
  "P-074": {
   "name": "Portgas.D.Ace",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "074",
   "rarity": "Promo",
   "type": "Character",
@@ -44219,7 +44219,7 @@
  "P-074_r1": {
   "name": "Portgas.D.Ace",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "074",
   "rarity": "Promo",
   "type": "Character",
@@ -44230,7 +44230,7 @@
  "P-075": {
   "name": "Monkey.D.Luffy",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "075",
   "rarity": "Promo",
   "type": "Character",
@@ -44252,7 +44252,7 @@
  "P-075_r1": {
   "name": "Monkey.D.Luffy",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "075",
   "rarity": "Promo",
   "type": "Character",
@@ -44374,7 +44374,7 @@
  "P-078_p6": {
   "name": "Adio",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "078",
   "rarity": "Promo",
   "type": "Character",
@@ -44385,7 +44385,7 @@
  "P-078_r1": {
   "name": "Adio",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "078",
   "rarity": "Promo",
   "type": "Character",
@@ -44429,7 +44429,7 @@
  "P-079_p3": {
   "name": "Lim",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "079",
   "rarity": "Promo",
   "type": "Character",
@@ -44440,7 +44440,7 @@
  "P-079_r1": {
   "name": "Lim",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "079",
   "rarity": "Promo",
   "type": "Character",
@@ -44473,7 +44473,7 @@
  "P-081_p2": {
   "name": "Dracule Mihawk",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "081",
   "rarity": "Promo",
   "type": "Character",
@@ -44484,7 +44484,7 @@
  "P-081_r1": {
   "name": "Dracule Mihawk",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "081",
   "rarity": "Promo",
   "type": "Character",
@@ -44517,7 +44517,7 @@
  "P-082_p2": {
   "name": "Crocodile",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "082",
   "rarity": "Promo",
   "type": "Character",
@@ -44528,7 +44528,7 @@
  "P-082_r1": {
   "name": "Crocodile",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "082",
   "rarity": "Promo",
   "type": "Character",
@@ -44572,7 +44572,7 @@
  "P-083_p3": {
   "name": "Shanks",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "083",
   "rarity": "Promo",
   "type": "Character",
@@ -44583,7 +44583,7 @@
  "P-083_r1": {
   "name": "Shanks",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "083",
   "rarity": "Promo",
   "type": "Character",
@@ -44594,7 +44594,7 @@
  "P-084": {
   "name": "Buggy",
   "set": "P",
-  "set_name": "BLUE Buggy",
+  "set_name": "",
   "number": "084",
   "rarity": "Promo",
   "type": "Character",
@@ -44605,7 +44605,7 @@
  "P-084_p1": {
   "name": "Buggy",
   "set": "P",
-  "set_name": "THE WORLD’S STRONGEST WARRIORS",
+  "set_name": "",
   "number": "084",
   "rarity": "Special",
   "type": "Character",
@@ -44649,7 +44649,7 @@
  "P-085_p3": {
   "name": "Jewelry Bonney",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "085",
   "rarity": "Promo",
   "type": "Character",
@@ -44660,7 +44660,7 @@
  "P-085_r1": {
   "name": "Jewelry Bonney",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "085",
   "rarity": "Promo",
   "type": "Character",
@@ -44671,7 +44671,7 @@
  "P-085_r2": {
   "name": "Jewelry Bonney",
   "set": "P",
-  "set_name": "YELLOW Eustass\"Captain\"Kid",
+  "set_name": "",
   "number": "085",
   "rarity": "Promo",
   "type": "Character",
@@ -44693,7 +44693,7 @@
  "P-088_p3": {
   "name": "Trafalgar Law",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "088",
   "rarity": "Promo",
   "type": "Character",
@@ -44704,7 +44704,7 @@
  "P-088_r1": {
   "name": "Trafalgar Law",
   "set": "P",
-  "set_name": "ONE PIECE CARD THE BEST vol.2",
+  "set_name": "",
   "number": "088",
   "rarity": "Promo",
   "type": "Character",
@@ -44715,7 +44715,7 @@
  "P-088_r2": {
   "name": "Trafalgar Law",
   "set": "P",
-  "set_name": "YELLOW Eustass\"Captain\"Kid",
+  "set_name": "",
   "number": "088",
   "rarity": "Promo",
   "type": "Character",
@@ -44770,7 +44770,7 @@
  "P-090_r1": {
   "name": "Charlotte Smoothie",
   "set": "P",
-  "set_name": "PURPLE Charlotte Katakuri",
+  "set_name": "",
   "number": "090",
   "rarity": "Promo",
   "type": "Character",
@@ -44935,7 +44935,7 @@
  "P-101_r1": {
   "name": "Tony Tony.Chopper",
   "set": "P",
-  "set_name": "RED Monkey.D.Luffy",
+  "set_name": "",
   "number": "101",
   "rarity": "Promo",
   "type": "Character",
@@ -45056,7 +45056,7 @@
  "P-105_p1": {
   "name": "Sabo",
   "set": "P",
-  "set_name": "BOOSTER PACK",
+  "set_name": "",
   "number": "105",
   "rarity": "Special",
   "type": "Character",
@@ -45089,7 +45089,7 @@
  "P-105_r1": {
   "name": "Sabo",
   "set": "P",
-  "set_name": "RED/BLACK Sabo",
+  "set_name": "",
   "number": "105",
   "rarity": "Promo",
   "type": "Character",
@@ -45144,7 +45144,7 @@
  "P-107_p1": {
   "name": "Gol.D.Roger",
   "set": "P",
-  "set_name": "THE WORLD’S STRONGEST WARRIORS",
+  "set_name": "",
   "number": "107",
   "rarity": "Special",
   "type": "Character",
@@ -48874,7 +48874,7 @@
   ]
  },
  "ST10-008": {
-  "name": "Shachi &amp; Penguin",
+  "name": "Shachi & Penguin",
   "set": "ST10",
   "set_name": "The Three Captains",
   "number": "008",
@@ -48885,7 +48885,7 @@
   ]
  },
  "ST10-008_p1": {
-  "name": "Shachi &amp; Penguin",
+  "name": "Shachi & Penguin",
   "set": "ST10",
   "set_name": "The Three Captains",
   "number": "008",
@@ -48896,7 +48896,7 @@
   ]
  },
  "ST10-008_p2": {
-  "name": "Shachi &amp; Penguin",
+  "name": "Shachi & Penguin",
   "set": "ST10",
   "set_name": "The Three Captains",
   "number": "008",
@@ -48907,7 +48907,7 @@
   ]
  },
  "ST10-008_p3": {
-  "name": "Shachi &amp; Penguin",
+  "name": "Shachi & Penguin",
   "set": "ST10",
   "set_name": "The Three Captains",
   "number": "008",
@@ -48918,7 +48918,7 @@
   ]
  },
  "ST10-008_r1": {
-  "name": "Shachi &amp; Penguin",
+  "name": "Shachi & Penguin",
   "set": "ST10",
   "set_name": "The Three Captains",
   "number": "008",
@@ -49215,7 +49215,7 @@
   ]
  },
  "ST12-001": {
-  "name": "Roronoa Zoro &amp; Sanji",
+  "name": "Roronoa Zoro & Sanji",
   "set": "ST12",
   "set_name": "Zoro and Sanji",
   "number": "001",
@@ -49293,7 +49293,7 @@
   ]
  },
  "ST12-006": {
-  "name": "Yosaku &amp; Johnny",
+  "name": "Yosaku & Johnny",
   "set": "ST12",
   "set_name": "Zoro and Sanji",
   "number": "006",
@@ -49447,7 +49447,7 @@
   ]
  },
  "ST12-015": {
-  "name": "Patty &amp; Carne",
+  "name": "Patty & Carne",
   "set": "ST12",
   "set_name": "Zoro and Sanji",
   "number": "015",
@@ -51643,9 +51643,9 @@
   ]
  },
  "ST22-001": {
-  "name": "Ace &amp; Newgate",
+  "name": "Ace & Newgate",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "001",
   "rarity": "Leader",
   "type": "Leader",
@@ -51654,9 +51654,9 @@
   ]
  },
  "ST22-001_p1": {
-  "name": "Ace &amp; Newgate",
+  "name": "Ace & Newgate",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "001",
   "rarity": "Leader",
   "type": "Leader",
@@ -51667,7 +51667,7 @@
  "ST22-002": {
   "name": "Izo",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "002",
   "rarity": "SuperRare",
   "type": "Character",
@@ -51678,7 +51678,7 @@
  "ST22-002_p1": {
   "name": "Izo",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "002",
   "rarity": "SuperRare",
   "type": "Character",
@@ -51689,7 +51689,7 @@
  "ST22-003": {
   "name": "Edward.Newgate",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "003",
   "rarity": "Common",
   "type": "Character",
@@ -51700,7 +51700,7 @@
  "ST22-003_p1": {
   "name": "Edward.Newgate",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "003",
   "rarity": "Common",
   "type": "Character",
@@ -51711,7 +51711,7 @@
  "ST22-004": {
   "name": "Elmy",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "004",
   "rarity": "Common",
   "type": "Character",
@@ -51722,7 +51722,7 @@
  "ST22-004_p1": {
   "name": "Elmy",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "004",
   "rarity": "Common",
   "type": "Character",
@@ -51733,7 +51733,7 @@
  "ST22-005": {
   "name": "Kouzuki Oden",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "005",
   "rarity": "SuperRare",
   "type": "Character",
@@ -51744,7 +51744,7 @@
  "ST22-005_p1": {
   "name": "Kouzuki Oden",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "005",
   "rarity": "SuperRare",
   "type": "Character",
@@ -51755,7 +51755,7 @@
  "ST22-006": {
   "name": "Jozu",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "006",
   "rarity": "Common",
   "type": "Character",
@@ -51766,7 +51766,7 @@
  "ST22-006_p1": {
   "name": "Jozu",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "006",
   "rarity": "Common",
   "type": "Character",
@@ -51777,7 +51777,7 @@
  "ST22-007": {
   "name": "Squard",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "007",
   "rarity": "Common",
   "type": "Character",
@@ -51788,7 +51788,7 @@
  "ST22-007_p1": {
   "name": "Squard",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "007",
   "rarity": "Common",
   "type": "Character",
@@ -51799,7 +51799,7 @@
  "ST22-008": {
   "name": "Decalvan Brothers",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "008",
   "rarity": "Common",
   "type": "Character",
@@ -51810,7 +51810,7 @@
  "ST22-008_p1": {
   "name": "Decalvan Brothers",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "008",
   "rarity": "Common",
   "type": "Character",
@@ -51821,7 +51821,7 @@
  "ST22-009": {
   "name": "Vista",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "009",
   "rarity": "Common",
   "type": "Character",
@@ -51832,7 +51832,7 @@
  "ST22-009_p1": {
   "name": "Vista",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "009",
   "rarity": "Common",
   "type": "Character",
@@ -51843,7 +51843,7 @@
  "ST22-010": {
   "name": "Portgas.D.Ace",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "010",
   "rarity": "Common",
   "type": "Character",
@@ -51854,7 +51854,7 @@
  "ST22-010_p1": {
   "name": "Portgas.D.Ace",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "010",
   "rarity": "Common",
   "type": "Character",
@@ -51865,7 +51865,7 @@
  "ST22-011": {
   "name": "Whitey Bay",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "011",
   "rarity": "Common",
   "type": "Character",
@@ -51876,7 +51876,7 @@
  "ST22-011_p1": {
   "name": "Whitey Bay",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "011",
   "rarity": "Common",
   "type": "Character",
@@ -51887,7 +51887,7 @@
  "ST22-012": {
   "name": "Marco",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "012",
   "rarity": "Common",
   "type": "Character",
@@ -51898,7 +51898,7 @@
  "ST22-012_p1": {
   "name": "Marco",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "012",
   "rarity": "Common",
   "type": "Character",
@@ -51909,7 +51909,7 @@
  "ST22-013": {
   "name": "LittleOars Jr.",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "013",
   "rarity": "Common",
   "type": "Character",
@@ -51920,7 +51920,7 @@
  "ST22-013_p1": {
   "name": "LittleOars Jr.",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "013",
   "rarity": "Common",
   "type": "Character",
@@ -51931,7 +51931,7 @@
  "ST22-014": {
   "name": "A.O.",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "014",
   "rarity": "Common",
   "type": "Character",
@@ -51942,7 +51942,7 @@
  "ST22-014_p1": {
   "name": "A.O.",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "014",
   "rarity": "Common",
   "type": "Character",
@@ -51953,7 +51953,7 @@
  "ST22-015": {
   "name": "I Am Whitebeard!!",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "015",
   "rarity": "Common",
   "type": "Event",
@@ -51964,7 +51964,7 @@
  "ST22-016": {
   "name": "Take That Back!! Take Back What You Said!!",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "016",
   "rarity": "Common",
   "type": "Event",
@@ -51975,7 +51975,7 @@
  "ST22-017": {
   "name": "Fire Fist",
   "set": "ST22",
-  "set_name": "Ace &amp; Newgate",
+  "set_name": "Ace & Newgate",
   "number": "017",
   "rarity": "Common",
   "type": "Event",
@@ -52061,7 +52061,7 @@
   ]
  },
  "ST24-002": {
-  "name": "Kid &amp; Killer",
+  "name": "Kid & Killer",
   "set": "ST24",
   "set_name": "GREEN Jewelry Bonney",
   "number": "002",
@@ -52083,7 +52083,7 @@
   ]
  },
  "ST24-004": {
-  "name": "Law &amp; Bepo",
+  "name": "Law & Bepo",
   "set": "ST24",
   "set_name": "GREEN Jewelry Bonney",
   "number": "004",
@@ -52138,7 +52138,7 @@
   ]
  },
  "ST25-003": {
-  "name": "Crocodile &amp; Mihawk",
+  "name": "Crocodile & Mihawk",
   "set": "ST25",
   "set_name": "BLUE Buggy",
   "number": "003",
@@ -52699,9 +52699,9 @@
   ]
  },
  "ST30-001": {
-  "name": "Luffy &amp; Ace",
+  "name": "Luffy & Ace",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "001",
   "rarity": "Leader",
   "type": "Leader",
@@ -52711,9 +52711,9 @@
   ]
  },
  "ST30-001_p1": {
-  "name": "Luffy &amp; Ace",
+  "name": "Luffy & Ace",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "001",
   "rarity": "Leader",
   "type": "Leader",
@@ -52725,7 +52725,7 @@
  "ST30-002": {
   "name": "Inazuma",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "002",
   "rarity": "Common",
   "type": "Character",
@@ -52736,7 +52736,7 @@
  "ST30-002_p1": {
   "name": "Inazuma",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "002",
   "rarity": "Common",
   "type": "Character",
@@ -52747,7 +52747,7 @@
  "ST30-003": {
   "name": "Edward.Newgate",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "003",
   "rarity": "Common",
   "type": "Character",
@@ -52758,7 +52758,7 @@
  "ST30-003_p1": {
   "name": "Edward.Newgate",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "003",
   "rarity": "Common",
   "type": "Character",
@@ -52769,7 +52769,7 @@
  "ST30-004": {
   "name": "Emporio.Ivankov",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "004",
   "rarity": "Common",
   "type": "Character",
@@ -52780,7 +52780,7 @@
  "ST30-004_p1": {
   "name": "Emporio.Ivankov",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "004",
   "rarity": "Common",
   "type": "Character",
@@ -52791,7 +52791,7 @@
  "ST30-005": {
   "name": "Jozu",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "005",
   "rarity": "Common",
   "type": "Character",
@@ -52802,7 +52802,7 @@
  "ST30-005_p1": {
   "name": "Jozu",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "005",
   "rarity": "Common",
   "type": "Character",
@@ -52813,7 +52813,7 @@
  "ST30-006": {
   "name": "Jinbe",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "006",
   "rarity": "Common",
   "type": "Character",
@@ -52824,7 +52824,7 @@
  "ST30-006_p1": {
   "name": "Jinbe",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "006",
   "rarity": "Common",
   "type": "Character",
@@ -52835,7 +52835,7 @@
  "ST30-007": {
   "name": "Portgas.D.Ace",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "007",
   "rarity": "SuperRare",
   "type": "Character",
@@ -52846,7 +52846,7 @@
  "ST30-007_p1": {
   "name": "Portgas.D.Ace",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "007",
   "rarity": "SuperRare",
   "type": "Character",
@@ -52857,7 +52857,7 @@
  "ST30-008": {
   "name": "Marco",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "008",
   "rarity": "Common",
   "type": "Character",
@@ -52868,7 +52868,7 @@
  "ST30-008_p1": {
   "name": "Marco",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "008",
   "rarity": "Common",
   "type": "Character",
@@ -52879,7 +52879,7 @@
  "ST30-009": {
   "name": "LittleOars Jr.",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "009",
   "rarity": "Common",
   "type": "Character",
@@ -52890,7 +52890,7 @@
  "ST30-009_p1": {
   "name": "LittleOars Jr.",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "009",
   "rarity": "Common",
   "type": "Character",
@@ -52901,7 +52901,7 @@
  "ST30-010": {
   "name": "Crocodile",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "010",
   "rarity": "Common",
   "type": "Character",
@@ -52912,7 +52912,7 @@
  "ST30-010_p1": {
   "name": "Crocodile",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "010",
   "rarity": "Common",
   "type": "Character",
@@ -52923,7 +52923,7 @@
  "ST30-011": {
   "name": "Buggy",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "011",
   "rarity": "Common",
   "type": "Character",
@@ -52934,7 +52934,7 @@
  "ST30-011_p1": {
   "name": "Buggy",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "011",
   "rarity": "Common",
   "type": "Character",
@@ -52945,7 +52945,7 @@
  "ST30-012": {
   "name": "Monkey.D.Luffy",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "012",
   "rarity": "SuperRare",
   "type": "Character",
@@ -52956,7 +52956,7 @@
  "ST30-012_p1": {
   "name": "Monkey.D.Luffy",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "012",
   "rarity": "SuperRare",
   "type": "Character",
@@ -52967,7 +52967,7 @@
  "ST30-013": {
   "name": "Mr.2.Bon.Kurei(Bentham)",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "013",
   "rarity": "Common",
   "type": "Character",
@@ -52978,7 +52978,7 @@
  "ST30-013_p1": {
   "name": "Mr.2.Bon.Kurei(Bentham)",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "013",
   "rarity": "Common",
   "type": "Character",
@@ -52989,7 +52989,7 @@
  "ST30-014": {
   "name": "Mr.3(Galdino)",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "014",
   "rarity": "Common",
   "type": "Character",
@@ -53000,7 +53000,7 @@
  "ST30-014_p1": {
   "name": "Mr.3(Galdino)",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "014",
   "rarity": "Common",
   "type": "Character",
@@ -53011,7 +53011,7 @@
  "ST30-015": {
   "name": "The Name of This Era Is \"Whitebeard\"!!",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "015",
   "rarity": "Common",
   "type": "Event",
@@ -53022,7 +53022,7 @@
  "ST30-015_p1": {
   "name": "The Name of This Era Is \"Whitebeard\"!!",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "015",
   "rarity": "Common",
   "type": "Event",
@@ -53033,7 +53033,7 @@
  "ST30-016": {
   "name": "Can You Still Fight, Luffy?! Of Course!!",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "016",
   "rarity": "Common",
   "type": "Event",
@@ -53044,7 +53044,7 @@
  "ST30-016_p1": {
   "name": "Can You Still Fight, Luffy?! Of Course!!",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "016",
   "rarity": "Common",
   "type": "Event",
@@ -53055,7 +53055,7 @@
  "ST30-017": {
   "name": "And You Get Yourself in Big Trouble!!",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "017",
   "rarity": "Common",
   "type": "Event",
@@ -53066,7 +53066,7 @@
  "ST30-017_p1": {
   "name": "And You Get Yourself in Big Trouble!!",
   "set": "ST30",
-  "set_name": "Luffy &amp; Ace",
+  "set_name": "Luffy & Ace",
   "number": "017",
   "rarity": "Common",
   "type": "Event",
@@ -53306,7 +53306,7 @@
   ]
  },
  "ST34-005": {
-  "name": "Baron Tamago &amp; Pekoms",
+  "name": "Baron Tamago & Pekoms",
   "set": "ST34",
   "set_name": "PURPLE Charlotte Katakuri",
   "number": "005",

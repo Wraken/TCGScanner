@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"os"
@@ -38,8 +39,9 @@ type pack struct {
 	ID         string `json:"id"`
 	RawTitle   string `json:"raw_title"`
 	TitleParts *struct {
-		Title string `json:"title"`
-		Label string `json:"label"` // "OP-01", "EB-02", "ST-01", "PRB-01"
+		Title  string `json:"title"`
+		Label  string `json:"label"`  // "OP-01", "EB-02", "ST-01", "PRB-01"
+		Prefix string `json:"prefix"` // "BOOSTER PACK", "STARTER DECK", ...; "" for reprint packs with no real product type
 	} `json:"title_parts"`
 }
 
@@ -87,9 +89,23 @@ func fetch(rel string, offline bool) ([]byte, error) {
 	return data, os.WriteFile(path, data, 0o644)
 }
 
-// setCode turns a pack label ("OP-01") into the id prefix ("OP01").
-func setCode(label string) string {
-	return strings.ReplaceAll(label, "-", "")
+// labelCode turns a pack label into the id-prefix set code it names. Plain
+// labels are "<letters>-<digits>" ("OP-01" -> "OP01"): both halves are
+// needed to form the code. A handful of packs carry a combined label
+// spanning two sets ("OP14-EB04", a booster co-released with an extra
+// booster reprint): there the leading half ("OP14") is already a complete
+// code by itself (it contains its own digits), so only that leading code is
+// registered -- the trailing set ("EB04") gets no title from this pack. The
+// two shapes are told apart by whether the first half already has a digit.
+func labelCode(label string) string {
+	first, second, ok := strings.Cut(label, "-")
+	if !ok {
+		return strings.ReplaceAll(label, "-", "")
+	}
+	if strings.ContainsAny(first, "0123456789") {
+		return first
+	}
+	return first + second
 }
 
 // split returns the set prefix and the number of an id: "OP01-006_p3" ->
@@ -115,7 +131,11 @@ func download(url, outPath string) bool {
 	if err != nil || len(data) < minBytes {
 		return false
 	}
-	return os.WriteFile(outPath, data, 0o644) == nil
+	if err := os.WriteFile(outPath, data, 0o644); err != nil {
+		os.Remove(outPath) // don't leave a truncated file that "skip if exists" would trust forever
+		return false
+	}
+	return true
 }
 
 // fetchImages downloads every card's official image into images/<id>.png,
@@ -171,17 +191,37 @@ func main() {
 		fmt.Println("packs.json:", err)
 		os.Exit(1)
 	}
-	byLabel := map[string]string{} // "OP01" -> "ROMANCE DAWN"
-	byPack := map[string]string{}  // "569001" -> "Straw Hat Crew"
-	for id, p := range packs {
-		if p.TitleParts == nil {
+	packIDs := make([]string, 0, len(packs))
+	for id := range packs {
+		packIDs = append(packIDs, id)
+	}
+	sort.Strings(packIDs) // deterministic: first registration per code wins, run to run
+
+	byLabel := map[string]string{} // "OP01" -> "ROMANCE DAWN" (labelled packs only)
+	byPack := map[string]string{}  // "569901" -> "Promotion card" (label-less packs only)
+	for _, id := range packIDs {
+		p := packs[id]
+		if p.TitleParts == nil || p.TitleParts.Title == "" {
 			continue
 		}
-		if p.TitleParts.Title != "" {
-			byPack[id] = p.TitleParts.Title
+		title := html.UnescapeString(p.TitleParts.Title)
+		if p.TitleParts.Label == "" {
+			// No label at all: the promo / other-product buckets. These are
+			// the only packs allowed to feed the by-pack-id fallback, so a
+			// labelled reprint pack (ST-22, PRB-01, ...) can never leak its
+			// own title into an unrelated card's set_name.
+			byPack[id] = title
+			continue
 		}
-		if p.TitleParts.Label != "" && p.TitleParts.Title != "" {
-			byLabel[setCode(p.TitleParts.Label)] = p.TitleParts.Title
+		if p.TitleParts.Prefix == "" {
+			// A label with no product-type prefix names no real set (e.g.
+			// the OP15-EB04 pack's "title" is just the generic "BOOSTER
+			// PACK"); skip it rather than register a placeholder.
+			continue
+		}
+		code := labelCode(p.TitleParts.Label)
+		if _, dup := byLabel[code]; !dup {
+			byLabel[code] = title
 		}
 	}
 
@@ -202,7 +242,7 @@ func main() {
 		set, number := split(id)
 		setName, ok := byLabel[set]
 		if !ok {
-			setName = byPack[c.PackID] // odd labels such as "OP14-EB04"
+			setName = byPack[c.PackID] // promo / other-product cards only
 		}
 		if setName == "" {
 			noSetName++
@@ -212,7 +252,7 @@ func main() {
 			colors = []string{}
 		}
 		cards[id] = meta{
-			Name: c.Name, Set: set, SetName: setName, Number: number,
+			Name: html.UnescapeString(c.Name), Set: set, SetName: setName, Number: number,
 			Rarity: c.Rarity, Type: c.Category, Colors: colors,
 		}
 	}
@@ -223,11 +263,14 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	defer out.Close()
 	enc := json.NewEncoder(out)
 	enc.SetIndent("", " ")
 	enc.SetEscapeHTML(false)
 	if err := enc.Encode(cards); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	if err := out.Close(); err != nil { // close now: don't hold the handle open through the image phase
 		fmt.Println(err)
 		os.Exit(1)
 	}

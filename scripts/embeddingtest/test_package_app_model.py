@@ -101,6 +101,19 @@ class ImageSourceProblemsTest(unittest.TestCase):
         self.assertEqual(problems, [])
         self.assertEqual(image_dirs, {"onepiece": Path(d)})
 
+    def test_malformed_spec_is_a_problem(self):
+        image_dirs, problems = image_source_problems(["onepiece"])
+        self.assertEqual(image_dirs, {})
+        self.assertEqual(len(problems), 1)
+
+    def test_duplicate_game_is_a_problem(self):
+        with tempfile.TemporaryDirectory() as d1, tempfile.TemporaryDirectory() as d2:
+            (Path(d1) / "x.png").write_bytes(b"")
+            (Path(d2) / "y.png").write_bytes(b"")
+            image_dirs, problems = image_source_problems([f"onepiece={d1}", f"onepiece={d2}"])
+        self.assertEqual(len(problems), 1)
+        self.assertIn("given twice", problems[0])
+
 
 class MetadataProblemsTest(unittest.TestCase):
     def test_list_shaped_input_is_a_problem(self):
@@ -116,8 +129,19 @@ class MetadataProblemsTest(unittest.TestCase):
         self.assertEqual(len(problems), 1)
 
     def test_valid_input_has_no_problems(self):
-        problems = metadata_problems({"OP01-025": {"name": "Zoro", "colors": ["Red"]}})
+        problems = metadata_problems({
+            "OP01-025": {"name": "Zoro", "colors": ["Red"]},
+            "OP01-026": {"name": "Sanji"},  # no colors key at all -- also fine
+        })
         self.assertEqual(problems, [])
+
+    def test_non_string_field_is_a_problem(self):
+        problems = metadata_problems({"OP01-025": {"name": "Zoro", "number": 25}})
+        self.assertEqual(len(problems), 1)
+
+    def test_non_string_color_element_is_a_problem(self):
+        problems = metadata_problems({"OP01-025": {"name": "Zoro", "colors": ["Red", 1]}})
+        self.assertEqual(len(problems), 1)
 
 
 if __name__ == "__main__":

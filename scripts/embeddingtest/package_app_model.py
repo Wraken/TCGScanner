@@ -118,6 +118,9 @@ def image_source_problems(specs: list[str]) -> tuple[dict[str, Path], list[str]]
         if not game or not d:
             problems.append(f"expected GAME=DIR, got {spec!r}")
             continue
+        if game in image_dirs:
+            problems.append(f"{game}: given twice ({image_dirs[game]} and {d})")
+            continue
         p = Path(d)
         if not p.is_dir():
             problems.append(f"{game}: {p} does not exist -- the run refuses "
@@ -168,9 +171,13 @@ def fill_variant_fallbacks(labels: list[str], manifest: dict[str, str],
     return added
 
 
+STRING_FIELDS = ("name", "set", "set_name", "number", "rarity", "type")
+
+
 def metadata_problems(cards) -> list[str]:
     """cards.json shapes the app's Go unmarshalling would reject outright,
-    dropping the WHOLE game file (e.g. "colors" sent as a string, not a list)."""
+    dropping the WHOLE game file (e.g. "colors" sent as a string, not a list,
+    or a string field sent as a number)."""
     if not isinstance(cards, dict):
         return [f"expected an object of card id -> card, got {type(cards).__name__}"]
     problems: list[str] = []
@@ -178,9 +185,16 @@ def metadata_problems(cards) -> list[str]:
         if not isinstance(entry, dict):
             problems.append(f"{card_id}: expected an object, got {type(entry).__name__}")
             continue
+        for k in STRING_FIELDS:
+            v = entry.get(k)
+            if v is not None and not isinstance(v, str):
+                problems.append(f"{card_id}: {k} must be a string, got {type(v).__name__}")
         colors = entry.get("colors")
-        if colors is not None and not isinstance(colors, list):
-            problems.append(f"{card_id}: colors must be a list, got {type(colors).__name__}")
+        if colors is not None:
+            if not isinstance(colors, list):
+                problems.append(f"{card_id}: colors must be a list, got {type(colors).__name__}")
+            elif not all(isinstance(c, str) for c in colors):
+                problems.append(f"{card_id}: colors must be strings")
     return problems
 
 
@@ -213,14 +227,16 @@ def main() -> None:
     args = ap.parse_args()
 
     src, dest = Path(args.src), Path(args.dest)
-    dest.mkdir(parents=True, exist_ok=True)
 
-    # 0. validate --images specs before any work: a missing or empty/partial
-    #    source dir must not reach step 4's stale-pruning, which would delete
-    #    every webp already in images/<game>/ for that game.
+    # 0. validate --images specs before any work (not even `dest` creation): a
+    #    missing, duplicate, or empty/partial source dir must not reach step
+    #    4's stale-pruning, which would delete every webp already in
+    #    images/<game>/ for that game.
     image_dirs, image_problems = image_source_problems(args.images)
     if not args.skip_images and image_problems:
         ap.error("; ".join(image_problems))
+
+    dest.mkdir(parents=True, exist_ok=True)
 
     # 1. ONNX models + labels
     for name in ("yolo.onnx", "embedding_model.onnx", "index_labels.json"):

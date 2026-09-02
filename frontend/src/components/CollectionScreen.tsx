@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Camera, ImageIcon, Pencil, Search, Trash2, Upload } from "lucide-react";
-import { GetCardImageByModel, GetCards, DeleteCard, MoveCardToCustom, UpdateCard } from "../../wailsjs/go/main/App";
+import { GetCardImageByModel, GetCardInfo, GetCards, DeleteCard, MoveCardToCustom, UpdateCard } from "../../wailsjs/go/main/App";
 import { LogDebug } from "../../wailsjs/runtime/runtime";
 import { gameLabel } from "@/lib/utils";
 import { CardCopiesDialog } from "@/components/CardCopiesDialog";
-import type { CardFilter, CollectionCard } from "@/types";
+import type { CardFilter, CardInfo, CollectionCard } from "@/types";
 import type { useCollection } from "@/hooks/useCollection";
 
 interface Props {
@@ -33,6 +33,16 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
   const [search, setSearch] = useState("");
   const [foilFilter, setFoilFilter] = useState<FoilFilter>("all");
   const [openCard, setOpenCard] = useState<string | null>(null);
+  // Metadata of the card shown in the dialog; null = none in the bundle.
+  const [infos, setInfos] = useState<Record<string, CardInfo | null>>({});
+  useEffect(() => {
+    if (!openCard || openCard in infos) return;
+    let cancelled = false;
+    GetCardInfo(openCard)
+      .then((info) => { if (!cancelled) setInfos((prev) => ({ ...prev, [openCard]: info as CardInfo })); })
+      .catch(() => { if (!cancelled) setInfos((prev) => ({ ...prev, [openCard]: null })); });
+    return () => { cancelled = true; };
+  }, [openCard]);
 
   useEffect(() => {
     let cancelled = false;
@@ -280,6 +290,7 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
         cardId={openCard}
         copies={openGroup?.copies ?? []}
         image={openCard ? images[openCard] ?? null : null}
+        info={openCard ? infos[openCard] ?? null : null}
         customs={collection.customs}
         onClose={() => setOpenCard(null)}
         onToggleFoil={async (c) => {

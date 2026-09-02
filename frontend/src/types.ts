@@ -65,3 +65,17 @@ export interface ExportConfig {
   fields: ExportField[];
   card_id_trim_end: number;
 }
+
+// Bundle card metadata (models/<model>/metadata/<game>.json). Strings are ""
+// and colors [] when the source did not know.
+export interface CardInfo {
+  id: string;
+  game: string;
+  name: string;
+  set: string;
+  set_name: string;
+  number: string;
+  rarity: string;
+  type: string;
+  colors: string[];
+}

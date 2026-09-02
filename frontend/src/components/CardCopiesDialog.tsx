@@ -13,12 +13,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDate } from "@/lib/utils";
-import type { Collection, CollectionCard } from "@/types";
+import type { CardInfo, Collection, CollectionCard } from "@/types";
 
 interface Props {
   cardId: string | null;              // null = closed
   copies: CollectionCard[];           // copies of that card id
   image: string | null;
+  info: CardInfo | null;
   customs: Collection[];
   onClose: () => void;
   onToggleFoil: (copy: CollectionCard) => void;
@@ -27,13 +28,41 @@ interface Props {
 }
 
 export function CardCopiesDialog({
-  cardId, copies, image, customs, onClose, onToggleFoil, onMove, onDelete,
+  cardId, copies, image, info, customs, onClose, onToggleFoil, onMove, onDelete,
 }: Props) {
   return (
     <Dialog open={cardId !== null} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="font-mono">{cardId} · {copies.length} {copies.length !== 1 ? "copies" : "copy"}</DialogTitle>
+          {info && info.name ? (
+            <>
+              <DialogTitle>{info.name}</DialogTitle>
+              <p className="font-mono text-xs n-n500">
+                {cardId} · {copies.length} {copies.length !== 1 ? "copies" : "copy"}
+              </p>
+            </>
+          ) : (
+            <DialogTitle className="font-mono">
+              {cardId} · {copies.length} {copies.length !== 1 ? "copies" : "copy"}
+            </DialogTitle>
+          )}
+          {info && (
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {info.set_name && (
+                <span className="n-tag n-tag-neutral">
+                  {info.set_name}
+                  {info.set && <span className="font-mono n-n500">&nbsp;{info.set}</span>}
+                </span>
+              )}
+              {!info.set_name && info.set && <span className="n-tag n-tag-neutral font-mono">{info.set}</span>}
+              {info.number && <span className="n-tag n-tag-neutral font-mono">#{info.number}</span>}
+              {info.rarity && <span className="n-tag n-tag-neutral">{info.rarity}</span>}
+              {info.type && <span className="n-tag n-tag-neutral">{info.type}</span>}
+              {info.colors.map((c) => (
+                <span key={c} className="n-tag n-tag-accent">{c}</span>
+              ))}
+            </div>
+          )}
         </DialogHeader>
         <div className="flex gap-6 min-h-0">
           <div

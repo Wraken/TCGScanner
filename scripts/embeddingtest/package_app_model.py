@@ -11,13 +11,18 @@ Copies models/tcg/ (scripts side) into the app's models/<name>/ directory:
                                        transposed. Lets the app run the cosine search
                                        through ONNX Runtime instead of a JS loop.
   - images/<game>/                   : reference PNGs converted to webp (resized),
-                                       one sub-directory per game
+                                       one sub-directory per game; sources default
+                                       to scripts/fetch/<game>/images/ (training
+                                       dirs are not packaged)
   - images/<game>/_cover.webp        : optional game tile artwork (from a
                                        _cover.* file in the source dir, or
                                        dropped in by hand); never in the
                                        manifest, never pruned
   - images/manifest.json             : card id -> path relative to images/, read
                                        by the app (one map lookup, no dir walk)
+  - metadata/<game>.json             : card id -> {name, set, set_name, number,
+                                       rarity, type, colors}, copied from each
+                                       fetcher's cards.json (core of the bundle)
 
 Re-runnable: only missing/outdated images are converted, and files left over
 from a previous layout are removed. Use after every add_to_index.py run to
@@ -25,6 +30,7 @@ refresh the app copy.
 """
 import argparse
 import json
+import re
 import shutil
 import struct
 from concurrent.futures import ProcessPoolExecutor
@@ -97,16 +103,53 @@ def convert_image(args: tuple[Path, Path, int]) -> bool:
     return True
 
 
+def metadata_coverage(labels, manifest, metadata):
+    """Index labels of each game (per the manifest) missing from its metadata."""
+    by_game = {}
+    for label in labels:
+        rel = manifest.get(label, "")
+        game = rel.split("/", 1)[0] if "/" in rel else ""
+        if game in metadata and label not in metadata[game]:
+            by_game.setdefault(game, []).append(label)
+    return {g: sorted(m) for g, m in by_game.items()}
+
+
+VARIANT_SUFFIX = re.compile(r"_[pr]\d+$")
+
+
+def fill_variant_fallbacks(labels, manifest, metadata):
+    """Give variant ids (OP01-025_p2) the metadata of their base card when the
+    source lacks the variant itself. Mutates `metadata`; returns added per game."""
+    added = {}
+    for label in labels:
+        rel = manifest.get(label, "")
+        game = rel.split("/", 1)[0] if "/" in rel else ""
+        if game not in metadata or label in metadata[game]:
+            continue
+        base = VARIANT_SUFFIX.sub("", label)
+        if base != label and base in metadata[game]:
+            metadata[game][label] = dict(metadata[game][base])
+            added[game] = added.get(game, 0) + 1
+    return added
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--src", default="models/tcg", help="source model dir (scripts side)")
     ap.add_argument("--images", nargs="+", metavar="GAME=DIR",
-                    default=["onepiece=images/onepiece", "riftbound=images/riftbound",
+                    default=["onepiece=../fetch/onepiece/images", "riftbound=../fetch/riftbound/images",
                              "lorcana=../fetch/lorcana/images", "pokemon=../fetch/pokemon/images"],
                     help="source reference image dirs, one per game; images land in "
                          "images/<game>/ (labels are matched by file stem)")
     ap.add_argument("--keep-stale", action="store_true",
                     help="do not delete files under images/ that the manifest no longer references")
+    ap.add_argument("--metadata", nargs="+", metavar="GAME=FILE",
+                    default=["onepiece=../fetch/onepiece/cards.json",
+                             "riftbound=../fetch/riftbound/cards.json",
+                             "lorcana=../fetch/lorcana/cards.json",
+                             "pokemon=../fetch/pokemon/cards.json"],
+                    help="card metadata per game (fetcher cards.json); missing files are skipped")
+    ap.add_argument("--skip-metadata", action="store_true")
     ap.add_argument("--dest", default="../../models/tcg", help="app model dir")
     ap.add_argument("--score-floor", type=float, default=0.4,
                     help="min top-1 cosine to lock (rejects noise)")
@@ -211,6 +254,35 @@ def main() -> None:
         if missing:
             print(f"  WARNING: {len(missing)} index labels have no source image "
                   f"(e.g. {missing[:5]}) — their preview will be blank")
+
+    # 5. metadata — one file per game, kept next to (not under) images/ so it
+    #    ships in the bundle core even when a game's image pack is absent.
+    if not args.skip_metadata:
+        meta_dest = dest / "metadata"
+        meta_dest.mkdir(exist_ok=True)
+        metadata = {}
+        for spec in args.metadata:
+            game, _, f = spec.partition("=")
+            if not game or not f:
+                ap.error(f"--metadata expects GAME=FILE, got {spec!r}")
+            src_file = Path(f)
+            if not src_file.exists():
+                print(f"  metadata: {game}: {src_file} not found, skipped")
+                continue
+            cards = json.loads(src_file.read_text(encoding="utf-8"))
+            (meta_dest / f"{game}.json").write_text(
+                json.dumps(cards, indent=1, sort_keys=True, ensure_ascii=False), encoding="utf-8")
+            metadata[game] = cards
+            print(f"  metadata: {game}: {len(cards)} cards")
+        manifest_path = dest / "images" / "manifest.json"
+        manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
+        for game, n in fill_variant_fallbacks(labels, manifest, metadata).items():
+            (meta_dest / f"{game}.json").write_text(
+                json.dumps(metadata[game], indent=1, sort_keys=True, ensure_ascii=False), encoding="utf-8")
+            print(f"  metadata: {game}: {n} variant ids filled from their base card")
+        for game, missing in metadata_coverage(labels, manifest, metadata).items():
+            print(f"  WARNING: {game}: {len(missing)} index labels without metadata "
+                  f"(e.g. {missing[:5]})")
 
     print("done.")
 

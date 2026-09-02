@@ -39,6 +39,9 @@ from pathlib import Path
 MAGIC = b"TCGEMBIX"
 VERSION = 1
 
+CARD_IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp"}
+VARIANT_SUFFIX = re.compile(r"_[pr]\d+$")
+
 
 def export_index(index_path: Path, out_path: Path):
     """Writes index.bin and returns the (n, dim) float32 vectors it contains."""
@@ -103,34 +106,82 @@ def convert_image(args: tuple[Path, Path, int]) -> bool:
     return True
 
 
-def metadata_coverage(labels, manifest, metadata):
+def image_source_problems(specs: list[str]) -> tuple[dict[str, Path], list[str]]:
+    """Parse --images GAME=DIR specs into {game: dir}, catching a missing or
+    empty/partial source dir before any work runs: step 4's stale-pruning would
+    otherwise silently delete every webp already in images/<game>/ (gitignored
+    -- only recoverable by re-running the packager)."""
+    image_dirs: dict[str, Path] = {}
+    problems: list[str] = []
+    for spec in specs:
+        game, _, d = spec.partition("=")
+        if not game or not d:
+            problems.append(f"expected GAME=DIR, got {spec!r}")
+            continue
+        p = Path(d)
+        if not p.is_dir():
+            problems.append(f"{game}: {p} does not exist -- the run refuses "
+                             f"(pruning would drop images/{game}/)")
+            continue
+        has_card = any(f.is_file() and f.suffix.lower() in CARD_IMAGE_SUFFIXES and f.stem != "_cover"
+                        for f in p.iterdir())
+        if not has_card:
+            problems.append(f"{game}: {p} has no card images -- the run refuses "
+                             f"(pruning would drop images/{game}/)")
+            continue
+        image_dirs[game] = p
+    return image_dirs, problems
+
+
+def manifest_game(manifest: dict[str, str], label: str) -> str:
+    """Game prefix of a label's manifest path ("onepiece/OP01-025.webp" ->
+    "onepiece"), or "" if the label isn't in the manifest."""
+    rel = manifest.get(label, "")
+    return rel.split("/", 1)[0] if "/" in rel else ""
+
+
+def metadata_coverage(labels: list[str], manifest: dict[str, str],
+                       metadata: dict[str, dict]) -> dict[str, list[str]]:
     """Index labels of each game (per the manifest) missing from its metadata."""
-    by_game = {}
+    by_game: dict[str, list[str]] = {}
     for label in labels:
-        rel = manifest.get(label, "")
-        game = rel.split("/", 1)[0] if "/" in rel else ""
+        game = manifest_game(manifest, label)
         if game in metadata and label not in metadata[game]:
             by_game.setdefault(game, []).append(label)
     return {g: sorted(m) for g, m in by_game.items()}
 
 
-VARIANT_SUFFIX = re.compile(r"_[pr]\d+$")
-
-
-def fill_variant_fallbacks(labels, manifest, metadata):
+def fill_variant_fallbacks(labels: list[str], manifest: dict[str, str],
+                            metadata: dict[str, dict]) -> dict[str, int]:
     """Give variant ids (OP01-025_p2) the metadata of their base card when the
     source lacks the variant itself. Mutates `metadata`; returns added per game."""
-    added = {}
+    added: dict[str, int] = {}
     for label in labels:
-        rel = manifest.get(label, "")
-        game = rel.split("/", 1)[0] if "/" in rel else ""
+        game = manifest_game(manifest, label)
         if game not in metadata or label in metadata[game]:
             continue
         base = VARIANT_SUFFIX.sub("", label)
         if base != label and base in metadata[game]:
+            # shallow copy is enough: entries are never mutated after this
             metadata[game][label] = dict(metadata[game][base])
             added[game] = added.get(game, 0) + 1
     return added
+
+
+def metadata_problems(cards) -> list[str]:
+    """cards.json shapes the app's Go unmarshalling would reject outright,
+    dropping the WHOLE game file (e.g. "colors" sent as a string, not a list)."""
+    if not isinstance(cards, dict):
+        return [f"expected an object of card id -> card, got {type(cards).__name__}"]
+    problems: list[str] = []
+    for card_id, entry in cards.items():
+        if not isinstance(entry, dict):
+            problems.append(f"{card_id}: expected an object, got {type(entry).__name__}")
+            continue
+        colors = entry.get("colors")
+        if colors is not None and not isinstance(colors, list):
+            problems.append(f"{card_id}: colors must be a list, got {type(colors).__name__}")
+    return problems
 
 
 def main() -> None:
@@ -164,6 +215,13 @@ def main() -> None:
     src, dest = Path(args.src), Path(args.dest)
     dest.mkdir(parents=True, exist_ok=True)
 
+    # 0. validate --images specs before any work: a missing or empty/partial
+    #    source dir must not reach step 4's stale-pruning, which would delete
+    #    every webp already in images/<game>/ for that game.
+    image_dirs, image_problems = image_source_problems(args.images)
+    if not args.skip_images and image_problems:
+        ap.error("; ".join(image_problems))
+
     # 1. ONNX models + labels
     for name in ("yolo.onnx", "embedding_model.onnx", "index_labels.json"):
         shutil.copy2(src / name, dest / name)
@@ -196,12 +254,9 @@ def main() -> None:
         img_dest.mkdir(exist_ok=True)
         sources = {}  # stem -> (game, source path)
         covers = {}  # game -> source path of its optional _cover.* art
-        for spec in args.images:
-            game, _, d = spec.partition("=")
-            if not game or not d:
-                ap.error(f"--images expects GAME=DIR, got {spec!r}")
-            for p in sorted(Path(d).iterdir()):
-                if p.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}:
+        for game, d in image_dirs.items():
+            for p in sorted(d.iterdir()):
+                if p.suffix.lower() not in CARD_IMAGE_SUFFIXES:
                     continue
                 # _cover.* is the game's tile artwork, not a card: converted
                 # alongside the cards but kept out of the manifest.
@@ -260,7 +315,7 @@ def main() -> None:
     if not args.skip_metadata:
         meta_dest = dest / "metadata"
         meta_dest.mkdir(exist_ok=True)
-        metadata = {}
+        metadata: dict[str, dict] = {}
         for spec in args.metadata:
             game, _, f = spec.partition("=")
             if not game or not f:
@@ -270,16 +325,32 @@ def main() -> None:
                 print(f"  metadata: {game}: {src_file} not found, skipped")
                 continue
             cards = json.loads(src_file.read_text(encoding="utf-8"))
+            problems = metadata_problems(cards)
+            if problems:
+                ap.error(f"--metadata {game}: " + "; ".join(problems))
+            metadata[game] = cards
+
+        # Step 4 already built `manifest` in-memory when it ran; only hit the
+        # disk copy under --skip-images, since it may be from a stale run.
+        if args.skip_images:
+            manifest_path = dest / "images" / "manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
+            print("  metadata: --skip-images set, reusing images/manifest.json from a "
+                  "previous run -- game attribution may be stale")
+
+        added = fill_variant_fallbacks(labels, manifest, metadata)
+        for game, cards in metadata.items():
+            n = added.get(game, 0)
             (meta_dest / f"{game}.json").write_text(
                 json.dumps(cards, indent=1, sort_keys=True, ensure_ascii=False), encoding="utf-8")
-            metadata[game] = cards
-            print(f"  metadata: {game}: {len(cards)} cards")
-        manifest_path = dest / "images" / "manifest.json"
-        manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
-        for game, n in fill_variant_fallbacks(labels, manifest, metadata).items():
-            (meta_dest / f"{game}.json").write_text(
-                json.dumps(metadata[game], indent=1, sort_keys=True, ensure_ascii=False), encoding="utf-8")
-            print(f"  metadata: {game}: {n} variant ids filled from their base card")
+            print(f"  metadata: {game}: {len(cards)} cards "
+                  f"({n} variant ids filled from their base card)")
+
+        not_in_manifest = [l for l in labels if manifest_game(manifest, l) == ""]
+        if not_in_manifest:
+            print(f"  metadata: {len(not_in_manifest)} index labels not in the manifest "
+                  f"(not checked)")
+
         for game, missing in metadata_coverage(labels, manifest, metadata).items():
             print(f"  WARNING: {game}: {len(missing)} index labels without metadata "
                   f"(e.g. {missing[:5]})")

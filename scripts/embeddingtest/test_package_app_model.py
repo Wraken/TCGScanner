@@ -1,6 +1,13 @@
+import tempfile
 import unittest
+from pathlib import Path
 
-from package_app_model import fill_variant_fallbacks, metadata_coverage
+from package_app_model import (
+    fill_variant_fallbacks,
+    image_source_problems,
+    metadata_coverage,
+    metadata_problems,
+)
 
 
 class MetadataCoverageTest(unittest.TestCase):
@@ -31,6 +38,86 @@ class MetadataCoverageTest(unittest.TestCase):
         self.assertEqual(metadata["onepiece"]["OP01-025_r1"], {"name": "Zoro", "rarity": "SR"})
         # No base card -> still missing, reported by the coverage check.
         self.assertEqual(metadata_coverage(labels, manifest, metadata), {"onepiece": ["OP01-030_p1"]})
+
+    def test_variant_already_present_is_not_overwritten(self):
+        labels = ["OP01-025", "OP01-025_p2"]
+        manifest = {l: f"onepiece/{l}.webp" for l in labels}
+        metadata = {
+            "onepiece": {
+                "OP01-025": {"name": "Zoro"},
+                "OP01-025_p2": {"name": "Zoro (parallel)"},
+            }
+        }
+        added = fill_variant_fallbacks(labels, manifest, metadata)
+        self.assertEqual(added, {})
+        self.assertEqual(metadata["onepiece"]["OP01-025_p2"], {"name": "Zoro (parallel)"})
+
+    def test_variant_fallback_does_not_require_base_in_labels(self):
+        # The base card (EB01-001) need not be in `labels` itself -- only in
+        # the game's metadata -- for its variant to be filled.
+        labels = ["EB01-001_p1"]
+        manifest = {"EB01-001_p1": "onepiece/EB01-001_p1.webp"}
+        metadata = {"onepiece": {"EB01-001": {"name": "Base Card"}}}
+        added = fill_variant_fallbacks(labels, manifest, metadata)
+        self.assertEqual(added, {"onepiece": 1})
+        self.assertEqual(metadata["onepiece"]["EB01-001_p1"], {"name": "Base Card"})
+
+    def test_variant_fallback_skips_unmapped_and_unknown_game_labels(self):
+        # "1-1" is lorcana, which has no metadata file; "weird-1" isn't in the
+        # manifest at all (game resolves to ""). Neither should raise.
+        labels = ["1-1", "weird-1", "OP01-025_p1"]
+        manifest = {"1-1": "lorcana/1-1.webp", "OP01-025_p1": "onepiece/OP01-025_p1.webp"}
+        metadata = {"onepiece": {"OP01-025": {"name": "Zoro"}}}
+        added = fill_variant_fallbacks(labels, manifest, metadata)
+        self.assertEqual(added, {"onepiece": 1})
+
+
+class ImageSourceProblemsTest(unittest.TestCase):
+    def test_missing_dir_is_a_problem(self):
+        with tempfile.TemporaryDirectory() as d:
+            missing = Path(d) / "does-not-exist"
+            image_dirs, problems = image_source_problems([f"onepiece={missing}"])
+        self.assertEqual(image_dirs, {})
+        self.assertEqual(len(problems), 1)
+        self.assertIn("onepiece", problems[0])
+
+    def test_empty_dir_is_a_problem(self):
+        with tempfile.TemporaryDirectory() as d:
+            image_dirs, problems = image_source_problems([f"onepiece={d}"])
+        self.assertEqual(image_dirs, {})
+        self.assertEqual(len(problems), 1)
+
+    def test_dir_with_only_cover_art_is_a_problem(self):
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "_cover.png").write_bytes(b"")
+            image_dirs, problems = image_source_problems([f"onepiece={d}"])
+        self.assertEqual(image_dirs, {})
+        self.assertEqual(len(problems), 1)
+
+    def test_dir_with_one_card_image_is_ok(self):
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "x.png").write_bytes(b"")
+            image_dirs, problems = image_source_problems([f"onepiece={d}"])
+        self.assertEqual(problems, [])
+        self.assertEqual(image_dirs, {"onepiece": Path(d)})
+
+
+class MetadataProblemsTest(unittest.TestCase):
+    def test_list_shaped_input_is_a_problem(self):
+        problems = metadata_problems(["OP01-025"])
+        self.assertEqual(len(problems), 1)
+
+    def test_entry_not_a_dict_is_a_problem(self):
+        problems = metadata_problems({"OP01-025": "Zoro"})
+        self.assertEqual(len(problems), 1)
+
+    def test_string_colors_is_a_problem(self):
+        problems = metadata_problems({"OP01-025": {"name": "Zoro", "colors": "Red"}})
+        self.assertEqual(len(problems), 1)
+
+    def test_valid_input_has_no_problems(self):
+        problems = metadata_problems({"OP01-025": {"name": "Zoro", "colors": ["Red"]}})
+        self.assertEqual(problems, [])
 
 
 if __name__ == "__main__":

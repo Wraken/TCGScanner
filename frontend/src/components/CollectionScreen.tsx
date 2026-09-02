@@ -36,7 +36,7 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
   // Metadata of the card shown in the dialog; null = none in the bundle.
   const [infos, setInfos] = useState<Record<string, CardInfo | null>>({});
   useEffect(() => {
-    if (!openCard || openCard in infos) return;
+    if (!openCard || Object.hasOwn(infos, openCard)) return;
     let cancelled = false;
     GetCardInfo(openCard)
       .then((info) => { if (!cancelled) setInfos((prev) => ({ ...prev, [openCard]: info as CardInfo })); })
@@ -290,7 +290,7 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
         cardId={openCard}
         copies={openGroup?.copies ?? []}
         image={openCard ? images[openCard] ?? null : null}
-        info={openCard ? infos[openCard] ?? null : null}
+        info={openCard && Object.hasOwn(infos, openCard) ? infos[openCard] : null}
         customs={collection.customs}
         onClose={() => setOpenCard(null)}
         onToggleFoil={async (c) => {

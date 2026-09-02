@@ -30,36 +30,33 @@ interface Props {
 export function CardCopiesDialog({
   cardId, copies, image, info, customs, onClose, onToggleFoil, onMove, onDelete,
 }: Props) {
+  const subtitle = `${cardId} · ${copies.length} ${copies.length !== 1 ? "copies" : "copy"}`;
   return (
     <Dialog open={cardId !== null} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
         <DialogHeader>
-          {info && info.name ? (
+          {info?.name ? (
             <>
               <DialogTitle>{info.name}</DialogTitle>
-              <p className="font-mono text-xs n-n500">
-                {cardId} · {copies.length} {copies.length !== 1 ? "copies" : "copy"}
-              </p>
+              <p className="font-mono text-xs n-n500">{subtitle}</p>
             </>
           ) : (
-            <DialogTitle className="font-mono">
-              {cardId} · {copies.length} {copies.length !== 1 ? "copies" : "copy"}
-            </DialogTitle>
+            <DialogTitle className="font-mono">{subtitle}</DialogTitle>
           )}
           {info && (
             <div className="flex flex-wrap gap-1.5 pt-1">
               {info.set_name && (
                 <span className="n-tag n-tag-neutral">
                   {info.set_name}
-                  {info.set && <span className="font-mono n-n500">&nbsp;{info.set}</span>}
+                  {info.set && <span className="font-mono n-n500">{info.set}</span>}
                 </span>
               )}
               {!info.set_name && info.set && <span className="n-tag n-tag-neutral font-mono">{info.set}</span>}
               {info.number && <span className="n-tag n-tag-neutral font-mono">#{info.number}</span>}
               {info.rarity && <span className="n-tag n-tag-neutral">{info.rarity}</span>}
               {info.type && <span className="n-tag n-tag-neutral">{info.type}</span>}
-              {info.colors.map((c) => (
-                <span key={c} className="n-tag n-tag-accent">{c}</span>
+              {info.colors.map((c, i) => (
+                <span key={i} className="n-tag n-tag-accent">{c}</span>
               ))}
             </div>
           )}

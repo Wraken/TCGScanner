@@ -68,12 +68,15 @@ resumable/incremental like the image fetchers. These files are committed
 - **lorcana** (Lorcast): the per-set card list already carries `rarity`,
   `ink`, `type`; add them to the fetcher struct. `set` = set code,
   `number` = `collector_number`, `colors` = `[ink]`.
-- **onepiece** (vegapull-records): new small fetcher reading the English
-  dataset of github.com/Coko7/vegapull-records (fields: id, name, rarity,
-  category, colors, …). `set` = id prefix before `-`, `set_name` from the
-  pack list, `number` = id suffix, `type` = `category`. Ids must match the
-  index labels including `_p1`-style alt-art suffixes; the fetcher reports
-  index labels it cannot map.
+- **onepiece** (punk-records): new small fetcher reading the English
+  dataset of github.com/buhbbl/punk-records (vegapull-generated, refreshed
+  regularly — OP-17 as of 2026-08-28; `Coko7/vegapull-records` is stale at
+  OP-10 and must not be used): `index/cards_by_id.json` (fields: name,
+  rarity, category, colors, pack_id, …) + `packs.json`. `set` = id prefix
+  before `-`, `set_name` from the pack list (label map, then the card's
+  pack_id), `number` = id suffix, `type` = `category`. Ids already carry the
+  `_p1`/`_r1` variant suffixes used by the index labels; variants the source
+  lacks get their base card's entry from the packager (see below).
 - **riftbound**: `parsedcards.json` only has id/publicCode/imageUrl. The
   gallery JS bundle (see the fetcher README) also carries name, rarity,
   domain and type; the manual DevTools extraction step is extended to keep
@@ -81,9 +84,10 @@ resumable/incremental like the image fetchers. These files are committed
   `cards.json` may be missing or partial — the app copes (see below).
 
 `package_app_model.py` gains `--metadata GAME=FILE` (defaults mirroring
-`--images`), copies each file to `models/tcg/metadata/<game>.json`, and
-prints a coverage line per game: index labels of that game with no metadata
-entry (a warning, never a failure).
+`--images`), copies each file to `models/tcg/metadata/<game>.json`, fills
+variant ids (`_p<N>`/`_r<N>`) missing from the source with their base
+card's entry, and prints a coverage line per game: index labels of that
+game still without a metadata entry (a warning, never a failure).
 
 ## Go
 

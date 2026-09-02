@@ -6,7 +6,7 @@
 
 **Architecture:** Each fetcher under `scripts/fetch/<game>/` writes a `cards.json` (card id → common-core fields); `package_app_model.py` copies them to `models/tcg/metadata/<game>.json` and warns about uncovered index labels; Go loads them lazily with the same mtime cache pattern as the images manifest and exposes `GetCardInfo`; the details dialog renders the fields when present and is unchanged otherwise.
 
-**Tech Stack:** Go (net/http, encoding/json), Python 3 (packager, unittest), React/TS (Wails bindings), TCGdex / Lorcast / vegapull-records / Riot gallery data.
+**Tech Stack:** Go (net/http, encoding/json), Python 3 (packager, unittest), React/TS (Wails bindings), TCGdex / Lorcast / punk-records (vegapull dataset) / Riot gallery data.
 
 **Spec:** `docs/superpowers/specs/2026-09-02-card-metadata-design.md`
 

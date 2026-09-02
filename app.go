@@ -248,6 +248,13 @@ func (a *App) GetGameCover(game string) (string, error) {
 	return loadGameCoverFrom(allModelImagesDirs(), game)
 }
 
+// GetCardInfo returns the bundle metadata of a card (name, set, rarity...).
+// Errors when the bundle has no metadata for it; the details dialog then
+// simply shows the id.
+func (a *App) GetCardInfo(cardID string) (CardInfo, error) {
+	return lookupCardInfo(allModelImagesDirs(), allModelMetadataDirs(), cardID)
+}
+
 func (a *App) GetCardImageByModel(cardID, modelName string) (string, error) {
 	if modelName == "" {
 		return "", fmt.Errorf("no model name provided")

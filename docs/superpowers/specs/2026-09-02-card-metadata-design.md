@@ -73,8 +73,15 @@ resumable/incremental like the image fetchers. These files are committed
   regularly — OP-17 as of 2026-08-28; `Coko7/vegapull-records` is stale at
   OP-10 and must not be used): `index/cards_by_id.json` (fields: name,
   rarity, category, colors, pack_id, …) + `packs.json`. `set` = id prefix
-  before `-`, `set_name` from the pack list (label map, then the card's
-  pack_id), `number` = id suffix, `type` = `category`. Ids already carry the
+  before `-`, `set_name` = the title of the pack whose leading label code
+  matches that prefix (first registration over sorted pack ids; packs whose
+  `title_parts` has a label but no prefix carry only the generic product
+  type and are not registered), falling back to the card's own `pack_id`
+  ONLY for label-less packs (promo / other-product buckets) so reprint
+  packs never leak their title; combined labels such as `OP14-EB04`
+  register the leading code only, so a set the dataset does not name gets
+  `""`. Names and titles are HTML-unescaped (`&amp;` occurs in the source).
+  `number` = id suffix, `type` = `category`. Ids already carry the
   `_p1`/`_r1` variant suffixes used by the index labels; variants the source
   lacks get their base card's entry from the packager (see below).
   The same fetcher, with `-images`, downloads every card's official image

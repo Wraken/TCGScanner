@@ -29,6 +29,7 @@ type CardInfo struct {
 
 type cardMetadataFile struct {
 	modTime time.Time
+	size    int64
 	cards   map[string]CardInfo
 }
 
@@ -60,6 +61,10 @@ func allModelMetadataDirs() []string {
 // cardMetadata returns the cards of metadataDir/<game>.json. A missing or
 // invalid file yields an empty map; the game name is used as a file name, so
 // anything that is not a plain name is rejected the same way.
+//
+// The returned map is the shared cache itself, not a copy: callers must treat
+// it as read-only. Do not mutate entries or their Colors slices — those
+// backing arrays are shared with every other caller until the file changes.
 func cardMetadata(metadataDir, game string) map[string]CardInfo {
 	if game == "" || game == "." || game == ".." || strings.ContainsAny(game, `/\`) {
 		return map[string]CardInfo{}
@@ -73,7 +78,8 @@ func cardMetadata(metadataDir, game string) map[string]CardInfo {
 	cardMetadataMu.Lock()
 	defer cardMetadataMu.Unlock()
 
-	if cached := cardMetadataFiles[path]; cached != nil && cached.modTime.Equal(info.ModTime()) {
+	if cached := cardMetadataFiles[path]; cached != nil &&
+		cached.modTime.Equal(info.ModTime()) && cached.size == info.Size() {
 		return cached.cards
 	}
 
@@ -84,7 +90,7 @@ func cardMetadata(metadataDir, game string) map[string]CardInfo {
 			cards = map[string]CardInfo{}
 		}
 	}
-	cardMetadataFiles[path] = &cardMetadataFile{modTime: info.ModTime(), cards: cards}
+	cardMetadataFiles[path] = &cardMetadataFile{modTime: info.ModTime(), size: info.Size(), cards: cards}
 	return cards
 }
 
@@ -111,7 +117,10 @@ func lookupCardInfo(imagesDirs, metadataDirs []string, cardID string) (CardInfo,
 			return c, nil
 		}
 	}
-	// Fallback: every <game>.json in every metadata dir.
+	// Fallback: every distinct game stem across every metadata dir, each
+	// probed once (find() itself already walks every dir per stem).
+	seen := map[string]bool{}
+	var stems []string
 	for _, dir := range metadataDirs {
 		entries, err := os.ReadDir(dir)
 		if err != nil {
@@ -122,9 +131,16 @@ func lookupCardInfo(imagesDirs, metadataDirs []string, cardID string) (CardInfo,
 			if e.IsDir() || !strings.HasSuffix(name, ".json") {
 				continue
 			}
-			if c, ok := find(strings.TrimSuffix(name, ".json")); ok {
-				return c, nil
+			stem := strings.TrimSuffix(name, ".json")
+			if !seen[stem] {
+				seen[stem] = true
+				stems = append(stems, stem)
 			}
+		}
+	}
+	for _, stem := range stems {
+		if c, ok := find(stem); ok {
+			return c, nil
 		}
 	}
 	return CardInfo{}, fmt.Errorf("no metadata for card %q", cardID)

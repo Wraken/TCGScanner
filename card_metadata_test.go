@@ -1,6 +1,7 @@
 package main
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -29,7 +30,26 @@ func TestCardMetadataLoadAndReload(t *testing.T) {
 		t.Errorf("loader must not set ID/Game, got %q/%q", c.ID, c.Game)
 	}
 
-	// mtime-based reload picks up a rewritten file.
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	orig := info.ModTime()
+
+	// A rewrite that lands on the SAME mtime and the SAME size (a like-for-
+	// like name swap, "Zoro" -> "Nami", both 4 bytes) must still serve the
+	// cached content: this is what proves the loader actually caches rather
+	// than re-parsing the file on every call.
+	writeTestFile(t, path, `{"OP01-025": {"name": "Nami", "set": "OP01", "set_name": "Romance Dawn",
+		"number": "025", "rarity": "SR", "type": "Character", "colors": ["Red"], "future_field": 1}}`)
+	if err := os.Chtimes(path, orig, orig); err != nil {
+		t.Fatal(err)
+	}
+	if got := cardMetadata(dir, "onepiece")["OP01-025"].Name; got != "Zoro" {
+		t.Errorf("same mtime+size should still serve the cached value, got %q", got)
+	}
+
+	// A later mtime (with a different size here too) must trigger a reload.
 	writeTestFile(t, path, `{"OP01-025": {"name": "Roronoa Zoro"}}`)
 	future := time.Now().Add(2 * time.Second)
 	if err := os.Chtimes(path, future, future); err != nil {
@@ -63,7 +83,11 @@ func TestLookupCardInfo(t *testing.T) {
 	writeTestFile(t, filepath.Join(images, "manifest.json"),
 		`{"OP01-025": "onepiece/OP01-025.webp", "sv01-020": "pokemon/sv01-020.webp"}`)
 	writeTestFile(t, filepath.Join(meta, "onepiece.json"), `{"OP01-025": {"name": "Zoro"}}`)
-	writeTestFile(t, filepath.Join(meta, "lorcana.json"), `{"1-1": {"name": "Ariel"}}`)
+	// lorcana.json also carries OP01-025, and sorts before onepiece.json
+	// alphabetically, so the fallback scan alone would pick it first. It
+	// must not: the manifest resolves the game before any fallback runs.
+	writeTestFile(t, filepath.Join(meta, "lorcana.json"),
+		`{"1-1": {"name": "Ariel"}, "OP01-025": {"name": "Wrong Game"}}`)
 
 	// Via the manifest: game resolved, only that file consulted.
 	c, err := lookupCardInfo([]string{images}, []string{meta}, "OP01-025")
@@ -102,20 +126,19 @@ func TestLookupCardInfoRealBundle(t *testing.T) {
 		t.Skip("models/tcg/metadata not present or empty")
 	}
 	// Whatever game is packaged first, one of its entries must resolve
-	// through the real manifests with a non-empty name.
+	// through the real manifests. Names can legitimately be empty (partial
+	// Riftbound extraction), so only ID/Game are asserted here.
 	game := strings.TrimSuffix(entries[0].Name(), ".json")
 	m := cardMetadata(dir, game)
 	if len(m) == 0 {
 		t.Fatalf("%s.json loaded empty", game)
 	}
-	for id := range m {
-		c, err := lookupCardInfo(allModelImagesDirs(), allModelMetadataDirs(), id)
-		if err != nil {
-			t.Fatalf("lookup %s: %v", id, err)
-		}
-		if c.Name == "" {
-			t.Errorf("%s has an empty name", id)
-		}
-		break
+	id := slices.Sorted(maps.Keys(m))[0]
+	c, err := lookupCardInfo(allModelImagesDirs(), allModelMetadataDirs(), id)
+	if err != nil {
+		t.Fatalf("lookup %s: %v", id, err)
+	}
+	if c.ID != id || c.Game == "" {
+		t.Errorf("lookup %s got %+v", id, c)
 	}
 }

@@ -1,23 +1,31 @@
 # Riftbound card fetcher
 
-Downloads card images from the official Riot CDN, driven by `parsedcards.json`
-(id, publicCode, imageUrl -- plus name, rarity, domains, type once the
-extraction below is redone), and writes the app's card metadata from it.
+Extracts the card catalog from the official gallery into `parsedcards.json`,
+downloads the card images from the Riot CDN, and writes the app's card
+metadata (`cards.json`) from it.
 
+    go run . -extract     # rewrites parsedcards.json from the live gallery
     go run .              # downloads into images/ (skips existing files)
     go run . -meta        # writes cards.json from parsedcards.json, no download
 
-`parsedcards.json` was parsed out of the official card gallery
-(https://playriftbound.com/fr-fr/card-gallery/): the gallery is a client-side
-app that inlines the FULL card catalog in one of its JS bundles (Sanity CMS
-data, hence the cmsassets.rgpub.io/sanity/.../game_data_live image URLs).
-To refresh / add a NEW SET: open the gallery, DevTools > Sources (or Network,
-JS filter), search all files for `publicCode` or `imageUrl` (Ctrl+Shift+F);
-the matching chunk holds the card array -- extract it, map every card to
-{id, publicCode, imageUrl, name, rarity, domains, type} -- keep `domains` as
-an array, it is Riftbound's colour list -- and replace/append in
-parsedcards.json. main.go re-runs incrementally (existing files are skipped).
-Note: the site anti-bot walls plain curl; use a real browser for this step.
+`parsedcards.json` comes from the official card gallery
+(https://playriftbound.com/en-us/card-gallery/): the gallery is a Next.js
+page that inlines the FULL card catalog (Sanity CMS data, hence the
+cmsassets.rgpub.io/sanity/.../game_data_live image URLs) in its
+`__NEXT_DATA__` script, so one GET is the whole extraction:
+
+    go run . -extract     # rewrites parsedcards.json from the live gallery
+    go run .              # then the images of any new set (existing skipped)
+    go run . -meta        # then cards.json
+
+Each entry keeps {id, publicCode, imageUrl, name, setName, rarity, domains,
+type}: `domains` is Riftbound's colour list, `setName` the gallery's set
+label ("Proving Grounds" for OGS), `type` the card type labels joined with
+" / ". The page is fetched with a browser-like User-Agent; if the site's
+bot filter ever answers non-200, the fallback is the browser: open the
+gallery, DevTools > Elements, copy the content of
+`<script id="__NEXT_DATA__">` into a file and feed it to `extractGallery`
+(the parser only needs that script; see gallery.go and gallery_test.go).
 
 ## Metadata (cards.json)
 
@@ -38,13 +46,11 @@ Output fields per card: `name`, `set`, `set_name`, `number`, `rarity`,
   `rarity`/`type` are copied through.
 - `name` is normalised like the other fetchers: NBSP -> space, curly
   apostrophe -> straight.
-- `set_name` comes from the `setNames` map in main.go; extend it when a new
-  set ships (an unknown prefix gets an empty set_name, nothing fails).
-  Today: ogn/ogs = Origins, sfd = Spiritforged, unl = Unleashed,
-  ven = Vendetta.
-- Entries WITHOUT a name are skipped. The current parsedcards.json was
-  extracted with id/publicCode/imageUrl only, so cards.json is `{}` until the
-  gallery extraction is redone with the metadata fields above.
+- `set_name` is the gallery's set label (`setName`: Origins, Proving Grounds
+  for OGS, Spiritforged, Unleashed, Vendetta); the `setNames` map in main.go
+  is only the fallback for entries that predate `-extract`.
+- Entries WITHOUT a name are skipped (nothing fails). Two Unleashed tokens
+  (Buff, XP Tracker) have no card type on the gallery: their `type` is "".
 
 PRB01/PRB02 ids are NOT Riftbound: they are One Piece premium boosters that
 were misfiled here once. Do not add them to parsedcards.json or `setNames`.

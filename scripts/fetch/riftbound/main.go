@@ -23,6 +23,7 @@ type Card struct {
 	PublicCode string   `json:"publicCode"`
 	ImageURL   string   `json:"imageUrl"`
 	Name       string   `json:"name,omitempty"`
+	SetName    string   `json:"setName,omitempty"` // gallery label ("Proving Grounds")
 	Rarity     string   `json:"rarity,omitempty"`
 	Domains    []string `json:"domains,omitempty"`
 	Type       string   `json:"type,omitempty"`
@@ -43,11 +44,12 @@ type meta struct {
 // fetchers) so the corpus is uniform for search.
 var nameCleaner = strings.NewReplacer("\u00a0", " ", "\u2019", "'")
 
-// setNames maps the lowercase set prefix of an id to its printed name.
-// Extend when a new set ships (unknown prefixes get an empty set_name).
+// setNames maps the lowercase set prefix of an id to its printed name, for
+// entries extracted before the gallery label (Card.SetName) was kept.
+// Unknown prefixes get an empty set_name.
 var setNames = map[string]string{
 	"ogn": "Origins",
-	"ogs": "Origins",
+	"ogs": "Proving Grounds",
 	"sfd": "Spiritforged",
 	"unl": "Unleashed",
 	"ven": "Vendetta",
@@ -78,9 +80,27 @@ func numberOf(c Card) string {
 	return number
 }
 
-// writeMeta turns the enriched parsedcards.json entries (those carrying a
-// name) into cards.json; entries without a name are skipped, so the file is
-// empty until the gallery extraction is redone with metadata fields.
+// metaOf maps one parsedcards.json entry to the app's metadata record. The
+// gallery's set label wins over the setNames table.
+func metaOf(c Card) meta {
+	set, _ := split(c.ID)
+	setName := c.SetName
+	if setName == "" {
+		setName = setNames[strings.ToLower(set)]
+	}
+	colors := c.Domains
+	if colors == nil {
+		colors = []string{}
+	}
+	return meta{
+		Name: nameCleaner.Replace(c.Name), Set: strings.ToUpper(set), SetName: setName,
+		Number: numberOf(c), Rarity: c.Rarity, Type: c.Type, Colors: colors,
+	}
+}
+
+// writeMeta turns the parsedcards.json entries that carry a name into
+// cards.json; entries without a name are skipped (an extraction predating
+// -extract yields an empty file).
 func writeMeta(cards []Card) error {
 	out := map[string]meta{}
 	skipped := 0
@@ -92,15 +112,7 @@ func writeMeta(cards []Card) error {
 		if _, dup := out[c.ID]; dup {
 			fmt.Printf("  duplicate id %s\n", c.ID)
 		}
-		set, _ := split(c.ID)
-		colors := c.Domains
-		if colors == nil {
-			colors = []string{}
-		}
-		out[c.ID] = meta{
-			Name: nameCleaner.Replace(c.Name), Set: strings.ToUpper(set), SetName: setNames[strings.ToLower(set)],
-			Number: numberOf(c), Rarity: c.Rarity, Type: c.Type, Colors: colors,
-		}
+		out[c.ID] = metaOf(c)
 	}
 	f, err := os.Create(metaFile)
 	if err != nil {
@@ -122,8 +134,39 @@ func writeMeta(cards []Card) error {
 
 func main() {
 	metaFlag := flag.Bool("meta", false, "write cards.json (metadata) from parsedcards.json instead of downloading images")
+	extract := flag.Bool("extract", false, "download the official card gallery and rewrite parsedcards.json (no images)")
+	htmlFile := flag.String("html", "", "with -extract: parse this saved gallery page (or its __NEXT_DATA__ JSON) instead of downloading")
 	flag.Parse()
 	start := time.Now()
+
+	if *extract {
+		var html []byte
+		var err error
+		if *htmlFile != "" {
+			html, err = os.ReadFile(*htmlFile)
+		} else {
+			html, err = fetchGallery()
+		}
+		if err != nil {
+			fmt.Println("extract:", err)
+			os.Exit(1)
+		}
+		cards, err := extractGallery(html)
+		if err != nil {
+			fmt.Println("extract:", err)
+			os.Exit(1)
+		}
+		if err := writeParsedCards(cards); err != nil {
+			panic(err)
+		}
+		perSet := map[string]int{}
+		for _, c := range cards {
+			set, _ := split(c.ID)
+			perSet[set]++
+		}
+		fmt.Printf("Done: %d cards in %s %v (%s)\n", len(cards), inputJSON, perSet, time.Since(start).Round(time.Millisecond))
+		return
+	}
 
 	data, err := os.ReadFile(inputJSON)
 	if err != nil {

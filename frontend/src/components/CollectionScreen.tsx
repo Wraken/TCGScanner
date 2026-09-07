@@ -3,6 +3,7 @@ import { Camera, ImageIcon, Pencil, Plus, Search, Trash2, Upload } from "lucide-
 import { GetCardImageByModel, GetCardInfo, GetCards, DeleteCard, MoveCardToCustom, UpdateCard } from "../../wailsjs/go/main/App";
 import { LogDebug } from "../../wailsjs/runtime/runtime";
 import { gameLabel } from "@/lib/utils";
+import { CardImage } from "@/components/CardImage";
 import { CardCopiesDialog } from "@/components/CardCopiesDialog";
 import type { CardFilter, CardInfo, CollectionCard } from "@/types";
 import type { useCollection } from "@/hooks/useCollection";
@@ -265,18 +266,16 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
               style={{ textAlign: "inherit", padding: 0 }}
               onClick={() => setOpenCard(g.card_id)}
             >
-              <div
-                className="relative rounded-lg overflow-hidden"
-                style={{ aspectRatio: "63 / 88", background: "var(--n-surface)" }}
-              >
-                {images[g.card_id] ? (
-                  <img src={images[g.card_id]} alt={g.card_id} className="w-full h-full object-cover" />
-                ) : (
+              <CardImage
+                src={images[g.card_id] ?? null}
+                alt={g.card_id}
+                className="rounded-lg"
+                placeholder={
                   <div className="w-full h-full flex items-center justify-center">
                     <ImageIcon className="w-5 h-5 n-n600" />
                   </div>
-                )}
-              </div>
+                }
+              />
               <div className="flex items-center justify-between px-0.5">
                 <span className="font-mono n-n400" style={{ fontSize: "11px" }}>{g.card_id}</span>
                 <span

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { CameraOff, Check, CircleCheck, Plus, RefreshCw } from "lucide-react";
 import { SaveCard } from "../../wailsjs/go/main/App";
 import { LogDebug } from "../../wailsjs/runtime/runtime";
+import { CardImage } from "@/components/CardImage";
 import { useCamera } from "@/hooks/useCamera";
 import { useModel } from "@/hooks/useModel";
 import { useCollection } from "@/hooks/useCollection";
@@ -202,12 +203,7 @@ export function ScanScreen({ model, collection }: Props) {
             ) : (
               recent.map((r, i) => (
                 <div key={`${r.card_id}-${i}`} className="flex items-center gap-2">
-                  <div
-                    className="w-10 h-14 rounded-[4px] overflow-hidden shrink-0"
-                    style={{ background: "var(--n-surface)" }}
-                  >
-                    {r.image && <img src={r.image} alt={r.card_id} className="w-full h-full object-cover" />}
-                  </div>
+                  <CardImage src={r.image} alt={r.card_id} className="w-10 h-14 rounded-[4px] shrink-0" />
                   <span className="font-mono n-n500" style={{ fontSize: "11px" }}>
                     {r.card_id}
                   </span>

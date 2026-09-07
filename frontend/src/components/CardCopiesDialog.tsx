@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CardImage } from "@/components/CardImage";
 import { formatDate } from "@/lib/utils";
 import type { CardInfo, CardLanguage, Collection, CollectionCard } from "@/types";
 
@@ -64,12 +65,12 @@ export function CardCopiesDialog({
           )}
         </DialogHeader>
         <div className="flex gap-6 min-h-0">
-          <div
-            className="w-72 shrink-0 rounded-lg overflow-hidden self-start"
-            style={{ aspectRatio: "63 / 88", background: "var(--n-surface)" }}
-          >
-            {image && <img src={image} alt={cardId ?? ""} className="w-full h-full object-cover" />}
-          </div>
+          <CardImage
+            src={image}
+            alt={cardId ?? ""}
+            adaptive
+            className="w-72 data-[orientation=landscape]:w-[22rem] shrink-0 self-start rounded-lg"
+          />
           <div className="flex-1 overflow-y-auto flex flex-col gap-2">
             {copies.map((c) => (
               <div

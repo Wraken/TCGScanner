@@ -3,6 +3,7 @@ import { CameraOff, Check, CircleCheck, Plus, RefreshCw } from "lucide-react";
 import { SaveCard } from "../../wailsjs/go/main/App";
 import { LogDebug } from "../../wailsjs/runtime/runtime";
 import { CardImage } from "@/components/CardImage";
+import { VariantChoiceDialog } from "@/components/VariantChoiceDialog";
 import { useCamera } from "@/hooks/useCamera";
 import { useModel } from "@/hooks/useModel";
 import { useCollection } from "@/hooks/useCollection";
@@ -280,7 +281,9 @@ export function ScanScreen({ model, collection }: Props) {
             <p className="mt-2 text-center text-xs n-n400">
               {pred.editedCardID !== pred.prediction.card_id && pred.editedCardID.trim()
                 ? "ID corrected manually"
-                : `${pct(pred.prediction.confidence)}% confidence`}
+                : pred.prediction.candidates && pred.prediction.candidates.length >= 2
+                  ? `${pct(pred.prediction.confidence)}% · ${pred.prediction.candidates.length} printings match`
+                  : `${pct(pred.prediction.confidence)}% confidence`}
             </p>
           )}
           {pred.predictionError && (
@@ -385,6 +388,13 @@ export function ScanScreen({ model, collection }: Props) {
         </div>
         {model.modelError && <p className="text-xs text-destructive">{model.modelError}</p>}
       </div>
+
+      <VariantChoiceDialog
+        candidates={pred.choice}
+        preselected={pred.preselected}
+        onPick={pred.pickCandidate}
+        onDismiss={pred.dismissChoice}
+      />
     </div>
   );
 }

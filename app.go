@@ -25,6 +25,12 @@ type App struct {
 	// Bound methods may run on concurrent goroutines — atomic keeps the
 	// check-then-clear in DeleteCollection from racing SaveCard.
 	activeCustomID atomic.Int32
+
+	// Printed language stamped on new scans. Sticky like activeCustomID and
+	// in-memory only (resets to defaultLanguage on every start). "" means
+	// defaultLanguage. Bound methods run concurrently: guard with the mutex.
+	scanLangMu sync.Mutex
+	scanLang   string
 }
 
 func NewApp() *App {
@@ -136,6 +142,32 @@ func (a *App) GetActiveCustom() int {
 	return int(a.activeCustomID.Load())
 }
 
+// ListLanguages is the closed list of printed languages a copy can carry.
+func (a *App) ListLanguages() []CardLanguage {
+	return cardLanguages
+}
+
+// SetScanLang chooses the language stamped on the next scans. An unknown
+// code is rejected and leaves the current choice untouched.
+func (a *App) SetScanLang(code string) error {
+	if !validLanguage(code) {
+		return fmt.Errorf("unknown language %q", code)
+	}
+	a.scanLangMu.Lock()
+	a.scanLang = code
+	a.scanLangMu.Unlock()
+	return nil
+}
+
+func (a *App) GetScanLang() string {
+	a.scanLangMu.Lock()
+	defer a.scanLangMu.Unlock()
+	if a.scanLang == "" {
+		return defaultLanguage
+	}
+	return a.scanLang
+}
+
 func (a *App) GetGameCollections() ([]GameCollection, error) {
 	if a.db == nil {
 		return nil, fmt.Errorf("database not initialized")
@@ -205,6 +237,9 @@ func (a *App) UpdateCard(card CollectionCard) error {
 	if err != nil {
 		return err
 	}
+	if !validLanguage(card.Lang) {
+		return fmt.Errorf("unknown language %q", card.Lang)
+	}
 	// A hand-corrected id gets its game re-resolved; any other edit keeps the
 	// stored game so a foil toggle can never downgrade it (shrunk manifest,
 	// bogus Game field from the caller).
@@ -234,7 +269,7 @@ func (a *App) SaveCard(cardID string, foil bool) (CollectionCard, error) {
 	// Resolve across every installed manifest, like UpdateCard does — a
 	// hand-typed id known only to another model's images still gets a game.
 	game := gameResolver(allModelImagesDirs())(cardID)
-	id, err := insertCard(a.db, int(a.activeCustomID.Load()), cardID, game, model.Name(), foil, defaultLanguage)
+	id, err := insertCard(a.db, int(a.activeCustomID.Load()), cardID, game, model.Name(), foil, a.GetScanLang())
 	if err != nil {
 		return CollectionCard{}, err
 	}

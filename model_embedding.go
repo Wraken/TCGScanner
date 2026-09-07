@@ -55,8 +55,10 @@ const (
 	// the same artwork (the bar index_twins.py uses): a frame cannot separate
 	// them, so they are offered as candidates instead of fought over.
 	defaultTwinSim = 0.9
-	// Upper bound on the candidates reported for one frame.
-	defaultMaxCandidates = 6
+	// Upper bound on the candidates reported for one frame. The shipped index
+	// has twin sets of 8 (basic Energy across 7 Pokémon sets); a cap below the
+	// real set size makes membership flicker between frames.
+	defaultMaxCandidates = 10
 )
 
 var indexMagic = []byte("TCGEMBIX")
@@ -447,11 +449,12 @@ func (m *EmbeddingModel) embedCrop(img image.Image, box image.Rectangle) ([]floa
 // winner's own score.
 //
 // Candidates are the references within marginMin of the winner whose own
-// reference vector is near-identical to the winner's (cosine >= twinSim):
-// printings that share the artwork, which no frame can separate. They are
-// reported only when the winner clears scoreFloor and there is at least one
-// such twin; the list starts with the winner, continues best first and is
-// capped at maxCandidates. nil otherwise.
+// reference vector is near-identical to the winner's (cosine >= twinSim) or
+// that share the winner's canonical id (declared printings of the same
+// face): printings no frame can separate. They are reported only when the
+// winner clears scoreFloor and there is at least one such twin; the list
+// starts with the winner, continues best first and is capped at
+// maxCandidates. nil otherwise.
 func (m *EmbeddingModel) match(query []float32) (idx int, score, margin float32, candidates []int) {
 	// One pass to score everything, so the margin pass is plain comparisons.
 	for i := 0; i < m.n; i++ {
@@ -489,7 +492,7 @@ func (m *EmbeddingModel) match(query []float32) (idx int, score, margin float32,
 		if i == idx || s < score-float32(m.marginMin) {
 			continue
 		}
-		if dot(top, m.vectors[i*m.dim:(i+1)*m.dim]) >= m.twinSim {
+		if m.canon[i] == winner || dot(top, m.vectors[i*m.dim:(i+1)*m.dim]) >= m.twinSim {
 			candidates = append(candidates, i)
 		}
 	}

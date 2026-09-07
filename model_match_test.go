@@ -68,12 +68,16 @@ func equalStrings(a, b []string) bool {
 // Eight dims: references live in the first four, so a query on dim 5 scores 0
 // against everything (below the floor).
 //
-//	x-001 / y-001 : near-identical references (cosine 0.99) — twins.
-//	d-003 / e-004 : cosine 0.8 — similar but NOT twins.
-//	f-005 / g-005 : cosine 0.91 — twins, used with a frame that favours f.
+//	x-001 / y-001                     : near-identical references (cosine 0.99) — twins.
+//	d-003 / e-004                     : cosine 0.6 — similar but NOT twins.
+//	f-005 / g-005                     : cosine 0.91 — twins, used with a frame that favours f.
+//	ven-001-100 / ven-001-star-100    : cosine 0.97 — same canonical id (the
+//	                                     star folds onto the base), used to
+//	                                     check the candidate rule's canonical
+//	                                     clause independent of cosine.
 func twinIndex(t *testing.T) *EmbeddingModel {
 	return synthIndex(t, 8,
-		[]string{"x-001", "y-001", "d-003", "e-004", "f-005", "g-005"},
+		[]string{"x-001", "y-001", "d-003", "e-004", "f-005", "g-005", "ven-001-100", "ven-001-star-100"},
 		[][]float32{
 			{1, 0, 0, 0, 0, 0, 0, 0},
 			{0.99, 0.141, 0, 0, 0, 0, 0, 0},
@@ -81,6 +85,8 @@ func twinIndex(t *testing.T) *EmbeddingModel {
 			{0, 0, 0.6, 0.8, 0, 0, 0, 0},
 			{0, 0, 0, 0, 0, 0, 1, 0},
 			{0, 0, 0, 0, 0, 0, 0.91, 0.4146},
+			{0, 0, 0, 0, 0, 0, 0, 1},
+			{0, 0, 0, 0, 0, 0, 0.243, 0.97},
 		}, defaultMaxCandidates)
 }
 
@@ -101,7 +107,7 @@ func TestMatchTwinsAreCandidates(t *testing.T) {
 func TestMatchSimilarButDifferentCardsAreNotCandidates(t *testing.T) {
 	m := twinIndex(t)
 	// d scores 0.9, e scores 0.889: within the margin, but their references
-	// are only 0.8 apart — a genuinely ambiguous frame, not a printing issue.
+	// are only 0.6 apart — a genuinely ambiguous frame, not a printing issue.
 	idx, score, margin, cand := m.match(unit([]float32{0, 0, 0.9, 0.436, 0, 0, 0, 0}))
 	if m.labels[idx] != "d-003" {
 		t.Fatalf("top-1 = %s, want d-003", m.labels[idx])
@@ -119,8 +125,8 @@ func TestMatchTwinOutsideMarginLocks(t *testing.T) {
 	// The frame clearly favours f (0.954) over its twin g (0.744): no
 	// candidates, and the margin rule locks as before.
 	idx, score, margin, cand := m.match(unit([]float32{0, 0, 0, 0, 0, 0, 0.954, -0.3}))
-	if m.labels[idx] != "g-005" && m.labels[idx] != "f-005" {
-		t.Fatalf("top-1 = %s", m.labels[idx])
+	if m.labels[idx] != "f-005" {
+		t.Fatalf("top-1 = %s, want f-005", m.labels[idx])
 	}
 	if cand != nil {
 		t.Errorf("candidates = %v, want none", labelsOf(m, cand))
@@ -173,5 +179,67 @@ func TestEmbeddingConfigDefaults(t *testing.T) {
 	}
 	if cfg.MaxCandidates != defaultMaxCandidates {
 		t.Errorf("max_candidates < 2 must fall back to the default, got %d", cfg.MaxCandidates)
+	}
+}
+
+func TestMatchSameCanonicalTwinsBlockTheLock(t *testing.T) {
+	m := twinIndex(t)
+	// The star foil folds onto its base, so the margin ignores it (large
+	// margin against every different card); both must still come back as
+	// candidates and the match must not be confident.
+	idx, score, margin, cand := m.match(unit([]float32{0, 0, 0, 0, 0, 0, 0, 1}))
+	if m.labels[idx] != "ven-001-100" {
+		t.Fatalf("top-1 = %s, want ven-001-100", m.labels[idx])
+	}
+	if margin < float32(m.marginMin) {
+		t.Fatalf("margin %.3f should ignore the folded twin", margin)
+	}
+	if got := labelsOf(m, cand); !equalStrings(got, []string{"ven-001-100", "ven-001-star-100"}) {
+		t.Errorf("candidates = %v, want [ven-001-100 ven-001-star-100]", got)
+	}
+	if m.confident(score, margin, len(cand)) {
+		t.Error("confident despite two candidates")
+	}
+}
+
+func TestMatchSameCanonicalWithinMarginIsCandidateRegardlessOfCosine(t *testing.T) {
+	// A declared printing (same canonical) with different-looking art
+	// (cosine 0.6) that a poor frame puts within the margin: ask, do not lock.
+	m := synthIndex(t, 8,
+		[]string{"OP01-001", "OP01-001_p1", "OP02-002"},
+		[][]float32{
+			{1, 0, 0, 0, 0, 0, 0, 0},
+			{0.6, 0.8, 0, 0, 0, 0, 0, 0},
+			{0, 0, 1, 0, 0, 0, 0, 0},
+		}, defaultMaxCandidates)
+	idx, score, margin, cand := m.match(unit([]float32{0.86, 0.51, 0, 0, 0, 0, 0, 0}))
+	if m.labels[idx] != "OP01-001" && m.labels[idx] != "OP01-001_p1" {
+		t.Fatalf("top-1 = %s", m.labels[idx])
+	}
+	if len(cand) != 2 {
+		t.Fatalf("candidates = %v, want the base and its _p1", labelsOf(m, cand))
+	}
+	if m.confident(score, margin, len(cand)) {
+		t.Error("confident despite two candidates")
+	}
+}
+
+func TestConfidentRule(t *testing.T) {
+	m := twinIndex(t)
+	cases := []struct {
+		score, margin float32
+		candidates    int
+		want          bool
+	}{
+		{0.9, 0.5, 0, true},
+		{0.9, 0.5, 1, true},
+		{0.9, 0.5, 2, false},
+		{0.9, 0.05, 0, false},
+		{0.3, 0.5, 0, false},
+	}
+	for _, c := range cases {
+		if got := m.confident(c.score, c.margin, c.candidates); got != c.want {
+			t.Errorf("confident(%.2f, %.2f, %d) = %t, want %t", c.score, c.margin, c.candidates, got, c.want)
+		}
 	}
 }

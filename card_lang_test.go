@@ -45,3 +45,26 @@ func TestCardLanguageRoundTrip(t *testing.T) {
 		t.Errorf("listCards after update = %+v, want one copy in ja", list)
 	}
 }
+
+func TestCardLayerRejectsUnknownLanguage(t *testing.T) {
+	db := testDB(t)
+	if _, err := insertCard(db, 0, "OP01-025", "onepiece", "tcg", false, ""); err == nil {
+		t.Error("insertCard accepted an empty language")
+	}
+	id, err := insertCard(db, 0, "OP01-025", "onepiece", "tcg", false, "fr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	card, err := getCard(db, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	card.Lang = "xx"
+	if err := updateCard(db, card); err == nil {
+		t.Error("updateCard accepted an unknown language")
+	}
+	got, _ := getCard(db, id)
+	if got.Lang != "fr" {
+		t.Errorf("lang after rejected update = %q, want fr", got.Lang)
+	}
+}

@@ -53,6 +53,9 @@ func nullableID(id int) sql.NullInt64 {
 }
 
 func insertCard(db *sql.DB, collectionID int, cardID, game, modelName string, foil bool, lang string) (int, error) {
+	if !validLanguage(lang) {
+		return 0, fmt.Errorf("unknown language %q", lang)
+	}
 	foilInt := 0
 	if foil {
 		foilInt = 1
@@ -117,6 +120,9 @@ func moveCardToCustom(db *sql.DB, rowID, customID int) error {
 }
 
 func updateCard(db *sql.DB, c CollectionCard) error {
+	if !validLanguage(c.Lang) {
+		return fmt.Errorf("unknown language %q", c.Lang)
+	}
 	foilInt := 0
 	if c.Foil {
 		foilInt = 1

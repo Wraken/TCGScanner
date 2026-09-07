@@ -293,22 +293,24 @@ func TestMigrationAddsLang(t *testing.T) {
 		"v2 without lang": buildV2NoLangDB(t),
 	}
 	for name, path := range paths {
-		db, err := openDB(path)
-		if err != nil {
-			t.Fatalf("%s: %v", name, err)
-		}
-		cols := columnInfo(t, db, "cards")
-		if c, ok := cols["lang"]; !ok || !c.notNull {
-			t.Errorf("%s: lang column = %+v, want present and NOT NULL", name, c)
-		}
-		var total, en int
-		if err := db.QueryRow(`SELECT COUNT(*), SUM(lang = 'en') FROM cards`).Scan(&total, &en); err != nil {
-			t.Fatalf("%s: %v", name, err)
-		}
-		if total == 0 || en != total {
-			t.Errorf("%s: %d of %d rows default to en", name, en, total)
-		}
-		db.Close()
+		t.Run(name, func(t *testing.T) {
+			db, err := openDB(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer db.Close()
+			cols := columnInfo(t, db, "cards")
+			if c, ok := cols["lang"]; !ok || !c.notNull {
+				t.Errorf("lang column = %+v, want present and NOT NULL", c)
+			}
+			var total, en int
+			if err := db.QueryRow(`SELECT COUNT(*), COALESCE(SUM(lang = 'en'), 0) FROM cards`).Scan(&total, &en); err != nil {
+				t.Fatal(err)
+			}
+			if total == 0 || en != total {
+				t.Errorf("%d of %d rows default to en", en, total)
+			}
+		})
 	}
 }
 

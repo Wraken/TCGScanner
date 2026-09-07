@@ -123,6 +123,9 @@ export function ExportModal({ open, onOpenChange, presets, onExport }: Props) {
                   {label}
                 </label>
               ))}
+              {fields.includes("language") && (
+                <p className="text-xs text-muted-foreground">One row per card and language.</p>
+              )}
             </div>
           </div>
 

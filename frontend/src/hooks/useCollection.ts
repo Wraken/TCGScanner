@@ -80,7 +80,10 @@ export function useCollection() {
 
   function setScanLang(code: string) {
     setScanLangState(code);
-    SetScanLang(code).catch((e) => LogDebug(`[Collections] setScanLang error: ${e}`));
+    SetScanLang(code).catch((e) => {
+      LogDebug(`[Collections] setScanLang error: ${e}`);
+      GetScanLang().then(setScanLangState).catch(() => {});
+    });
   }
 
   async function createCustom(name: string): Promise<Collection | null> {

@@ -81,7 +81,7 @@ export function CardCopiesDialog({
                   {c.foil ? "Foil" : "Normal"}
                 </button>
                 <Select value={c.lang} onValueChange={(v) => onChangeLang(c, v)}>
-                  <SelectTrigger className="w-[110px] h-8 text-xs">
+                  <SelectTrigger className="w-[110px] h-8 text-xs" title="Printed language" aria-label="Printed language">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -95,7 +95,7 @@ export function CardCopiesDialog({
                     collection; without any custom there is nothing to pick. */}
                 {customs.length > 0 && (
                   <Select value={String(c.collection_id)} onValueChange={(v) => onMove(c.id, parseInt(v, 10) || 0)}>
-                    <SelectTrigger className="w-[160px] h-8 text-xs">
+                    <SelectTrigger className="w-[160px] h-8 text-xs" title="Custom collection" aria-label="Custom collection">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>

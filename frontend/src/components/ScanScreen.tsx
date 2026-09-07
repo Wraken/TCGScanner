@@ -39,7 +39,7 @@ export function ScanScreen({ model, collection }: Props) {
   const pred = usePrediction(camera.videoRef, camera.canvasRef, model.modelLoaded, camera.selectedCamera);
 
   const [recent, setRecent] = useState<RecentScan[]>([]);
-  const [lastSaved, setLastSaved] = useState<{ card_id: string; game: string } | null>(null);
+  const [lastSaved, setLastSaved] = useState<{ card_id: string; game: string; lang: string } | null>(null);
   const [saveError, setSaveError] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [changingModel, setChangingModel] = useState(false);
@@ -64,7 +64,7 @@ export function ScanScreen({ model, collection }: Props) {
     try {
       const saved = await SaveCard(id, pred.foil);
       await collection.refresh();
-      setLastSaved({ card_id: saved.card_id, game: saved.game });
+      setLastSaved({ card_id: saved.card_id, game: saved.game, lang: saved.lang });
       setRecent((prev) => [{ card_id: id, image }, ...prev.filter((r) => r.card_id !== id)].slice(0, 3));
     } catch (e) {
       LogDebug(`[SaveCard] Error: ${e}`);
@@ -296,7 +296,7 @@ export function ScanScreen({ model, collection }: Props) {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs n-n400 mb-1.5">Finish</label>
-            <div className="flex rounded-md overflow-hidden" style={{ border: "1px solid var(--n-divider)" }}>
+            <div className="flex h-10 rounded-md overflow-hidden" style={{ border: "1px solid var(--n-divider)" }}>
               <button className="n-seg-opt flex-1" data-active={!pred.foil} onClick={() => pred.setFoil(false)}>
                 Normal
               </button>
@@ -345,7 +345,7 @@ export function ScanScreen({ model, collection }: Props) {
         ) : (
           lastSaved && (
             <p className="text-center text-xs n-n400">
-              {lastSaved.card_id} added to {gameLabel(lastSaved.game)}
+              {lastSaved.card_id} · {lastSaved.lang.toUpperCase()} added to {gameLabel(lastSaved.game)}
             </p>
           )
         )}

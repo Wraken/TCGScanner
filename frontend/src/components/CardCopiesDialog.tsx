@@ -79,17 +79,21 @@ export function CardCopiesDialog({
                   {c.foil ? "Foil" : "Normal"}
                 </button>
                 <span className="text-xs n-n500 flex-1">{formatDate(c.scanned_at)}</span>
-                <Select value={String(c.collection_id)} onValueChange={(v) => onMove(c.id, parseInt(v, 10) || 0)}>
-                  <SelectTrigger className="w-[160px] h-8 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">no custom</SelectItem>
-                    {customs.map((cc) => (
-                      <SelectItem key={cc.id} value={String(cc.id)}>{cc.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {/* A copy lives in its game and optionally in ONE custom
+                    collection; without any custom there is nothing to pick. */}
+                {customs.length > 0 && (
+                  <Select value={String(c.collection_id)} onValueChange={(v) => onMove(c.id, parseInt(v, 10) || 0)}>
+                    <SelectTrigger className="w-[160px] h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">Default only</SelectItem>
+                      {customs.map((cc) => (
+                        <SelectItem key={cc.id} value={String(cc.id)}>{cc.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
                 <button className="n-btn n-btn-secondary n-btn-icon" title="Delete this copy" onClick={() => onDelete(c.id)}>
                   <Trash2 className="w-4 h-4" />
                 </button>

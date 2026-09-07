@@ -33,9 +33,13 @@ model keeps every L2-normalised reference vector in memory (`m.vectors`).
 After the top hit `idx` is known:
 
 - **Candidates** = every reference `i` with
-  `scores[i] >= scores[idx] - marginMin` **and**
+  `scores[i] >= scores[idx] - marginMin` **and** either
   `dot(vectors[idx], vectors[i]) >= twinSim` (the two *references* are
-  near-identical, so the frame is not what makes them close). `idx` itself
+  near-identical, so the frame is not what makes them close) **or**
+  `canonicalCard(labels[i]) == canonicalCard(labels[idx])` (a declared
+  printing of the same face — One Piece `_pN`/`_rN`, Riftbound `-star-`,
+  `reprintAliases` — is always offered when it is within the margin: 13 One
+  Piece `_r1` pairs with identical art sit just under 0.9). `idx` itself
   always qualifies. Sorted by score, descending, capped at `maxCandidates`.
 - Candidates are reported only when the top score is at least `scoreFloor`
   (a blurry frame with many weak neighbours is not an ambiguity) and there
@@ -52,7 +56,7 @@ New config knobs in `EmbeddingConfig`, with Go defaults when missing or ≤ 0
 
 ```go
 TwinSim       float64 `json:"twin_sim"`        // default 0.9, same bar as index_twins.py
-MaxCandidates int     `json:"max_candidates"`  // default 6
+MaxCandidates int     `json:"max_candidates"`  // default 10 (the index holds twin sets of 8)
 ```
 
 `Prediction` gains:
@@ -80,11 +84,13 @@ no longer make a twin lock silently.
 
 ## Stability and state (frontend, `usePrediction`)
 
-- A prediction with `candidates.length >= 2` is *pending*. The hook keys the
-  set by its sorted card ids; the same key on **3 consecutive frames**
-  (`CHOICE_STABLE_FRAMES`) opens the choice: `choice = candidates` (best
-  first). A different key or a frame without candidates resets the count.
-  This mirrors the existing auto-lock caution.
+- A prediction with `candidates.length >= 2` is *pending*. Consecutive
+  ambiguous frames whose candidate sets **overlap** (share at least one card
+  id) count together; **3 in a row** (`CHOICE_STABLE_FRAMES`) open the choice
+  with the latest set, best first. Sets are compared by overlap, not equality:
+  a twin hovering at the margin boundary flickers in and out between frames
+  and must not starve the count. A frame with unrelated candidates or no
+  card resets it. This mirrors the existing auto-lock caution.
 - While `choice !== null` scanning pauses exactly like `locked` (the interval
   effect returns early; `choice` joins its dependencies).
 - `pickCandidate(cardId)`: remembers `lastPick[key] = cardId` (a `Map` in a
@@ -92,8 +98,9 @@ no longer make a twin lock silently.
   `GetCardImage(cardId)` → `cardImage`, `setEditedCardID(cardId)`. The Card
   ID field, Finish, Language and Save work unchanged from there.
 - `dismissChoice()`: clears `choice`, resets the pending counter and records
-  the key as *suppressed*: the popup does not reopen for that same key until
-  a frame yields a different key or no card. Scanning resumes.
+  the dismissed ids as *suppressed*: frames whose candidates overlap them are
+  ignored until a frame yields unrelated candidates or no card. Scanning
+  resumes.
 - `resetCard()` also clears `choice`, the pending counter and the suppressed
   key. `lastPick` survives `resetCard` (that is the whole point of the batch
   memory).
@@ -107,7 +114,8 @@ A shadcn `Dialog`, opened when `choice !== null`, closing = dismiss.
 
 - Title "Which printing is it?", subtitle "These cards share the same
   artwork — check the number at the bottom of your card."
-- One tile per candidate (2 to 6), in a responsive grid: the card image via
+- One tile per candidate (2 to 10; the content scrolls beyond one screen), in
+  a responsive grid: the card image via
   `GetCardImage` rendered with `CardImage` (never cropped), then the metadata
   from `GetCardInfo`: set name + set code, `#number`, rarity as tags, and the
   card id in mono as fallback when there is no metadata. Score is not shown
@@ -159,3 +167,13 @@ pick; Escape resumes scanning without reopening on the same card.
 - Cleaning `reprintAliases` / `canonicalCard` (still used by the margin and
   by `index_twins.py`).
 - Writing `twin_sim` / `max_candidates` into the packager's `config.json`.
+
+## Review notes (2026-09-07, Fable quality review of the matcher)
+
+- Popup rate on a clean scan ≈ share of labels with any neighbour ≥ 0.9:
+  Lorcana 18.8 % and Pokémon 9.8 % (previously unlockable), One Piece 6.4 %
+  and Riftbound 5.9 % (mostly `_r1` / `-star-` printings that used to lock
+  silently on one version).
+- 0.9 measures the embedding, not the artwork: a few Pokémon Pocket
+  "shiny background" cards of different Pokémon sit above the bar. They were
+  unlockable before; a popup is strictly better than hanging.

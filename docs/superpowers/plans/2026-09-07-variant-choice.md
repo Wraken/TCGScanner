@@ -491,6 +491,8 @@ Run: `gofmt -l . ; go test .` (and `go vet .` separately — only the pre-existi
 
 - [ ] **Step 6: Commit**
 
+> **Amendment after review (applied in the follow-up commit):** `defaultMaxCandidates = 10`; the candidate loop also accepts `m.canon[i] == winner` regardless of the cosine; synthetic tests `TestMatchSameCanonicalTwinsBlockTheLock`, `TestMatchSameCanonicalWithinMarginIsCandidateRegardlessOfCosine`, `TestConfidentRule`.
+
 ```bash
 git add model.go model_embedding.go model_match_test.go model_embedding_test.go model_margin_test.go
 git commit -m "feat: matcher reports the printings a frame cannot tell apart"
@@ -539,7 +541,7 @@ After `SCAN_INTERVAL_MS`:
 // dialog opens — the same caution as the confident lock, against flicker.
 const CHOICE_STABLE_FRAMES = 3;
 
-// Order-independent identity of a candidate set.
+// Order-independent identity of a shown candidate set (last-pick memory).
 function candidateKey(candidates: Candidate[]): string {
   return candidates.map((c) => c.card_id).sort().join("|");
 }
@@ -550,11 +552,16 @@ State and refs, after `const [foil, setFoil] = useState(false);`:
 ```ts
   // Ambiguous printings waiting for the user's pick; null = no dialog.
   const [choice, setChoice] = useState<Candidate[] | null>(null);
-  const pendingKeyRef = useRef("");
+  // Candidate ids of the previous ambiguous frame and how many consecutive
+  // frames overlapped it. Twins hovering at the margin boundary flicker in
+  // and out between frames, so sets are compared by overlap, not equality.
+  const pendingIdsRef = useRef<Set<string>>(new Set());
   const pendingCountRef = useRef(0);
-  // A dismissed set stays suppressed until a frame shows another set or no card.
-  const suppressedKeyRef = useRef("");
-  // Last printing picked per candidate set; session-only, survives resetCard.
+  // Ids of a dismissed set: frames overlapping them are ignored until a
+  // frame shows unrelated candidates or no card.
+  const suppressedIdsRef = useRef<Set<string>>(new Set());
+  // Last printing picked per shown set (sorted ids); session-only, survives
+  // resetCard.
   const lastPickRef = useRef(new Map<string, string>());
 ```
 
@@ -575,20 +582,26 @@ Helpers, after `resetCard` (and `resetCard` itself gains two lines):
     resetPending(true);
   }
 
-  function resetPending(liftSuppression: boolean) {
-    pendingKeyRef.current = "";
-    pendingCountRef.current = 0;
-    if (liftSuppression) suppressedKeyRef.current = "";
+  function overlaps(candidates: Candidate[], ids: Set<string>): boolean {
+    return candidates.some((c) => ids.has(c.card_id));
   }
 
-  // Counts consecutive frames with the same candidate set; opens the choice
-  // once it is stable. A different set lifts any suppression.
+  function resetPending(liftSuppression: boolean) {
+    pendingIdsRef.current = new Set();
+    pendingCountRef.current = 0;
+    if (liftSuppression) suppressedIdsRef.current = new Set();
+  }
+
+  // Counts consecutive ambiguous frames whose candidates overlap the previous
+  // ones; opens the choice with the latest set once stable. Unrelated
+  // candidates lift any suppression.
   function trackCandidates(candidates: Candidate[]) {
-    const key = candidateKey(candidates);
-    if (key === suppressedKeyRef.current) return;
-    suppressedKeyRef.current = "";
-    pendingCountRef.current = key === pendingKeyRef.current ? pendingCountRef.current + 1 : 1;
-    pendingKeyRef.current = key;
+    if (suppressedIdsRef.current.size > 0) {
+      if (overlaps(candidates, suppressedIdsRef.current)) return;
+      suppressedIdsRef.current = new Set();
+    }
+    pendingCountRef.current = overlaps(candidates, pendingIdsRef.current) ? pendingCountRef.current + 1 : 1;
+    pendingIdsRef.current = new Set(candidates.map((c) => c.card_id));
     if (pendingCountRef.current >= CHOICE_STABLE_FRAMES) {
       pendingCountRef.current = 0;
       setChoice([...candidates].sort((a, b) => b.score - a.score));
@@ -608,8 +621,8 @@ Helpers, after `resetCard` (and `resetCard` itself gains two lines):
   }
 
   function dismissChoice() {
-    if (choice) suppressedKeyRef.current = candidateKey(choice);
-    pendingKeyRef.current = "";
+    if (choice) suppressedIdsRef.current = new Set(choice.map((c) => c.card_id));
+    pendingIdsRef.current = new Set();
     pendingCountRef.current = 0;
     setChoice(null);
   }
@@ -735,7 +748,7 @@ export function VariantChoiceDialog({ candidates, preselected, onPick, onDismiss
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onDismiss()}>
       <DialogContent
-        className="max-w-4xl"
+        className="max-w-4xl max-h-[85vh] overflow-y-auto"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
           preselectedRef.current?.focus();

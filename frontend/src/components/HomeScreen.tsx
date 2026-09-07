@@ -31,12 +31,10 @@ function fmt(n: number): string {
 
 export function HomeScreen({ games, customs, covers, onScan, onOpenGame, onOpenCustom }: Props) {
   const totalCards = games.reduce((s, g) => s + g.card_count, 0);
-  const totalFoils = games.reduce((s, g) => s + g.foil_count, 0);
   const trackedGames = games.filter((g) => g.game !== "").length;
 
   const stats = [
     { value: fmt(totalCards), label: "Cards" },
-    { value: fmt(totalFoils), label: "Foils" },
     { value: fmt(trackedGames), label: "Games tracked" },
     { value: fmt(customs.length), label: "Custom collections" },
   ];
@@ -106,11 +104,6 @@ export function HomeScreen({ games, customs, covers, onScan, onOpenGame, onOpenC
                   <span className="text-base font-medium">{gameLabel(g.game)}</span>
                   <span className="text-xs n-n400">
                     {fmt(g.card_count)} card{g.card_count !== 1 ? "s" : ""}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between" style={{ fontSize: "11px" }}>
-                  <span className="n-n500">
-                    {fmt(g.foil_count)} foil{g.foil_count !== 1 ? "s" : ""}
                   </span>
                 </div>
               </div>

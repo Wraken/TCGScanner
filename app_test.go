@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 // UpdateCard only re-resolves the game when the card id itself changed: an
 // unrelated edit (foil toggle) must never downgrade a stored game, even if
@@ -47,9 +50,11 @@ func TestUpdateCardKeepsGameWhenIdUnchanged(t *testing.T) {
 // stubModel satisfies Predictor for bindings that only need a model name.
 type stubModel struct{ name string }
 
-func (s stubModel) Predict(string) (*Prediction, error) { return nil, nil }
-func (s stubModel) Name() string                        { return s.name }
-func (s stubModel) Delete()                             {}
+func (s stubModel) Predict(string) (*Prediction, error) {
+	return nil, errors.New("stubModel: Predict not supported")
+}
+func (s stubModel) Name() string { return s.name }
+func (s stubModel) Delete()      {}
 
 func TestScanLang(t *testing.T) {
 	app := &App{db: testDB(t)}
@@ -70,6 +75,19 @@ func TestScanLang(t *testing.T) {
 	}
 	if n := len(app.ListLanguages()); n != len(cardLanguages) {
 		t.Errorf("ListLanguages returned %d entries, want %d", n, len(cardLanguages))
+	}
+	for _, l := range cardLanguages {
+		if err := app.SetScanLang(l.Code); err != nil {
+			t.Errorf("SetScanLang(%q): %v", l.Code, err)
+		}
+		if got := app.GetScanLang(); got != l.Code {
+			t.Errorf("GetScanLang after %q = %q", l.Code, got)
+		}
+	}
+	for _, bad := range []string{"", "EN", "fr "} {
+		if err := app.SetScanLang(bad); err == nil {
+			t.Errorf("SetScanLang(%q) accepted", bad)
+		}
 	}
 }
 

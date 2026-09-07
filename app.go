@@ -144,7 +144,7 @@ func (a *App) GetActiveCustom() int {
 
 // ListLanguages is the closed list of printed languages a copy can carry.
 func (a *App) ListLanguages() []CardLanguage {
-	return cardLanguages
+	return slices.Clone(cardLanguages)
 }
 
 // SetScanLang chooses the language stamped on the next scans. An unknown
@@ -233,12 +233,12 @@ func (a *App) UpdateCard(card CollectionCard) error {
 	if a.db == nil {
 		return fmt.Errorf("database not initialized")
 	}
+	if !validLanguage(card.Lang) {
+		return fmt.Errorf("unknown language %q", card.Lang)
+	}
 	prev, err := getCard(a.db, card.ID)
 	if err != nil {
 		return err
-	}
-	if !validLanguage(card.Lang) {
-		return fmt.Errorf("unknown language %q", card.Lang)
 	}
 	// A hand-corrected id gets its game re-resolved; any other edit keeps the
 	// stored game so a foil toggle can never downgrade it (shrunk manifest,

@@ -44,7 +44,7 @@ func TestMarginExcludesTwins(t *testing.T) {
 			t.Fatalf("embed %s: %v", pair[0], err)
 		}
 
-		idx, score, margin := m.match(emb)
+		idx, score, margin, _ := m.match(emb)
 		gotCanon := canonicalCard(m.labels[idx])
 		wantCanon := canonicalCard(pair[0])
 
@@ -93,4 +93,38 @@ func (m *EmbeddingModel) rawSecondBest(query []float32, skip int) (int, float32)
 	}
 	sort.Slice(hits, func(a, b int) bool { return hits[a].s > hits[b].s })
 	return hits[0].i, hits[0].s
+}
+
+// The other half of the twin story: the margin ignores a twin (so the winner
+// looks confident), but the app must not lock on one printing silently. Both
+// twins come back as candidates and the match is not confident.
+func TestTwinsSurfaceAsCandidates(t *testing.T) {
+	m := loadTestModel(t)
+	pairs := [][2]string{
+		{"ogn-042-298", "ven-r02"},
+		{"ogn-214-298", "ven-r06"},
+		{"sfd-t03", "unl-t05"},
+		{"ven-194-166", "ven-194-star-166"},
+	}
+	for _, pair := range pairs {
+		img := loadRefImage(t, pair[0])
+		emb, err := m.embedCrop(img, img.Bounds())
+		if err != nil {
+			t.Fatalf("embed %s: %v", pair[0], err)
+		}
+		idx, score, margin, cand := m.match(emb)
+		got := map[string]bool{}
+		for _, i := range cand {
+			got[m.labels[i]] = true
+		}
+		if !got[pair[0]] || !got[pair[1]] {
+			t.Errorf("%s: candidates %v, want both %s and %s (top1=%s score=%.3f margin=%.3f)",
+				pair[0], labelsOf(m, cand), pair[0], pair[1], m.labels[idx], score, margin)
+			continue
+		}
+		if m.confident(score, margin, len(cand)) {
+			t.Errorf("%s: confident despite %d candidates", pair[0], len(cand))
+		}
+		t.Logf("%-18s candidates=%v score=%.3f margin=%.3f", pair[0], labelsOf(m, cand), score, margin)
+	}
 }

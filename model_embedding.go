@@ -11,6 +11,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 
 	"TCGScanner/pkg/ort"
@@ -50,6 +51,12 @@ const (
 	// their absolute scores overlap. The floor just rejects pure noise.
 	defaultScoreFloor = 0.4
 	defaultMarginMin  = 0.1
+	// Two references whose vectors agree at least this much are printings of
+	// the same artwork (the bar index_twins.py uses): a frame cannot separate
+	// them, so they are offered as candidates instead of fought over.
+	defaultTwinSim = 0.9
+	// Upper bound on the candidates reported for one frame.
+	defaultMaxCandidates = 6
 )
 
 var indexMagic = []byte("TCGEMBIX")
@@ -66,11 +73,13 @@ var indexMagic = []byte("TCGEMBIX")
 var resampler draw.Scaler = draw.ApproxBiLinear
 
 type EmbeddingConfig struct {
-	Backbone     string  `json:"backbone"`
-	ImgSize      int     `json:"img_size"`
-	EmbeddingDim int     `json:"embedding_dim"`
-	ScoreFloor   float64 `json:"score_floor"`
-	MarginMin    float64 `json:"margin_min"`
+	Backbone      string  `json:"backbone"`
+	ImgSize       int     `json:"img_size"`
+	EmbeddingDim  int     `json:"embedding_dim"`
+	ScoreFloor    float64 `json:"score_floor"`
+	MarginMin     float64 `json:"margin_min"`
+	TwinSim       float64 `json:"twin_sim"`
+	MaxCandidates int     `json:"max_candidates"`
 }
 
 // isEmbeddingModel reports whether a model directory holds a pipeline-B model.
@@ -86,6 +95,9 @@ type EmbeddingModel struct {
 	dim        int
 	scoreFloor float64
 	marginMin  float64
+
+	twinSim       float32
+	maxCandidates int
 
 	yolo  *ort.Session
 	embed *ort.Session
@@ -103,13 +115,8 @@ type EmbeddingModel struct {
 	scores     []float32 // cosine of the query against every reference
 }
 
-func NewEmbeddingModel(modelName, dir string) (*EmbeddingModel, error) {
-	cfg := EmbeddingConfig{ImgSize: defaultEmbeddingImgSize, ScoreFloor: defaultScoreFloor, MarginMin: defaultMarginMin}
-	if data, err := os.ReadFile(filepath.Join(dir, "config.json")); err == nil {
-		if err := json.Unmarshal(data, &cfg); err != nil {
-			return nil, fmt.Errorf("parse config.json: %w", err)
-		}
-	}
+// applyConfigDefaults fills every knob a bundle's config.json may omit.
+func applyConfigDefaults(cfg *EmbeddingConfig) {
 	if cfg.ImgSize == 0 {
 		cfg.ImgSize = defaultEmbeddingImgSize
 	}
@@ -119,6 +126,22 @@ func NewEmbeddingModel(modelName, dir string) (*EmbeddingModel, error) {
 	if cfg.MarginMin <= 0 {
 		cfg.MarginMin = defaultMarginMin
 	}
+	if cfg.TwinSim <= 0 {
+		cfg.TwinSim = defaultTwinSim
+	}
+	if cfg.MaxCandidates < 2 {
+		cfg.MaxCandidates = defaultMaxCandidates
+	}
+}
+
+func NewEmbeddingModel(modelName, dir string) (*EmbeddingModel, error) {
+	cfg := EmbeddingConfig{}
+	if data, err := os.ReadFile(filepath.Join(dir, "config.json")); err == nil {
+		if err := json.Unmarshal(data, &cfg); err != nil {
+			return nil, fmt.Errorf("parse config.json: %w", err)
+		}
+	}
+	applyConfigDefaults(&cfg)
 
 	vectors, n, dim, err := loadIndex(filepath.Join(dir, indexFile))
 	if err != nil {
@@ -159,6 +182,10 @@ func NewEmbeddingModel(modelName, dir string) (*EmbeddingModel, error) {
 		dim:        dim,
 		scoreFloor: cfg.ScoreFloor,
 		marginMin:  cfg.MarginMin,
+
+		twinSim:       float32(cfg.TwinSim),
+		maxCandidates: cfg.MaxCandidates,
+
 		yolo:       yolo,
 		embed:      embed,
 		labels:     labels,
@@ -267,19 +294,23 @@ func (m *EmbeddingModel) Predict(base64Frame string) (*Prediction, error) {
 		return nil, err
 	}
 
-	idx, score, margin := m.match(embedding)
+	idx, score, margin, cand := m.match(embedding)
 	if idx < 0 {
 		return &Prediction{DetectScore: float64(detectScore), Box: boxNorm}, nil
 	}
 
-	return &Prediction{
+	pred := &Prediction{
 		CardID:      m.labels[idx],
 		Confidence:  float64(score),
 		Margin:      float64(margin),
-		Confident:   score >= float32(m.scoreFloor) && margin >= float32(m.marginMin),
+		Confident:   m.confident(score, margin, len(cand)),
 		DetectScore: float64(detectScore),
 		Box:         boxNorm,
-	}, nil
+	}
+	for _, i := range cand {
+		pred.Candidates = append(pred.Candidates, Candidate{CardID: m.labels[i], Score: float64(m.scores[i])})
+	}
+	return pred, nil
 }
 
 // detect runs YOLO and returns the highest-confidence box in original image
@@ -404,8 +435,9 @@ func (m *EmbeddingModel) embedCrop(img image.Image, box image.Rectangle) ([]floa
 	return out, nil
 }
 
-// match returns the closest reference vector, its cosine similarity, and the
-// margin by which it leads the best reference of a *different* card. Both sides
+// match returns the closest reference vector, its cosine similarity, the
+// margin by which it leads the best reference of a *different* card, and the
+// candidates the frame cannot tell apart (Prediction.Candidates). Both sides
 // are L2-normalized, so the dot product is the cosine.
 //
 // The margin, rather than the absolute score, is what tells a confident match
@@ -413,15 +445,17 @@ func (m *EmbeddingModel) embedCrop(img image.Image, box image.Rectangle) ([]floa
 // via the canonical id, so the runner-up is a genuinely different card. When
 // there is no other card in the index (a single-card model), the margin is the
 // winner's own score.
-func (m *EmbeddingModel) match(query []float32) (idx int, score, margin float32) {
+//
+// Candidates are the references within marginMin of the winner whose own
+// reference vector is near-identical to the winner's (cosine >= twinSim):
+// printings that share the artwork, which no frame can separate. They are
+// reported only when the winner clears scoreFloor and there is at least one
+// such twin; the list starts with the winner, continues best first and is
+// capped at maxCandidates. nil otherwise.
+func (m *EmbeddingModel) match(query []float32) (idx int, score, margin float32, candidates []int) {
 	// One pass to score everything, so the margin pass is plain comparisons.
 	for i := 0; i < m.n; i++ {
-		row := m.vectors[i*m.dim : (i+1)*m.dim]
-		var s float32
-		for j, v := range row {
-			s += v * query[j]
-		}
-		m.scores[i] = s
+		m.scores[i] = dot(m.vectors[i*m.dim:(i+1)*m.dim], query)
 	}
 
 	idx, score = -1, float32(-2)
@@ -431,7 +465,7 @@ func (m *EmbeddingModel) match(query []float32) (idx int, score, margin float32)
 		}
 	}
 	if idx < 0 {
-		return -1, 0, 0
+		return -1, 0, 0, nil
 	}
 
 	winner := m.canon[idx]
@@ -442,7 +476,45 @@ func (m *EmbeddingModel) match(query []float32) (idx int, score, margin float32)
 		}
 	}
 	if rival < -1 {
-		return idx, score, score // no different card in the index
+		margin = score // no different card in the index
+	} else {
+		margin = score - rival
 	}
-	return idx, score, score - rival
+
+	if score < float32(m.scoreFloor) {
+		return idx, score, margin, nil
+	}
+	top := m.vectors[idx*m.dim : (idx+1)*m.dim]
+	for i, s := range m.scores {
+		if i == idx || s < score-float32(m.marginMin) {
+			continue
+		}
+		if dot(top, m.vectors[i*m.dim:(i+1)*m.dim]) >= m.twinSim {
+			candidates = append(candidates, i)
+		}
+	}
+	if len(candidates) == 0 {
+		return idx, score, margin, nil
+	}
+	sort.Slice(candidates, func(a, b int) bool { return m.scores[candidates[a]] > m.scores[candidates[b]] })
+	candidates = append([]int{idx}, candidates...)
+	if len(candidates) > m.maxCandidates {
+		candidates = candidates[:m.maxCandidates]
+	}
+	return idx, score, margin, candidates
+}
+
+// confident is the lock rule: a clear score, a clear lead over every
+// different card, and no printing the frame cannot tell apart.
+func (m *EmbeddingModel) confident(score, margin float32, candidates int) bool {
+	return score >= float32(m.scoreFloor) && margin >= float32(m.marginMin) && candidates < 2
+}
+
+// dot of two equal-length vectors; on L2-normalized inputs, the cosine.
+func dot(a, b []float32) float32 {
+	var s float32
+	for j, v := range a {
+		s += v * b[j]
+	}
+	return s
 }

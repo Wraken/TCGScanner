@@ -50,7 +50,7 @@ func TestJPEGQualityDrift(t *testing.T) {
 			continue
 		}
 		ref := append([]float32(nil), e0...)
-		_, s0, mg0 := m.match(ref)
+		_, s0, mg0, _ := m.match(ref)
 		m.mu.Unlock()
 
 		for _, q := range qualities {
@@ -69,7 +69,7 @@ func TestJPEGQualityDrift(t *testing.T) {
 				m.mu.Unlock()
 				t.Fatal(err)
 			}
-			_, sq, mgq := m.match(eq)
+			_, sq, mgq, _ := m.match(eq)
 			m.mu.Unlock()
 			var dot float64
 			for i := range ref {

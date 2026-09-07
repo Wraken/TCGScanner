@@ -11,7 +11,8 @@ import (
 
 const (
 	testModelDir = "models/tcg"
-	testRefDir   = "scripts/embeddingtest/images/tcg"
+	// The Riftbound sources: every twin pair used by the tests lives here.
+	testRefDir = "scripts/embeddingtest/images/riftbound"
 )
 
 func loadTestModel(t *testing.T) *EmbeddingModel {
@@ -25,6 +26,23 @@ func loadTestModel(t *testing.T) *EmbeddingModel {
 	}
 	t.Cleanup(m.Delete)
 	return m
+}
+
+// loadRefImage decodes testRefDir/<id>.png, skipping the test when the local
+// source images are not present.
+func loadRefImage(t *testing.T, id string) image.Image {
+	t.Helper()
+	path := filepath.Join(testRefDir, id+".png")
+	f, err := os.Open(path)
+	if err != nil {
+		t.Skipf("reference image missing: %s", path)
+	}
+	defer f.Close()
+	img, _, err := image.Decode(f)
+	if err != nil {
+		t.Fatalf("decode %s: %v", path, err)
+	}
+	return img
 }
 
 func TestIndexLoads(t *testing.T) {
@@ -105,7 +123,7 @@ func TestReferenceSelfRetrieval(t *testing.T) {
 		if err != nil {
 			t.Fatalf("embed %s: %v", name, err)
 		}
-		idx, score, _ := m.match(emb)
+		idx, score, _, _ := m.match(emb)
 		got := m.labels[idx]
 
 		total++

@@ -71,7 +71,7 @@ func timeFrame(t *testing.T, m *EmbeddingModel, path string) {
 			t.Fatal(err)
 		}
 		t3 := time.Now()
-		idx, s, margin := m.match(emb)
+		idx, s, margin, _ := m.match(emb)
 		m.mu.Unlock()
 		t4 := time.Now()
 

@@ -133,6 +133,19 @@ type Prediction struct {
 	// the UI can draw the contour where YOLO actually found the card. The
 	// classifier, which reads the whole frame, leaves it nil.
 	Box *BoxNorm `json:"box,omitempty"`
+	// Candidates lists the printings this frame cannot tell apart: every
+	// reference within MarginMin of the top hit whose reference vector is
+	// itself near-identical to the winner's (cosine >= TwinSim). Present only
+	// when there are at least two; the UI then asks the user which printing
+	// it is. Sorted by score, best first, capped at MaxCandidates. Only the
+	// embedding pipeline sets it.
+	Candidates []Candidate `json:"candidates,omitempty"`
+}
+
+// Candidate is one printing of an ambiguous match.
+type Candidate struct {
+	CardID string  `json:"card_id"`
+	Score  float64 `json:"score"`
 }
 
 // BoxNorm is an axis-aligned box in normalized frame coordinates ([0,1]).

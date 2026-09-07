@@ -15,6 +15,7 @@ const ALL_FIELDS: { key: ExportField; label: string }[] = [
   { key: "normal_count", label: "Normal Count" },
   { key: "foil_count", label: "Foil Count" },
   { key: "total_count", label: "Total Count" },
+  { key: "language", label: "Language" },
 ];
 
 const EXAMPLE = { cardID: "ogn-014-298", normal: 2, foil: 1 };
@@ -28,7 +29,7 @@ function previewValue(field: ExportField, trimEnd: number): string {
     case "normal_count": return String(EXAMPLE.normal);
     case "foil_count":   return String(EXAMPLE.foil);
     case "total_count":  return String(EXAMPLE.normal + EXAMPLE.foil);
-    case "language":     return "EN";
+    case "language":     return "en";
   }
 }
 

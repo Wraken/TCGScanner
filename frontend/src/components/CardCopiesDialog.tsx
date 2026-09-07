@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDate } from "@/lib/utils";
-import type { CardInfo, Collection, CollectionCard } from "@/types";
+import type { CardInfo, CardLanguage, Collection, CollectionCard } from "@/types";
 
 interface Props {
   cardId: string | null;              // null = closed
@@ -21,14 +21,16 @@ interface Props {
   image: string | null;
   info: CardInfo | null;
   customs: Collection[];
+  languages: CardLanguage[];
   onClose: () => void;
   onToggleFoil: (copy: CollectionCard) => void;
+  onChangeLang: (copy: CollectionCard, code: string) => void;
   onMove: (rowId: number, customId: number) => void;
   onDelete: (rowId: number) => void;
 }
 
 export function CardCopiesDialog({
-  cardId, copies, image, info, customs, onClose, onToggleFoil, onMove, onDelete,
+  cardId, copies, image, info, customs, languages, onClose, onToggleFoil, onChangeLang, onMove, onDelete,
 }: Props) {
   const subtitle = `${cardId} · ${copies.length} ${copies.length !== 1 ? "copies" : "copy"}`;
   return (
@@ -78,6 +80,16 @@ export function CardCopiesDialog({
                 <button className={c.foil ? "n-tag n-tag-accent" : "n-tag n-tag-neutral"} onClick={() => onToggleFoil(c)}>
                   {c.foil ? "Foil" : "Normal"}
                 </button>
+                <Select value={c.lang} onValueChange={(v) => onChangeLang(c, v)}>
+                  <SelectTrigger className="w-[110px] h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {languages.map((l) => (
+                      <SelectItem key={l.code} value={l.code}>{l.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <span className="text-xs n-n500 flex-1">{formatDate(c.scanned_at)}</span>
                 {/* A copy lives in its game and optionally in ONE custom
                     collection; without any custom there is nothing to pick. */}

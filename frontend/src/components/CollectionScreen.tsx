@@ -306,6 +306,15 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
         image={openCard ? images[openCard] ?? null : null}
         info={openCard && Object.hasOwn(infos, openCard) ? infos[openCard] : null}
         customs={collection.customs}
+        languages={collection.languages}
+        onChangeLang={async (c, lang) => {
+          try {
+            await UpdateCard({ ...c, lang });
+            await refreshCards();
+          } catch (e) {
+            LogDebug(`[CollectionScreen] change language: ${e}`);
+          }
+        }}
         onClose={() => setOpenCard(null)}
         onToggleFoil={async (c) => {
           try {

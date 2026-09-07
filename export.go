@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/csv"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -15,6 +16,7 @@ const (
 	FieldNormalCount ExportField = "normal_count"
 	FieldFoilCount   ExportField = "foil_count"
 	FieldTotalCount  ExportField = "total_count"
+	FieldLanguage    ExportField = "language"
 )
 
 type ExportPreset struct {
@@ -44,6 +46,8 @@ func fieldLabel(f ExportField) string {
 		return "Foil Count"
 	case FieldTotalCount:
 		return "Total Count"
+	case FieldLanguage:
+		return "Language"
 	}
 	return string(f)
 }
@@ -74,7 +78,7 @@ func trimCardID(cardID string, n int) string {
 	return cardID[:len(cardID)-n]
 }
 
-func resolveField(cardID string, normalCount, foilCount int, f ExportField, config ExportConfig) string {
+func resolveField(cardID, lang string, normalCount, foilCount int, f ExportField, config ExportConfig) string {
 	switch f {
 	case FieldCardID:
 		return trimCardID(cardID, config.CardIDTrimEnd)
@@ -84,6 +88,8 @@ func resolveField(cardID string, normalCount, foilCount int, f ExportField, conf
 		return strconv.Itoa(foilCount)
 	case FieldTotalCount:
 		return strconv.Itoa(normalCount + foilCount)
+	case FieldLanguage:
+		return lang
 	}
 	return ""
 }
@@ -93,14 +99,21 @@ func writeCardsCSV(db *sql.DB, filter CardFilter, path string, config ExportConf
 	if err != nil {
 		return err
 	}
+	// Per-language rows only when the export shows the language; otherwise
+	// every language merges into one row per card, exactly as before.
+	byLang := slices.Contains(config.Fields, FieldLanguage)
+	groupBy, langCol := "card_id", "''"
+	if byLang {
+		groupBy, langCol = "card_id, lang", "lang"
+	}
 	rows, err := db.Query(`
-		SELECT card_id,
+		SELECT card_id, `+langCol+`,
 		       SUM(CASE WHEN foil = 0 THEN 1 ELSE 0 END),
 		       SUM(CASE WHEN foil = 1 THEN 1 ELSE 0 END)
 		FROM cards
 		WHERE `+where+`
-		GROUP BY card_id
-		ORDER BY card_id ASC
+		GROUP BY `+groupBy+`
+		ORDER BY `+groupBy+`
 	`, args...)
 	if err != nil {
 		return err
@@ -122,14 +135,14 @@ func writeCardsCSV(db *sql.DB, filter CardFilter, path string, config ExportConf
 	w.Write(headers)
 
 	for rows.Next() {
-		var cardID string
+		var cardID, lang string
 		var normalCount, foilCount int
-		if err := rows.Scan(&cardID, &normalCount, &foilCount); err != nil {
+		if err := rows.Scan(&cardID, &lang, &normalCount, &foilCount); err != nil {
 			return err
 		}
 		row := make([]string, len(config.Fields))
 		for i, field := range config.Fields {
-			row[i] = resolveField(cardID, normalCount, foilCount, field, config)
+			row[i] = resolveField(cardID, lang, normalCount, foilCount, field, config)
 		}
 		w.Write(row)
 	}

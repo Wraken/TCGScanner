@@ -11,6 +11,7 @@ type CollectionCard struct {
 	Game         string `json:"game"`
 	CollectionID int    `json:"collection_id"` // 0 = not in a custom collection
 	Foil         bool   `json:"foil"`
+	Lang         string `json:"lang"` // printed language, ISO 639-1 (see card_lang.go)
 	ModelName    string `json:"model_name"`
 	ScannedAt    string `json:"scanned_at"`
 }
@@ -51,14 +52,14 @@ func nullableID(id int) sql.NullInt64 {
 	return sql.NullInt64{Int64: int64(id), Valid: id > 0}
 }
 
-func insertCard(db *sql.DB, collectionID int, cardID, game, modelName string, foil bool) (int, error) {
+func insertCard(db *sql.DB, collectionID int, cardID, game, modelName string, foil bool, lang string) (int, error) {
 	foilInt := 0
 	if foil {
 		foilInt = 1
 	}
 	res, err := db.Exec(
-		`INSERT INTO cards (collection_id, card_id, game, foil, model_name) VALUES (?, ?, ?, ?, ?)`,
-		nullableID(collectionID), cardID, game, foilInt, modelName,
+		`INSERT INTO cards (collection_id, card_id, game, foil, model_name, lang) VALUES (?, ?, ?, ?, ?, ?)`,
+		nullableID(collectionID), cardID, game, foilInt, modelName, lang,
 	)
 	if err != nil {
 		return 0, err
@@ -71,7 +72,7 @@ func scanCard(row interface{ Scan(...any) error }) (CollectionCard, error) {
 	var c CollectionCard
 	var foilInt int
 	var cid sql.NullInt64
-	err := row.Scan(&c.ID, &c.CardID, &c.Game, &cid, &foilInt, &c.ModelName, &c.ScannedAt)
+	err := row.Scan(&c.ID, &c.CardID, &c.Game, &cid, &foilInt, &c.Lang, &c.ModelName, &c.ScannedAt)
 	if err != nil {
 		return c, err
 	}
@@ -82,7 +83,7 @@ func scanCard(row interface{ Scan(...any) error }) (CollectionCard, error) {
 	return c, nil
 }
 
-const cardColumns = `id, card_id, game, collection_id, foil, model_name, scanned_at`
+const cardColumns = `id, card_id, game, collection_id, foil, lang, model_name, scanned_at`
 
 func getCard(db *sql.DB, id int) (CollectionCard, error) {
 	return scanCard(db.QueryRow(`SELECT `+cardColumns+` FROM cards WHERE id = ?`, id))
@@ -120,8 +121,8 @@ func updateCard(db *sql.DB, c CollectionCard) error {
 	if c.Foil {
 		foilInt = 1
 	}
-	_, err := db.Exec(`UPDATE cards SET foil = ?, card_id = ?, game = ? WHERE id = ?`,
-		foilInt, c.CardID, c.Game, c.ID)
+	_, err := db.Exec(`UPDATE cards SET foil = ?, card_id = ?, game = ?, lang = ? WHERE id = ?`,
+		foilInt, c.CardID, c.Game, c.Lang, c.ID)
 	return err
 }
 

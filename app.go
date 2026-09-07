@@ -234,7 +234,7 @@ func (a *App) SaveCard(cardID string, foil bool) (CollectionCard, error) {
 	// Resolve across every installed manifest, like UpdateCard does — a
 	// hand-typed id known only to another model's images still gets a game.
 	game := gameResolver(allModelImagesDirs())(cardID)
-	id, err := insertCard(a.db, int(a.activeCustomID.Load()), cardID, game, model.Name(), foil)
+	id, err := insertCard(a.db, int(a.activeCustomID.Load()), cardID, game, model.Name(), foil, defaultLanguage)
 	if err != nil {
 		return CollectionCard{}, err
 	}

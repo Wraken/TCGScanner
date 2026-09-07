@@ -7,7 +7,7 @@ import "testing"
 // the caller sends a bogus Game field or a manifest shrank since the scan.
 func TestUpdateCardKeepsGameWhenIdUnchanged(t *testing.T) {
 	app := &App{db: testDB(t)}
-	id, err := insertCard(app.db, 0, "sv01-020", "pokemon", "tcg", false)
+	id, err := insertCard(app.db, 0, "sv01-020", "pokemon", "tcg", false, "en")
 	if err != nil {
 		t.Fatal(err)
 	}

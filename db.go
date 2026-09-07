@@ -21,6 +21,7 @@ const schemaV2 = `
 		card_id       TEXT    NOT NULL,
 		game          TEXT    NOT NULL DEFAULT '',
 		foil          INTEGER NOT NULL DEFAULT 0,
+		lang          TEXT    NOT NULL DEFAULT 'en',
 		model_name    TEXT    NOT NULL DEFAULT '',
 		scanned_at    DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
@@ -61,6 +62,8 @@ func migrate(db *sql.DB) error {
 	_, _ = db.Exec(`ALTER TABLE cards ADD COLUMN model_name TEXT NOT NULL DEFAULT ''`)
 	// v1 -> v2 additions that ALTER can handle.
 	_, _ = db.Exec(`ALTER TABLE cards ADD COLUMN game TEXT NOT NULL DEFAULT ''`)
+	// 2026-09-07: printed language of a copy; pre-existing copies are English.
+	_, _ = db.Exec(`ALTER TABLE cards ADD COLUMN lang TEXT NOT NULL DEFAULT 'en'`)
 	_, _ = db.Exec(`ALTER TABLE collections RENAME COLUMN started_at TO created_at`)
 
 	// v1 declared collection_id NOT NULL; SQLite cannot relax that in place,
@@ -110,6 +113,7 @@ func rebuildCards(db *sql.DB) error {
 			card_id       TEXT    NOT NULL,
 			game          TEXT    NOT NULL DEFAULT '',
 			foil          INTEGER NOT NULL DEFAULT 0,
+			lang          TEXT    NOT NULL DEFAULT 'en',
 			model_name    TEXT    NOT NULL DEFAULT '',
 			scanned_at    DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,

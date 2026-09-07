@@ -41,7 +41,7 @@ func TestCustomCollectionCRUD(t *testing.T) {
 	}
 
 	// A copy in the custom survives the custom's deletion.
-	rowID, err := insertCard(db, id, "sv01-020", "pokemon", "tcg", false)
+	rowID, err := insertCard(db, id, "sv01-020", "pokemon", "tcg", false, "en")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,7 @@ func TestGameCollections(t *testing.T) {
 		{"weird-1", "", false},
 	}
 	for _, s := range seed {
-		if _, err := insertCard(db, 0, s.id, s.game, "tcg", s.foil); err != nil {
+		if _, err := insertCard(db, 0, s.id, s.game, "tcg", s.foil, "en"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -100,7 +100,7 @@ func TestGameCollections(t *testing.T) {
 
 func TestGameCollectionsEmptyBucketHidden(t *testing.T) {
 	db := testDB(t)
-	if _, err := insertCard(db, 0, "sv01-020", "pokemon", "tcg", false); err != nil {
+	if _, err := insertCard(db, 0, "sv01-020", "pokemon", "tcg", false, "en"); err != nil {
 		t.Fatal(err)
 	}
 	got, err := gameCollections(db, []string{"pokemon"})
@@ -134,9 +134,9 @@ func TestListCardsAndMove(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, _ := insertCard(db, 0, "sv01-020", "pokemon", "tcg", false)
-	b, _ := insertCard(db, custom, "OP01-025", "onepiece", "tcg", true)
-	if _, err := insertCard(db, 0, "weird-1", "", "tcg", false); err != nil {
+	a, _ := insertCard(db, 0, "sv01-020", "pokemon", "tcg", false, "en")
+	b, _ := insertCard(db, custom, "OP01-025", "onepiece", "tcg", true, "en")
+	if _, err := insertCard(db, 0, "weird-1", "", "tcg", false, "en"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -199,11 +199,11 @@ func TestListCollectionsNewestFirst(t *testing.T) {
 
 func TestListCardsStableOrder(t *testing.T) {
 	db := testDB(t)
-	a, err := insertCard(db, 0, "sv01-001", "pokemon", "tcg", false)
+	a, err := insertCard(db, 0, "sv01-001", "pokemon", "tcg", false, "en")
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := insertCard(db, 0, "sv01-002", "pokemon", "tcg", false)
+	b, err := insertCard(db, 0, "sv01-002", "pokemon", "tcg", false, "en")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -219,7 +219,7 @@ func TestListCardsStableOrder(t *testing.T) {
 
 func TestUpdateCardRewritesIdAndGame(t *testing.T) {
 	db := testDB(t)
-	id, _ := insertCard(db, 0, "sv01-020", "pokemon", "tcg", false)
+	id, _ := insertCard(db, 0, "sv01-020", "pokemon", "tcg", false, "en")
 	c, _ := getCard(db, id)
 	c.CardID = "OP01-025"
 	c.Game = "onepiece"

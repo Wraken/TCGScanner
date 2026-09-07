@@ -251,3 +251,77 @@ func TestDeleteCollectionSetsNull(t *testing.T) {
 		t.Fatalf("collection_id should be NULL after deleting the collection, got %d", cid.Int64)
 	}
 }
+
+// buildV2NoLangDB creates a schema-v2 database from before 2026-09-07: no
+// lang column, two copies.
+func buildV2NoLangDB(t *testing.T) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "v2-nolang.db")
+	db, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	stmts := `
+	CREATE TABLE collections (
+		id         INTEGER PRIMARY KEY AUTOINCREMENT,
+		name       TEXT    NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+	CREATE TABLE cards (
+		id            INTEGER PRIMARY KEY AUTOINCREMENT,
+		collection_id INTEGER REFERENCES collections(id) ON DELETE SET NULL,
+		card_id       TEXT    NOT NULL,
+		game          TEXT    NOT NULL DEFAULT '',
+		foil          INTEGER NOT NULL DEFAULT 0,
+		model_name    TEXT    NOT NULL DEFAULT '',
+		scanned_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+	INSERT INTO cards (card_id, game) VALUES ('sv01-020', 'pokemon'), ('OP01-025', 'onepiece');
+	`
+	if _, err := db.Exec(stmts); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// Every migration path ends with a NOT NULL lang column and existing copies
+// defaulting to English.
+func TestMigrationAddsLang(t *testing.T) {
+	paths := map[string]string{
+		"v1":              buildV1DB(t),
+		"v2 without lang": buildV2NoLangDB(t),
+	}
+	for name, path := range paths {
+		db, err := openDB(path)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		cols := columnInfo(t, db, "cards")
+		if c, ok := cols["lang"]; !ok || !c.notNull {
+			t.Errorf("%s: lang column = %+v, want present and NOT NULL", name, c)
+		}
+		var total, en int
+		if err := db.QueryRow(`SELECT COUNT(*), SUM(lang = 'en') FROM cards`).Scan(&total, &en); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if total == 0 || en != total {
+			t.Errorf("%s: %d of %d rows default to en", name, en, total)
+		}
+		db.Close()
+	}
+}
+
+func TestFreshDBLangDefault(t *testing.T) {
+	db := testDB(t)
+	if _, err := db.Exec(`INSERT INTO cards (card_id, game) VALUES ('sv01-020', 'pokemon')`); err != nil {
+		t.Fatal(err)
+	}
+	var lang string
+	if err := db.QueryRow(`SELECT lang FROM cards`).Scan(&lang); err != nil {
+		t.Fatal(err)
+	}
+	if lang != "en" {
+		t.Errorf("fresh DB lang default = %q, want en", lang)
+	}
+}

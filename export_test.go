@@ -19,7 +19,7 @@ func TestWriteCardsCSVFiltered(t *testing.T) {
 		{"OP01-025", "onepiece", false},
 	}
 	for _, s := range seed {
-		if _, err := insertCard(db, 0, s.id, s.game, "tcg", s.foil); err != nil {
+		if _, err := insertCard(db, 0, s.id, s.game, "tcg", s.foil, "en"); err != nil {
 			t.Fatal(err)
 		}
 	}

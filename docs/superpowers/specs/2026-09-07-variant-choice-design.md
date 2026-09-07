@@ -93,20 +93,26 @@ no longer make a twin lock silently.
   card resets it. This mirrors the existing auto-lock caution.
 - While `choice !== null` scanning pauses exactly like `locked` (the interval
   effect returns early; `choice` joins its dependencies).
-- `pickCandidate(cardId)`: remembers `lastPick[key] = cardId` (a `Map` in a
-  ref, session-only), clears `choice`, then behaves like the confident lock:
+- `pickCandidate(cardId)`: remembers the pick under **every id of the shown
+  set** (`lastPick[id] = cardId`, a `Map` in a ref, session-only — the set
+  shown for a group varies with margin flicker, its ids do not), records
+  `pickedCardID`, clears `choice`, then behaves like the confident lock:
   `GetCardImage(cardId)` → `cardImage`, `setEditedCardID(cardId)`. The Card
   ID field, Finish, Language and Save work unchanged from there.
 - `dismissChoice()`: clears `choice`, resets the pending counter and records
   the dismissed ids as *suppressed*: frames whose candidates overlap them are
-  ignored until a frame yields unrelated candidates or no card. Scanning
-  resumes.
+  ignored, and a non-ambiguous frame whose `card_id` is one of them (blurry,
+  below the score floor) keeps the suppression; only unrelated candidates,
+  another card or no card lift it. Scanning resumes.
+- A `Predict` still in flight when scanning pauses (choice opened, lock,
+  camera or model change) is discarded: its late result must not lock behind
+  the dialog.
 - `resetCard()` also clears `choice`, the pending counter and the suppressed
   key. `lastPick` survives `resetCard` (that is the whole point of the batch
   memory).
 - The hook exposes `choice: Candidate[] | null`, `preselected: string | null`
-  (`lastPick[key]` if it is still among the candidates, else the best
-  candidate), `pickCandidate`, `dismissChoice`.
+  (a remembered pick for any id of the set when it is still offered, else the
+  best candidate), `pickedCardID`, `pickCandidate`, `dismissChoice`.
 
 ## Popup (`VariantChoiceDialog`, new component)
 
@@ -126,9 +132,11 @@ A shadcn `Dialog`, opened when `choice !== null`, closing = dismiss.
 - Images and infos are fetched when the dialog opens and cached per card id
   for the dialog's lifetime (a batch reopens on the same ids).
 
-`ScanScreen` renders the dialog from `pred.choice` and, while candidates are
+`ScanScreen` renders the dialog from `pred.choice`; while candidates are
 pending but not yet stable, the confidence line reads
-`"NN% · N printings match"` instead of `"NN% confidence"`.
+`"NN% · N printings match"` instead of `"NN% confidence"`, and after a pick it
+reads `"Printing chosen manually"`. Header and footer of the dialog stay
+fixed; the tile grid (200 px tiles, up to 3 columns) scrolls.
 
 ## Frontend types
 

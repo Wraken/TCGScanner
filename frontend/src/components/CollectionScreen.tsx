@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Camera, ImageIcon, Pencil, Search, Trash2, Upload } from "lucide-react";
+import { Camera, ImageIcon, Pencil, Plus, Search, Trash2, Upload } from "lucide-react";
 import { GetCardImageByModel, GetCardInfo, GetCards, DeleteCard, MoveCardToCustom, UpdateCard } from "../../wailsjs/go/main/App";
 import { LogDebug } from "../../wailsjs/runtime/runtime";
 import { gameLabel } from "@/lib/utils";
@@ -164,6 +164,20 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
             </button>
           );
         })}
+        <button
+          className="n-tag n-n500"
+          style={{ border: "1px dashed var(--n-divider)" }}
+          title="New custom collection"
+          onClick={async () => {
+            const name = window.prompt("Name of the new collection:")?.trim();
+            if (!name) return;
+            const c = await collection.createCustom(name);
+            if (c) onChangeTarget({ collection_id: c.id });
+          }}
+        >
+          <Plus className="w-3 h-3" />
+          New
+        </button>
       </div>
 
       {/* Title row */}

@@ -16,11 +16,6 @@ const SCAN_INTERVAL_MS = 200;
 // dialog opens — the same caution as the confident lock, against flicker.
 const CHOICE_STABLE_FRAMES = 3;
 
-// Order-independent identity of a shown candidate set (last-pick memory).
-function candidateKey(candidates: Candidate[]): string {
-  return candidates.map((c) => c.card_id).sort().join("|");
-}
-
 export function usePrediction(
   videoRef: RefObject<HTMLVideoElement | null>,
   canvasRef: RefObject<HTMLCanvasElement>,
@@ -37,6 +32,9 @@ export function usePrediction(
   const [foil, setFoil] = useState(false);
   // Ambiguous printings waiting for the user's pick; null = no dialog.
   const [choice, setChoice] = useState<Candidate[] | null>(null);
+  // The card id the user picked from a choice dialog; drives the confidence
+  // line's "Printing chosen manually" wording. Cleared by resetCard.
+  const [pickedCardID, setPickedCardID] = useState<string | null>(null);
   // Candidate ids of the previous ambiguous frame and how many consecutive
   // frames overlapped it. Twins hovering at the margin boundary flicker in
   // and out between frames, so sets are compared by overlap, not equality.
@@ -45,8 +43,8 @@ export function usePrediction(
   // Ids of a dismissed set: frames overlapping them are ignored until a
   // frame shows unrelated candidates or no card.
   const suppressedIdsRef = useRef<Set<string>>(new Set());
-  // Last printing picked per shown set (sorted ids); session-only, survives
-  // resetCard.
+  // Last printing picked, remembered under every id of the set it was picked
+  // from: the set shown for a group varies with margin flicker, its ids do not.
   const lastPickRef = useRef(new Map<string, string>());
 
   const locked = editedCardID.trim() !== "";
@@ -62,6 +60,7 @@ export function usePrediction(
     setEditedCardID("");
     setFoil(false);
     setChoice(null);
+    setPickedCardID(null);
     resetPending(true);
   }
 
@@ -94,8 +93,9 @@ export function usePrediction(
   // The user's pick behaves like the confident lock. editedCardID is set in
   // the same tick as choice is cleared, so scanning never resumes in between.
   async function pickCandidate(cardId: string) {
-    if (choice) lastPickRef.current.set(candidateKey(choice), cardId);
+    if (choice) for (const c of choice) lastPickRef.current.set(c.card_id, cardId);
     setEditedCardID(cardId);
+    setPickedCardID(cardId);
     setChoice(null);
     setCardImage(null);
     resetPending(true);
@@ -110,13 +110,12 @@ export function usePrediction(
     setChoice(null);
   }
 
-  // Preselected tile: the last pick for this set when still offered, else
-  // the best-scoring printing.
+  // Preselected tile: a remembered pick for any id of this set when it is
+  // still offered, else the best-scoring printing.
   const preselected = choice
-    ? (() => {
-        const last = lastPickRef.current.get(candidateKey(choice));
-        return last && choice.some((c) => c.card_id === last) ? last : choice[0].card_id;
-      })()
+    ? choice
+        .map((c) => lastPickRef.current.get(c.card_id))
+        .find((p): p is string => p !== undefined && choice.some((c) => c.card_id === p)) ?? choice[0].card_id
     : null;
 
   function updateEditedCardID(id: string) {
@@ -131,10 +130,13 @@ export function usePrediction(
   }
 
   useEffect(() => {
-    LogDebug(`[Predict] Effect: modelLoaded=${modelLoaded}, selectedCamera=${selectedCamera}, locked=${locked}`);
+    LogDebug(`[Predict] Effect: modelLoaded=${modelLoaded}, selectedCamera=${selectedCamera}, locked=${locked}, choice=${choice !== null}`);
     if (!modelLoaded || !selectedCamera || locked || choice) return;
 
     LogDebug("[Predict] Starting interval");
+    // Torn down while a Predict is in flight (choice opened, lock, camera or
+    // model change): the late result must not be applied.
+    let active = true;
     const id = setInterval(async () => {
       const video = videoRef.current;
       if (!video) {
@@ -170,6 +172,7 @@ export function usePrediction(
         // Timing probe: where does the scan wall-clock go? encode = canvas JPEG
         // encoding on the UI thread; bridge = Wails IPC + the whole Go pipeline.
         LogInfo(`[timing] encode=${tEncode.toFixed(0)}ms bridge+go=${tBridge.toFixed(0)}ms payload=${Math.round(base64.length / 1024)}KB`);
+        if (!active) return;
         if (result) {
           const pred = result as Prediction;
           LogDebug(`[Predict] card_id=${pred.card_id}  confidence=${(pred.confidence * 100).toFixed(2)}%  confident=${pred.confident}`);
@@ -192,7 +195,9 @@ export function usePrediction(
             } else if (pred.candidates && pred.candidates.length >= 2) {
               trackCandidates(pred.candidates);
             } else {
-              resetPending(true);
+              // A non-ambiguous frame of the dismissed card (blurry, below the
+              // score floor) keeps its suppression; any other card lifts it.
+              resetPending(!suppressedIdsRef.current.has(pred.card_id));
             }
           }
         }
@@ -204,7 +209,10 @@ export function usePrediction(
       }
     }, SCAN_INTERVAL_MS);
 
-    return () => clearInterval(id);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
   }, [modelLoaded, selectedCamera, locked, choice]);
 
   return {
@@ -217,6 +225,7 @@ export function usePrediction(
     locked,
     choice,
     preselected,
+    pickedCardID,
     pickCandidate,
     dismissChoice,
     resetCard,

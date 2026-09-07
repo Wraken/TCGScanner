@@ -32,7 +32,7 @@ export function VariantChoiceDialog({ candidates, preselected, onPick, onDismiss
     if (!candidates) return;
     let cancelled = false;
     for (const c of candidates) {
-      if (!(c.card_id in images)) {
+      if (!Object.hasOwn(images, c.card_id)) {
         GetCardImage(c.card_id)
           .then((img) => { if (!cancelled) setImages((prev) => ({ ...prev, [c.card_id]: img })); })
           .catch(() => {});
@@ -51,7 +51,7 @@ export function VariantChoiceDialog({ candidates, preselected, onPick, onDismiss
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onDismiss()}>
       <DialogContent
-        className="max-w-4xl max-h-[85vh] overflow-y-auto"
+        className="max-w-4xl max-h-[85vh] flex flex-col"
         onOpenAutoFocus={(e) => {
           e.preventDefault();
           preselectedRef.current?.focus();
@@ -63,7 +63,10 @@ export function VariantChoiceDialog({ candidates, preselected, onPick, onDismiss
             These cards share the same artwork — check the number at the bottom of your card.
           </p>
         </DialogHeader>
-        <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+        <div
+          className="grid gap-4 justify-center overflow-y-auto min-h-0 p-1"
+          style={{ gridTemplateColumns: `repeat(${columns}, 200px)` }}
+        >
           {(candidates ?? []).map((c) => {
             const info = infos[c.card_id] ?? null;
             const selected = c.card_id === preselected;
@@ -77,6 +80,7 @@ export function VariantChoiceDialog({ candidates, preselected, onPick, onDismiss
                 onClick={() => onPick(c.card_id)}
               >
                 <CardImage src={images[c.card_id] ?? null} alt={c.card_id} adaptive className="w-full rounded-md" />
+                {selected && <span className="sr-only">suggested</span>}
                 <span className="font-mono text-xs n-n400">{c.card_id}</span>
                 {info && (
                   <div className="flex flex-wrap gap-1.5">

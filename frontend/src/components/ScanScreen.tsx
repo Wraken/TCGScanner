@@ -47,7 +47,7 @@ export function ScanScreen({ model, collection }: Props) {
   const [changingModel, setChangingModel] = useState(false);
   const [videoSize, setVideoSize] = useState<{ w: number; h: number } | null>(null);
 
-  const scanning = model.modelLoaded && !pred.locked;
+  const scanning = model.modelLoaded && !pred.locked && pred.choice === null;
 
   // Auto-load a model on first entry so scanning works without a manual step.
   useEffect(() => {
@@ -279,11 +279,13 @@ export function ScanScreen({ model, collection }: Props) {
           />
           {pred.prediction && (
             <p className="mt-2 text-center text-xs n-n400">
-              {pred.editedCardID !== pred.prediction.card_id && pred.editedCardID.trim()
-                ? "ID corrected manually"
-                : pred.prediction.candidates && pred.prediction.candidates.length >= 2
-                  ? `${pct(pred.prediction.confidence)}% · ${pred.prediction.candidates.length} printings match`
-                  : `${pct(pred.prediction.confidence)}% confidence`}
+              {pred.pickedCardID && pred.editedCardID === pred.pickedCardID
+                ? "Printing chosen manually"
+                : pred.editedCardID !== pred.prediction.card_id && pred.editedCardID.trim()
+                  ? "ID corrected manually"
+                  : pred.prediction.candidates && pred.prediction.candidates.length >= 2
+                    ? `${pct(pred.prediction.confidence)}% · ${pred.prediction.candidates.length} printings match`
+                    : `${pct(pred.prediction.confidence)}% confidence`}
             </p>
           )}
           {pred.predictionError && (

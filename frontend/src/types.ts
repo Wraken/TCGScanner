@@ -41,8 +41,16 @@ export interface CollectionCard {
   // Custom collection this copy belongs to; 0 = none.
   collection_id: number;
   foil: boolean;
+  // Printed language of this copy, ISO 639-1 ("en", "fr"...). Always one of
+  // ListLanguages(); declared by the user at scan time, never detected.
+  lang: string;
   model_name: string;
   scanned_at: string;
+}
+
+export interface CardLanguage {
+  code: string;
+  label: string;
 }
 
 // Selects one view: a game, the unknown-game bucket, or a custom collection.
@@ -53,7 +61,7 @@ export interface CardFilter {
   collection_id?: number;
 }
 
-export type ExportField = "card_id" | "normal_count" | "foil_count" | "total_count";
+export type ExportField = "card_id" | "normal_count" | "foil_count" | "total_count" | "language";
 
 export interface ExportPreset {
   name: string;

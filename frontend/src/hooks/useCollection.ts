@@ -6,13 +6,16 @@ import {
   GetCustomCollections,
   GetGameCollections,
   GetGameCover,
+  GetScanLang,
   ListExportPresets,
+  ListLanguages,
   NewCustomCollection,
   RenameCollection,
   SetActiveCustom,
+  SetScanLang,
 } from "../../wailsjs/go/main/App";
 import { LogDebug } from "../../wailsjs/runtime/runtime";
-import type { CardFilter, Collection, ExportConfig, ExportPreset, GameCollection } from "@/types";
+import type { CardFilter, CardLanguage, Collection, ExportConfig, ExportPreset, GameCollection } from "@/types";
 
 export function useCollection() {
   const [games, setGames] = useState<GameCollection[]>([]);
@@ -20,6 +23,10 @@ export function useCollection() {
   // Custom collection new scans are also filed under; 0 = none. In-memory
   // only, on purpose: it resets to "no collection" on every app start.
   const [activeCustomId, setActiveCustomId] = useState(0);
+  // Printed language stamped on new scans. Sticky and in-memory like
+  // activeCustomId: the backend owns the value, this mirrors it.
+  const [scanLang, setScanLangState] = useState("en");
+  const [languages, setLanguages] = useState<CardLanguage[]>([]);
   const [exportTarget, setExportTarget] = useState<CardFilter | null>(null);
   const [exportPresets, setExportPresets] = useState<ExportPreset[]>([]);
   // Bundle cover art per game (images/<game>/_cover.*). Cached here — this
@@ -50,6 +57,10 @@ export function useCollection() {
       .then((p) => setExportPresets((p ?? []) as ExportPreset[]))
       .catch(() => {});
     GetActiveCustom().then(setActiveCustomId).catch(() => {});
+    ListLanguages()
+      .then((l) => setLanguages((l ?? []) as CardLanguage[]))
+      .catch(() => {});
+    GetScanLang().then(setScanLangState).catch(() => {});
   }, []);
 
   async function refresh() {
@@ -65,6 +76,11 @@ export function useCollection() {
   function setActiveCustom(id: number) {
     setActiveCustomId(id);
     SetActiveCustom(id).catch((e) => LogDebug(`[Collections] setActive error: ${e}`));
+  }
+
+  function setScanLang(code: string) {
+    setScanLangState(code);
+    SetScanLang(code).catch((e) => LogDebug(`[Collections] setScanLang error: ${e}`));
   }
 
   async function createCustom(name: string): Promise<Collection | null> {
@@ -122,6 +138,9 @@ export function useCollection() {
     activeCustomId,
     refresh,
     setActiveCustom,
+    languages,
+    scanLang,
+    setScanLang,
     createCustom,
     renameCustom,
     deleteCustom,

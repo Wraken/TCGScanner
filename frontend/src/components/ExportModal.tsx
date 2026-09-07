@@ -28,6 +28,7 @@ function previewValue(field: ExportField, trimEnd: number): string {
     case "normal_count": return String(EXAMPLE.normal);
     case "foil_count":   return String(EXAMPLE.foil);
     case "total_count":  return String(EXAMPLE.normal + EXAMPLE.foil);
+    case "language":     return "EN";
   }
 }
 

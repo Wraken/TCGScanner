@@ -292,21 +292,36 @@ export function ScanScreen({ model, collection }: Props) {
           )}
         </div>
 
-        {/* Finish */}
-        <div>
-          <label className="block text-xs n-n400 mb-1.5">Finish</label>
-          <div className="flex rounded-md overflow-hidden" style={{ border: "1px solid var(--n-divider)" }}>
-            <button className="n-seg-opt" data-active={!pred.foil} onClick={() => pred.setFoil(false)}>
-              Normal
-            </button>
-            <button
-              className="n-seg-opt"
-              data-active={pred.foil}
-              onClick={() => pred.setFoil(true)}
-              style={{ borderLeft: "1px solid var(--n-divider)" }}
-            >
-              Foil
-            </button>
+        {/* Finish + printed language (sticky, see useCollection) */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs n-n400 mb-1.5">Finish</label>
+            <div className="flex rounded-md overflow-hidden" style={{ border: "1px solid var(--n-divider)" }}>
+              <button className="n-seg-opt flex-1" data-active={!pred.foil} onClick={() => pred.setFoil(false)}>
+                Normal
+              </button>
+              <button
+                className="n-seg-opt flex-1"
+                data-active={pred.foil}
+                onClick={() => pred.setFoil(true)}
+                style={{ borderLeft: "1px solid var(--n-divider)" }}
+              >
+                Foil
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs n-n400 mb-1.5">Language</label>
+            <Select value={collection.scanLang} onValueChange={collection.setScanLang}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {collection.languages.map((l) => (
+                  <SelectItem key={l.code} value={l.code}>{l.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

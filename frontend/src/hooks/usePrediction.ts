@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { GetCardImage, Predict } from "../../wailsjs/go/main/App";
 import { LogDebug, LogInfo } from "../../wailsjs/runtime/runtime";
-import type { Prediction } from "@/types";
+import type { Candidate, Prediction } from "@/types";
 
 // How often to grab a frame and run detection. Measured 2026-08-27 with the
 // JPEG q0.95 payload (~0.7 MB): a full no-card cycle (encode + Wails bridge +
@@ -11,6 +11,15 @@ import type { Prediction } from "@/types";
 // the previous prediction is still in flight, so this is a floor on the gap
 // between scans, never a source of overlapping calls.
 const SCAN_INTERVAL_MS = 200;
+
+// Frames in a row with the same ambiguous candidate set before the choice
+// dialog opens — the same caution as the confident lock, against flicker.
+const CHOICE_STABLE_FRAMES = 3;
+
+// Order-independent identity of a shown candidate set (last-pick memory).
+function candidateKey(candidates: Candidate[]): string {
+  return candidates.map((c) => c.card_id).sort().join("|");
+}
 
 export function usePrediction(
   videoRef: RefObject<HTMLVideoElement | null>,
@@ -26,6 +35,19 @@ export function usePrediction(
   const [cardImage, setCardImage] = useState<string | null>(null);
   const [editedCardID, setEditedCardID] = useState<string>("");
   const [foil, setFoil] = useState(false);
+  // Ambiguous printings waiting for the user's pick; null = no dialog.
+  const [choice, setChoice] = useState<Candidate[] | null>(null);
+  // Candidate ids of the previous ambiguous frame and how many consecutive
+  // frames overlapped it. Twins hovering at the margin boundary flicker in
+  // and out between frames, so sets are compared by overlap, not equality.
+  const pendingIdsRef = useRef<Set<string>>(new Set());
+  const pendingCountRef = useRef(0);
+  // Ids of a dismissed set: frames overlapping them are ignored until a
+  // frame shows unrelated candidates or no card.
+  const suppressedIdsRef = useRef<Set<string>>(new Set());
+  // Last printing picked per shown set (sorted ids); session-only, survives
+  // resetCard.
+  const lastPickRef = useRef(new Map<string, string>());
 
   const locked = editedCardID.trim() !== "";
 
@@ -39,7 +61,63 @@ export function usePrediction(
     setCardImage(null);
     setEditedCardID("");
     setFoil(false);
+    setChoice(null);
+    resetPending(true);
   }
+
+  function overlaps(candidates: Candidate[], ids: Set<string>): boolean {
+    return candidates.some((c) => ids.has(c.card_id));
+  }
+
+  function resetPending(liftSuppression: boolean) {
+    pendingIdsRef.current = new Set();
+    pendingCountRef.current = 0;
+    if (liftSuppression) suppressedIdsRef.current = new Set();
+  }
+
+  // Counts consecutive ambiguous frames whose candidates overlap the previous
+  // ones; opens the choice with the latest set once stable. Unrelated
+  // candidates lift any suppression.
+  function trackCandidates(candidates: Candidate[]) {
+    if (suppressedIdsRef.current.size > 0) {
+      if (overlaps(candidates, suppressedIdsRef.current)) return;
+      suppressedIdsRef.current = new Set();
+    }
+    pendingCountRef.current = overlaps(candidates, pendingIdsRef.current) ? pendingCountRef.current + 1 : 1;
+    pendingIdsRef.current = new Set(candidates.map((c) => c.card_id));
+    if (pendingCountRef.current >= CHOICE_STABLE_FRAMES) {
+      pendingCountRef.current = 0;
+      setChoice([...candidates].sort((a, b) => b.score - a.score));
+    }
+  }
+
+  // The user's pick behaves like the confident lock. editedCardID is set in
+  // the same tick as choice is cleared, so scanning never resumes in between.
+  async function pickCandidate(cardId: string) {
+    if (choice) lastPickRef.current.set(candidateKey(choice), cardId);
+    setEditedCardID(cardId);
+    setChoice(null);
+    setCardImage(null);
+    resetPending(true);
+    const img = await GetCardImage(cardId).catch(() => null);
+    setCardImage(img);
+  }
+
+  function dismissChoice() {
+    if (choice) suppressedIdsRef.current = new Set(choice.map((c) => c.card_id));
+    pendingIdsRef.current = new Set();
+    pendingCountRef.current = 0;
+    setChoice(null);
+  }
+
+  // Preselected tile: the last pick for this set when still offered, else
+  // the best-scoring printing.
+  const preselected = choice
+    ? (() => {
+        const last = lastPickRef.current.get(candidateKey(choice));
+        return last && choice.some((c) => c.card_id === last) ? last : choice[0].card_id;
+      })()
+    : null;
 
   function updateEditedCardID(id: string) {
     setEditedCardID(id);
@@ -54,7 +132,7 @@ export function usePrediction(
 
   useEffect(() => {
     LogDebug(`[Predict] Effect: modelLoaded=${modelLoaded}, selectedCamera=${selectedCamera}, locked=${locked}`);
-    if (!modelLoaded || !selectedCamera || locked) return;
+    if (!modelLoaded || !selectedCamera || locked || choice) return;
 
     LogDebug("[Predict] Starting interval");
     const id = setInterval(async () => {
@@ -100,15 +178,21 @@ export function usePrediction(
           // card in the frame; show nothing rather than a 0% match.
           if (!pred.card_id) {
             setPrediction(null);
+            resetPending(true);
           } else {
             setPrediction(pred);
             // The backend decides when a prediction is certain enough to lock;
             // each model type uses its own scale (saturated softmax for the
             // classifier, score-plus-margin for the embedding pipeline).
             if (pred.confident) {
+              resetPending(true);
               const img = await GetCardImage(pred.card_id).catch(() => null);
               setCardImage(img);
               setEditedCardID(pred.card_id);
+            } else if (pred.candidates && pred.candidates.length >= 2) {
+              trackCandidates(pred.candidates);
+            } else {
+              resetPending(true);
             }
           }
         }
@@ -121,7 +205,7 @@ export function usePrediction(
     }, SCAN_INTERVAL_MS);
 
     return () => clearInterval(id);
-  }, [modelLoaded, selectedCamera, locked]);
+  }, [modelLoaded, selectedCamera, locked, choice]);
 
   return {
     prediction,
@@ -131,6 +215,10 @@ export function usePrediction(
     foil,
     setFoil,
     locked,
+    choice,
+    preselected,
+    pickCandidate,
+    dismissChoice,
     resetCard,
     updateEditedCardID,
   };

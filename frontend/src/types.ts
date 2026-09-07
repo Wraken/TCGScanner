@@ -10,6 +10,12 @@ export interface BoxNorm {
   h: number;
 }
 
+// One printing of an ambiguous match (see Prediction.candidates).
+export interface Candidate {
+  card_id: string;
+  score: number;
+}
+
 export interface Prediction {
   card_id: string;
   confidence: number;
@@ -19,6 +25,9 @@ export interface Prediction {
   // Detected card bounding box, normalized to [0,1] against the submitted
   // frame. Set only by the embedding pipeline.
   box?: BoxNorm;
+  // Printings this frame cannot tell apart (identical artwork), best first;
+  // at least two when present. The UI asks the user which one it is.
+  candidates?: Candidate[];
 }
 
 export interface Collection {

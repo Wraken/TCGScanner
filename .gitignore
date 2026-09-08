@@ -18,7 +18,7 @@ scripts/backgrounds/
 Gestionnaire de collection de cartes/
 
 # Watermark-removal debug previews (wm_v2.npz + alpha are committed)
-scripts/watermark_preview_*.png
+scripts/unwatermark/watermark_preview_*.png
 
 # One Piece reference images retired on 2026-09-08 (old French-numbered variants, French-art variants): kept for reference, never packaged
 scripts/embeddingtest/images_legacy_op/

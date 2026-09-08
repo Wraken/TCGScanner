@@ -60,7 +60,7 @@ Card ids are the file stems used everywhere: `ogn-001-298` (Riftbound), `OP01-00
 ```
 scripts/
   fetch/<game>/         catalogue + images per game (Go), see each README
-  unwater_op_v3.py      One Piece: removes the SAMPLE watermark for the reference images
+  unwatermark/          One Piece: removes the SAMPLE watermark for the reference images
   embeddingtest/        the vision pipeline: training, index, packaging (Python)
 ```
 
@@ -80,10 +80,10 @@ Images land in `scripts/fetch/<game>/images/` (gitignored), metadata in `scripts
 The index references live in `scripts/embeddingtest/images/<game>/`, one PNG per card id. Riftbound, Lorcana and Pokémon images are used as fetched. One Piece scans carry a SAMPLE watermark that a physical card does not have, so they are cleaned first:
 
 ```bash
-cd scripts
+cd scripts/unwatermark
 pip install opencv-python-headless numpy tqdm
-python unwater_op_v3.py preview --input fetch/onepiece/images/OP12-020.png --params wm_en.npz
-python unwater_op_v3.py remove  --input fetch/onepiece/images --output embeddingtest/images/onepiece --params wm_en.npz --ids new_ids.json
+python unwater_op_v3.py preview --input ../fetch/onepiece/images/OP12-020.png --params wm_en.npz
+python unwater_op_v3.py remove  --input ../fetch/onepiece/images --output ../embeddingtest/images/onepiece --params wm_en.npz --ids new_ids.json
 ```
 
 `wm_en.npz` is the watermark's opacity map estimated on the official English scans; translucent watermarks are inverted exactly, the opaque ones of the oldest sets are located by template matching and inpainted. The app itself displays the original watermarked scans.

@@ -61,7 +61,7 @@ Card ids are the file stems used everywhere: `ogn-001-298` (Riftbound), `OP01-00
 scripts/
   fetch/<game>/         catalogue + images per game (Go), see each README
   unwatermark/          One Piece: removes the SAMPLE watermark for the reference images
-  embeddingtest/        the vision pipeline: training, index, packaging (Python)
+  ml/        the vision pipeline: training, index, packaging (Python)
 ```
 
 ### 1. Fetch catalogues and images
@@ -77,13 +77,13 @@ Images land in `scripts/fetch/<game>/images/` (gitignored), metadata in `scripts
 
 ### 2. Reference images for the index
 
-The index references live in `scripts/embeddingtest/images/<game>/`, one PNG per card id. Riftbound, Lorcana and Pokémon images are used as fetched. One Piece scans carry a SAMPLE watermark that a physical card does not have, so they are cleaned first:
+The index references live in `scripts/ml/images/<game>/`, one PNG per card id. Riftbound, Lorcana and Pokémon images are used as fetched. One Piece scans carry a SAMPLE watermark that a physical card does not have, so they are cleaned first:
 
 ```bash
 cd scripts/unwatermark
 pip install opencv-python-headless numpy tqdm
 python unwater_op_v3.py preview --input ../fetch/onepiece/images/OP12-020.png --params wm_en.npz
-python unwater_op_v3.py remove  --input ../fetch/onepiece/images --output ../embeddingtest/images/onepiece --params wm_en.npz --ids new_ids.json
+python unwater_op_v3.py remove  --input ../fetch/onepiece/images --output ../ml/images/onepiece --params wm_en.npz --ids new_ids.json
 ```
 
 `wm_en.npz` is the watermark's opacity map estimated on the official English scans; translucent watermarks are inverted exactly, the opaque ones of the oldest sets are located by template matching and inpainted. The app itself displays the original watermarked scans.
@@ -91,7 +91,7 @@ python unwater_op_v3.py remove  --input ../fetch/onepiece/images --output ../emb
 ### 3. Build or extend the index
 
 ```bash
-cd scripts/embeddingtest
+cd scripts/ml
 pip install faiss-cpu numpy tensorflow tqdm      # a GPU (WSL2 works) makes embedding ~20x faster
 python add_to_index.py --name tcg --references images/onepiece   # embeds every image not yet in the index
 python build_index.py  --name tcg                                # rebuilds from scratch instead
@@ -104,7 +104,7 @@ Retraining the embedding model itself is optional (`augment.py` then `train.py`)
 ### 4. Package for the app
 
 ```bash
-cd scripts/embeddingtest
+cd scripts/ml
 python package_app_model.py            # images + metadata + index -> ../../models/tcg
 python package_app_model.py --skip-images
 ```

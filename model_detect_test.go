@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	testDetectDir = "scripts/embeddingtest/datasets/card_detection"
+	testDetectDir = "scripts/ml/datasets/card_detection"
 	pythonRefFile = "testdata/yolo_python_boxes.json"
 
 	// The fixture must come from the exported ONNX, not best.pt: ultralytics
@@ -36,7 +36,7 @@ const (
 )
 
 // pythonDetection is one entry of the fixture written by
-// scripts/embeddingtest/dump_yolo_reference.py.
+// scripts/ml/dump_yolo_reference.py.
 type pythonDetection struct {
 	Width    int       `json:"width"`
 	Height   int       `json:"height"`
@@ -101,7 +101,7 @@ func TestYOLOParity(t *testing.T) {
 
 	raw, err := os.ReadFile(pythonRefFile)
 	if err != nil {
-		t.Skipf("python reference not found (%s) — regenerate with scripts/embeddingtest/dump_yolo_reference.py", pythonRefFile)
+		t.Skipf("python reference not found (%s) — regenerate with scripts/ml/dump_yolo_reference.py", pythonRefFile)
 	}
 	var ref pythonReference
 	if err := json.Unmarshal(raw, &ref); err != nil {

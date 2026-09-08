@@ -31,7 +31,7 @@ in from their base card.
 `-images` downloads the **official card images** (`en.onepiece-cardgame.com`),
 which are SAMPLE-watermarked -- that's the app's display policy for this game.
 De-watermarked copies used for training live in
-`scripts/embeddingtest/images/onepiece/`, sourced separately.
+`scripts/ml/images/onepiece/`, sourced separately.
 
 ## Do not use
 

@@ -12,7 +12,7 @@ import (
 const (
 	testModelDir = "models/tcg"
 	// The Riftbound sources: every twin pair used by the tests lives here.
-	testRefDir = "scripts/embeddingtest/images/riftbound"
+	testRefDir = "scripts/ml/images/riftbound"
 )
 
 func loadTestModel(t *testing.T) *EmbeddingModel {

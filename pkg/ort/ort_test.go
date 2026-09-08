@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	yoloModel      = "../../scripts/embeddingtest/models/tcg/yolo.onnx"
-	embeddingModel = "../../scripts/embeddingtest/models/tcg/embedding_model.onnx"
+	yoloModel      = "../../scripts/ml/models/tcg/yolo.onnx"
+	embeddingModel = "../../scripts/ml/models/tcg/embedding_model.onnx"
 )
 
 func TestYOLOInference(t *testing.T) {

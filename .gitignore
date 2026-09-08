@@ -21,8 +21,8 @@ Gestionnaire de collection de cartes/
 scripts/unwatermark/watermark_preview_*.png
 
 # One Piece reference images retired on 2026-09-08 (old French-numbered variants, French-art variants): kept for reference, never packaged
-scripts/embeddingtest/images_legacy_op/
+scripts/ml/images_legacy_op/
 __pycache__/
 
 # March 2026 French webp originals of One Piece (24-bit, translucent SAMPLE): the only 24-bit source left, never a reference dir
-scripts/embeddingtest/archive/
+scripts/ml/archive/

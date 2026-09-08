@@ -1,175 +1,125 @@
 # TCGScanner
 
-An open-source desktop app to scan physical trading cards with a webcam, identify them using a machine learning model, and export your collection to CSV for import on sites like [riftbound.gg](https://riftbound.gg).
+An open-source desktop app to scan physical trading cards with a webcam, identify them with a local vision model, and keep a collection you can export to CSV (for instance for [riftbound.gg](https://riftbound.gg)).
 
-Built with [Wails](https://wails.io/) (Go + React/TypeScript) into a single native binary.
+Built with [Wails](https://wails.io/) (Go + React/TypeScript) into a single native binary. Everything runs on your machine: no account, no server, no upload.
+
+Supported games today: **Riftbound**, **One Piece**, **Lorcana**, **Pokémon**.
 
 ## Features
 
-- **Live camera scanning** — point your webcam at a card and get a real-time prediction
-- **ML-powered identification** — uses a TensorFlow Lite classification model (MobileNetV2, EfficientNet-B0/B3)
-- **Auto-lock** — automatically locks on a card when confidence reaches 99%
-- **Foil / Normal toggle** — track card finish before saving
-- **Collection management** — organize scans into collections, switch between them anytime
-- **CSV export** — export any collection to CSV for import sites
-- **Multi-model support** — drop any compatible model into `./models/` and select it at runtime
-- **Multi-camera support** — choose between connected cameras
+- **Live scanning** — a YOLO detector finds the card in the webcam frame, an embedding model turns the crop into a vector, and a nearest-neighbour search over the reference index names the card (≈5 scans/s).
+- **Confident lock** — the UI locks when the best match clears a score floor *and* leads the best different card by a margin, so look-alikes never lock silently.
+- **Variant choice** — when several printings share the same artwork (reprints, alt-art foils), the app shows them side by side and lets you pick the one in your hand.
+- **Card details** — name, set, number, rarity, type and colours from the bundled metadata.
+- **Collections** — one collection per game, plus custom collections you create; per copy: finish (normal / foil) and printed language.
+- **CSV export** — presets (default, riftbound.gg, simple) or your own field selection, optionally split per language.
+- **Multi-camera** — pick any connected webcam.
 
 ## Requirements
 
-- [Go 1.21+](https://go.dev/)
+- [Go 1.26+](https://go.dev/)
 - [Node.js 18+](https://nodejs.org/)
 - [Wails CLI v2](https://wails.io/docs/gettingstarted/installation) — `go install github.com/wailsapp/wails/v2/cmd/wails@latest`
-- A TFLite model + labels (see [Adding a model](#adding-a-pre-built-model))
+- A model bundle under `./models/tcg/` (see [Model bundle](#model-bundle))
 
-The TFLite shared library is embedded in the binary — no C compiler or environment variables required.
+On Windows, ONNX Runtime is embedded in the binary. On Linux, install `libonnxruntime.so` (or point `ORT_LIB_PATH` at it).
 
-## Getting Started
-
-### Build & run
+## Build & run
 
 ```bash
-# Install frontend dependencies
 cd frontend && npm install && cd ..
 
-# Live development (hot reload)
-wails dev
-
-# Build a production binary
-wails build
+wails dev      # live development, hot reload
+wails build    # production binary in build/bin/
 ```
 
-## Pre-built Models
+`go test ./...` runs the backend tests; the model tests skip when no bundle is installed.
 
-Pre-built models for **Riftbound** and **One Piece** are available here:
-[Google Drive — Pre-built models](https://drive.google.com/drive/folders/1hEbXABvjob_O-DmMwDbtjYJrJ61U-QV1?usp=sharing)
+## Model bundle
 
-Download and place them under `./models/` following the structure in [Adding a Pre-built Model](#adding-a-pre-built-model).
+The app loads everything from `./models/tcg/` (not committed, ~2 GB with the images of all four games):
 
-## Training a Model
+| File | Role |
+|---|---|
+| `yolo.onnx` | card detector |
+| `embedding_model.onnx` | 512-d embedding of the detected card (EfficientNetV2-S, ArcFace) |
+| `index.bin`, `index_labels.json` | one reference vector per card printing, and its id |
+| `search.onnx` | the same vectors as one MatMul node, so the search runs in ONNX Runtime |
+| `config.json` | input size, score floor, lock margin, twin threshold |
+| `images/<game>/<id>.webp`, `images/manifest.json` | card artwork shown in the app (One Piece ships the official SAMPLE-watermarked scans) |
+| `images/<game>/_cover.webp` | optional artwork for the game tile |
+| `metadata/<game>.json` | name, set, number, rarity, type, colours per card |
 
-The `scripts/` folder contains two Python scripts to build a model from scratch.
+A downloadable bundle is planned (GitHub Releases of the data repository, core + per-game image packs). Until then, build it with the pipeline below.
 
-### Requirements
+Card ids are the file stems used everywhere: `ogn-001-298` (Riftbound), `OP01-001` / `OP01-001_p1` (One Piece and its parallel arts), `1-001` (Lorcana), `sv01-020` (Pokémon, TCGdex ids).
 
-```bash
-pip install albumentations opencv-python-headless numpy tqdm tensorflow
+## Data pipeline (`scripts/`)
+
+```
+scripts/
+  fetch/<game>/         catalogue + images per game (Go), see each README
+  unwater_op_v3.py      One Piece: removes the SAMPLE watermark for the reference images
+  embeddingtest/        the vision pipeline: training, index, packaging (Python)
 ```
 
-### 1. Prepare card images
+### 1. Fetch catalogues and images
 
-Place one PNG per card in `scripts/images/<name>/`, named with the card ID:
+Each game has a fetcher in `scripts/fetch/<game>/` with its own README:
 
-```
-scripts/images/riftbound/
-    ogn-001-298.png
-    ogn-002-298.png
-    ...
-```
+- **Pokémon** — TCGdex (`go run .` images, `go run . -meta` metadata)
+- **Lorcana** — Lorcast (`go run .`, `go run . -meta`)
+- **One Piece** — punk-records catalogue + official images (`go run .`, `go run . -images`, `-meta`)
+- **Riftbound** — the official gallery (`go run . -extract`, `go run .`, `-meta`)
 
-### 2. Augment
+Images land in `scripts/fetch/<game>/images/` (gitignored), metadata in `scripts/fetch/<game>/cards.json` (committed).
 
-Generates ~50 variations per card composited onto random backgrounds:
+### 2. Reference images for the index
 
-```bash
-cd scripts
-python augment.py --input images/riftbound
-# with a specific backbone (sets output image size):
-python augment.py --input images/riftbound --backbone efficientnet-b3
-# with custom count and real background photos:
-python augment.py --input images/riftbound --per-card 100 --backgrounds backgrounds/
-```
-
-Output: `scripts/datasets/riftbound/` — one subfolder per card ID.
-
-### 3. Train
-
-Trains a classifier and exports to TFLite. Three backbones are supported:
-
-| Backbone | Input size | Notes |
-|---|---|---|
-| `mobilenetv2` | 224×224 | Default, fast |
-| `efficientnet-b0` | 224×224 | Better accuracy |
-| `efficientnet-b3` | 300×300 | Best accuracy, larger model |
-
-```bash
-python train.py --name riftbound
-# with a specific backbone:
-python train.py --name riftbound --backbone efficientnet-b3
-# with more epochs:
-python train.py --name riftbound --backbone efficientnet-b0 --epochs 30
-```
-
-Output in `scripts/models/riftbound/`:
-- `model.tflite` — quantized model for the app
-- `labels.json` — class index → card ID mapping
-- `model.keras` — full model for retraining
-- `config.json` — backbone and image size metadata (read by the app at runtime)
-
-### 4. Deploy
-
-Copy the output to the app's models folder:
-
-```bash
-cp -r scripts/models/riftbound models/riftbound
-```
-
-Then launch the app and select `riftbound` from the model dropdown.
-
-## Adding a Pre-built Model
-
-If you already have a compatible TFLite model:
-
-1. Create a folder under `./models/<name>/`
-2. Place your `model.tflite` and `labels.json` inside
-3. Add card images to `./models/<name>/images/` named `{card_id}.png` (or `.jpg`/`.webp`)
-4. Launch the app and select your model from the dropdown
-
-`labels.json` format:
-```json
-{ "0": "ogn-001-298", "1": "ogn-002-298", ... }
-```
-
-## Removing Watermarks from Card Images
-
-Some TCG publishers (e.g. One Piece) add a **SAMPLE** watermark to their official card scans. `scripts/unwater_op.py` removes it automatically before augmentation.
-
-The technique works by averaging many cards together — card art cancels out while the fixed watermark remains, producing a reusable mask. A two-pass removal then strips the white text (math inversion) and the dark outline (inpainting).
-
-![Watermark removal preview](scripts/watermark_preview.png)
-*Left to right: original · white mask · white text removed · dark outline mask · final result*
-
-### Usage
+The index references live in `scripts/embeddingtest/images/<game>/`, one PNG per card id. Riftbound, Lorcana and Pokémon images are used as fetched. One Piece scans carry a SAMPLE watermark that a physical card does not have, so they are cleaned first:
 
 ```bash
 cd scripts
 pip install opencv-python-headless numpy tqdm
-
-# Step 1 — generate the mask from your card images (averages ~20 cards)
-python unwater_op.py mask --input images/onepiece/
-
-# Step 2 — remove the watermark from all cards
-python unwater_op.py remove --input images/onepiece/ --output images/onepiece-clean/ --mask sample_mask.png
-
-# Step 3 (optional) — preview a single card and save a comparison image
-python unwater_op.py preview --input images/onepiece/OP01-001.webp --mask sample_mask.png
+python unwater_op_v3.py preview --input fetch/onepiece/images/OP12-020.png --params wm_en.npz
+python unwater_op_v3.py remove  --input fetch/onepiece/images --output embeddingtest/images/onepiece --params wm_en.npz --ids new_ids.json
 ```
 
-The `--strength` parameter (default `0.7`) controls how aggressively the white text is removed — increase it if the watermark is still visible, decrease it if the card art is being affected.
+`wm_en.npz` is the watermark's opacity map estimated on the official English scans; translucent watermarks are inverted exactly, the opaque ones of the oldest sets are located by template matching and inpainted. The app itself displays the original watermarked scans.
 
-### Adapting for other card types
+### 3. Build or extend the index
 
-The script can be reused for any card set with a fixed watermark:
+```bash
+cd scripts/embeddingtest
+pip install faiss-cpu numpy tensorflow tqdm      # a GPU (WSL2 works) makes embedding ~20x faster
+python add_to_index.py --name tcg --references images/onepiece   # embeds every image not yet in the index
+python build_index.py  --name tcg                                # rebuilds from scratch instead
+```
 
-1. Adjust the `center_mask` crop region in `generate_mask()` (`y1/y2/x1/x2` as fractions of card height/width) to match where the watermark sits on your cards
-2. Tune the brightness threshold (`160`) and `--strength` for the watermark opacity
-3. Run `mask` → `preview` → adjust → `remove`
+`add_to_index.py` never replaces an existing label: drop it from the index first if its reference image changed.
 
-## CSV Export Format
+Retraining the embedding model itself is optional (`augment.py` then `train.py`): new cards only need their reference embedded.
+
+### 4. Package for the app
+
+```bash
+cd scripts/embeddingtest
+python package_app_model.py            # images + metadata + index -> ../../models/tcg
+python package_app_model.py --skip-images
+```
+
+The packager converts the reference images to webp, writes the manifest and the metadata, and reports coverage: index labels without an image, images without an index reference, cards without metadata.
+
+## CSV export
+
+Fields are chosen in the export dialog; the default preset is:
 
 | Normal Count | Foil Count | Card ID |
-|--------------|------------|---------|
+|---|---|---|
 | 1 | 0 | ogn-001-298 |
+
+Add the **Language** field to get one row per card and language.
 
 ## License
 

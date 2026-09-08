@@ -154,6 +154,23 @@ def metadata_coverage(labels: list[str], manifest: dict[str, str],
     return {g: sorted(m) for g, m in by_game.items()}
 
 
+def unindexed_images(manifest: dict[str, str], labels: list[str]) -> dict[str, list[str]]:
+    """Manifest entries (per game) with no reference in the recognition index:
+    the app shows them, the scanner can never match them."""
+    known = set(labels)
+    by_game: dict[str, list[str]] = {}
+    for stem, rel in manifest.items():
+        if stem not in known:
+            by_game.setdefault(rel.split("/", 1)[0], []).append(stem)
+    return {g: sorted(m) for g, m in by_game.items()}
+
+
+def warn_unindexed(manifest: dict[str, str], labels: list[str]) -> None:
+    for game, stems in sorted(unindexed_images(manifest, labels).items()):
+        print(f"  WARNING: {game}: {len(stems)} manifest images have no index reference "
+              f"(e.g. {stems[:5]}) -- shown in the app, never recognised; run add_to_index.py")
+
+
 def fill_variant_fallbacks(labels: list[str], manifest: dict[str, str],
                             metadata: dict[str, dict]) -> dict[str, int]:
     """Give variant ids (OP01-025_p2) the metadata of their base card when the
@@ -325,6 +342,8 @@ def main() -> None:
         if missing:
             print(f"  WARNING: {len(missing)} index labels have no source image "
                   f"(e.g. {missing[:5]}) — their preview will be blank")
+        # ...and the reverse: an image nobody can scan is a silent coverage hole.
+        warn_unindexed(manifest, labels)
 
     # 5. metadata — one file per game, kept next to (not under) images/ so it
     #    ships in the bundle core even when a game's image pack is absent.
@@ -353,6 +372,7 @@ def main() -> None:
             manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
             print("  metadata: --skip-images set, reusing images/manifest.json from a "
                   "previous run -- game attribution may be stale")
+            warn_unindexed(manifest, labels)
 
         added = fill_variant_fallbacks(labels, manifest, metadata)
         for game, cards in metadata.items():

@@ -7,6 +7,7 @@ from package_app_model import (
     image_source_problems,
     metadata_coverage,
     metadata_problems,
+    unindexed_images,
 )
 
 
@@ -146,3 +147,13 @@ class MetadataProblemsTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UnindexedImagesTest(unittest.TestCase):
+    MANIFEST = {"a": "onepiece/a.webp", "b": "onepiece/b.webp", "c": "lorcana/c.webp"}
+
+    def test_reports_manifest_images_without_a_label_per_game(self):
+        self.assertEqual(unindexed_images(self.MANIFEST, ["a", "c"]), {"onepiece": ["b"]})
+
+    def test_fully_indexed_manifest_is_clean(self):
+        self.assertEqual(unindexed_images(self.MANIFEST, ["a", "b", "c", "extra-label"]), {})

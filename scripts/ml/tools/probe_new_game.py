@@ -16,8 +16,8 @@ card). So the decisive number per card is that worst rival: below ~0.85 leaves
 room for a healthy >0.1 margin. Note: on a large catalog, use --even so the
 sample spans all eras, and remember a sparse sample under-counts reprint pairs.
 
-    python probe_new_game.py --images ../fetch/lorcana/images
-    python probe_new_game.py --images ../fetch/pokemon/images --limit 400 --even
+    python tools/probe_new_game.py --images ../fetch/lorcana/images
+    python tools/probe_new_game.py --images ../fetch/pokemon/images --limit 400 --even
 """
 import argparse
 import json
@@ -32,6 +32,11 @@ from tensorflow import keras
 keras.mixed_precision.set_global_policy("float32")
 import faiss
 
+import sys
+from pathlib import Path
+
+# Run from scripts/ml as `python tools/probe_new_game.py`: make the pipeline modules importable.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from build_index import SUPPORTED_EXTS, compute_reference_embedding
 
 

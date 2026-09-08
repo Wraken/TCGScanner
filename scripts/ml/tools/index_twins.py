@@ -14,8 +14,8 @@ the whole index, batched), then reports per game:
 
 Games are assigned from source dirs, GAME=DIR like package_app_model.py.
 
-    python index_twins.py
-    python index_twins.py --twin 0.85 --top 15
+    python tools/index_twins.py
+    python tools/index_twins.py --twin 0.85 --top 15
 """
 import argparse
 import json

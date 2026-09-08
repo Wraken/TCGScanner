@@ -8,9 +8,9 @@ Produit deux fichiers :
                       dans l'espace d'embedding projeté.
 
 Usage:
-    python visualize_index.py
-    python visualize_index.py --no-atlas          # scatter seulement (plus rapide)
-    python visualize_index.py --thumb 48          # taille des miniatures de l'atlas
+    python tools/visualize_index.py
+    python tools/visualize_index.py --no-atlas          # scatter seulement (plus rapide)
+    python tools/visualize_index.py --thumb 48          # taille des miniatures de l'atlas
 """
 
 import argparse

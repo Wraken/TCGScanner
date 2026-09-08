@@ -19,7 +19,7 @@ Two details make the comparison apples-to-apples:
   those PNGs and the Go test reads them. What remains between the two sides is
   resampling and float summation order - about 0.005 of confidence.
 
-    python dump_yolo_reference.py
+    python tools/dump_yolo_reference.py
 """
 import argparse
 import json

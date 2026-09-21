@@ -41,6 +41,13 @@ Sortie dans models/riftbound/ :
     embedding_model.tflite   → TFLite pour mobile (Android/iOS)
     labels.json              → index classe → card ID (pour référence)
     config.json              → hyperparamètres sauvegardés
+    phase1.weights.h5,       → meilleurs poids (val_loss) de chaque phase,
+    phase2.weights.h5           écrits pendant le run (--resume repart de là)
+    train_log.csv            → une ligne par epoch
+
+Gros dataset / run long (voir RETRAIN.md) :
+    python train.py --name tcg-full --dataset-dir ~/datasets/tcg-full
+    python train.py --name tcg-full --dataset-dir ~/datasets/tcg-full --resume models/tcg-full/phase1.weights.h5
 
 Étape suivante : python build_index.py --name riftbound
 """
@@ -338,7 +345,27 @@ def load_datasets(dataset_dir, img_size, preprocess_fn):
 
 # ─── Entraînement ─────────────────────────────────────────────────────────────
 
-def train_phase1(model, train_ds, val_ds, epochs=10, warmup_epochs=3):
+def checkpoint_callbacks(output_dir, phase):
+    """
+    Sauvegarde continue d'un run long : les meilleurs poids (val_loss) de la
+    phase dans models/<name>/phase<N>.weights.h5 et une ligne par epoch dans
+    models/<name>/train_log.csv. Un run de plusieurs jours qui meurt (reboot,
+    WSL coupé) repart de là avec --resume au lieu de tout recommencer.
+    """
+    return [
+        keras.callbacks.ModelCheckpoint(
+            os.path.join(output_dir, f"phase{phase}.weights.h5"),
+            monitor="val_loss",
+            mode="min",
+            save_best_only=True,
+            save_weights_only=True,
+            verbose=1,
+        ),
+        keras.callbacks.CSVLogger(os.path.join(output_dir, "train_log.csv"), append=True),
+    ]
+
+
+def train_phase1(model, train_ds, val_ds, output_dir, epochs=10, warmup_epochs=3):
     """
     Phase 1 : entraîne uniquement la tête (backbone gelé).
 
@@ -376,11 +403,12 @@ def train_phase1(model, train_ds, val_ds, epochs=10, warmup_epochs=3):
                 patience=4,
                 restore_best_weights=True,
             ),
+            *checkpoint_callbacks(output_dir, 1),
         ],
     )
 
 
-def train_phase2(model, train_ds, val_ds, epochs=10, fine_tune_layers=50):
+def train_phase2(model, train_ds, val_ds, output_dir, epochs=10, fine_tune_layers=50):
     """
     Phase 2 : dégèle les dernières couches du backbone pour le fine-tuning.
 
@@ -438,6 +466,7 @@ def train_phase2(model, train_ds, val_ds, epochs=10, fine_tune_layers=50):
                 min_lr=1e-6,      # était 1e-8 → plancher trop bas, modèle bloqué
                 verbose=1,
             ),
+            *checkpoint_callbacks(output_dir, 2),
         ],
     )
 
@@ -553,17 +582,26 @@ def main():
     parser.add_argument("--embedding-dim", type=int, default=512, help="Dimension de l'embedding (défaut: 512)")
     parser.add_argument("--margin", type=float, default=0.5, help="Marge angulaire ArcFace en radians (défaut: 0.5)")
     parser.add_argument("--scale", type=float, default=64.0, help="Scale ArcFace / température softmax (défaut: 64.0)")
+    parser.add_argument("--dataset-dir", default=None,
+                        help="Dossier du dataset augmenté (défaut: datasets/<name>). Un gros dataset "
+                             "vit mieux sur le disque Linux de WSL que sur /mnt/e (9p)")
+    parser.add_argument("--resume", default=None, metavar="WEIGHTS",
+                        help="Reprend à la phase 2 depuis un checkpoint (models/<name>/phase1.weights.h5 "
+                             "ou phase2.weights.h5) ; avec --epochs 0, exporte juste ce checkpoint")
     args = parser.parse_args()
 
     backbone_cfg = BACKBONES[args.backbone]
     img_size = backbone_cfg["img_size"]
 
-    dataset_dir = os.path.join("datasets", args.name)
+    dataset_dir = args.dataset_dir or os.path.join("datasets", args.name)
     output_dir = os.path.join("models", args.name)
 
     if not os.path.isdir(os.path.join(dataset_dir, "train")):
         print(f"Dossier train/ introuvable dans {dataset_dir}")
         print(f"  Lance d'abord : python augment.py --input images/<jeu> [images/<jeu2> ...] --output datasets/{args.name}")
+        return
+    if args.resume and not os.path.isfile(args.resume):
+        print(f"Checkpoint introuvable : {args.resume}")
         return
 
     os.makedirs(output_dir, exist_ok=True)
@@ -600,19 +638,31 @@ def main():
         scale=args.scale,
     )
 
-    # Build : passe factice pour initialiser les poids
+    # Build : passe factice pour initialiser les poids. model(...) et non
+    # compute_embeddings(...) : c'est l'appel qui marque le modèle comme
+    # construit, condition de save_weights/load_weights (checkpoints, --resume).
+    # La tête ArcFace n'est pas traversée par call() : on la construit avant,
+    # sinon Keras avertit qu'il marque le modèle construit avec un état non
+    # construit.
     dummy_images = tf.zeros((1, img_size, img_size, 3))
     dummy_labels = tf.zeros((1,), dtype=tf.int32)
-    dummy_emb = model.compute_embeddings(dummy_images)
+    model.arcface.build((None, args.embedding_dim))
+    dummy_emb = model(dummy_images)
     _ = model.arcface(dummy_emb, dummy_labels)
     print(f"Paramètres backbone     : {base_model.count_params():,}")
     print(f"Dimension embedding out : {dummy_emb.shape}")
     print()
 
     # Entraînement
-    train_phase1(model, train_ds, val_ds, epochs=args.epochs)
+    if args.resume:
+        # Les checkpoints ne stockent que les poids (pas l'optimiseur) : la
+        # phase 2 repart de zéro côté Adam/LR, ce qui est sans conséquence à 5e-5.
+        model.load_weights(args.resume)
+        print(f"Reprise depuis {args.resume} → phase 1 sautée")
+    else:
+        train_phase1(model, train_ds, val_ds, output_dir, epochs=args.epochs)
     train_phase2(
-        model, train_ds, val_ds,
+        model, train_ds, val_ds, output_dir,
         epochs=args.epochs,
         fine_tune_layers=backbone_cfg["fine_tune_layers"],
     )

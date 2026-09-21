@@ -53,7 +53,7 @@ The app loads everything from `./models/tcg/` (not committed, ~2 GB with the ima
 
 A downloadable bundle is planned (GitHub Releases of the data repository, core + per-game image packs). Until then, build it with the pipeline below.
 
-Card ids are the file stems used everywhere: `ogn-001-298` (Riftbound), `OP01-001` / `OP01-001_p1` (One Piece and its parallel arts), `1-001` (Lorcana), `sv01-020` (Pokémon, TCGdex ids).
+Card ids are the file stems used everywhere: `ogn-001-298` (Riftbound), `OP01-001` / `OP01-001_p1` (One Piece and its parallel arts), `1-1` (Lorcana), `sv01-020` (Pokémon, TCGdex ids).
 
 ## Data pipeline (`scripts/`)
 
@@ -99,7 +99,7 @@ python build_index.py  --name tcg                                # rebuilds from
 
 `add_to_index.py` never replaces an existing label: drop it from the index first if its reference image changed.
 
-Retraining the embedding model itself is optional (`augment.py` then `train.py`): new cards only need their reference embedded.
+Retraining the embedding model itself is optional (`augment.py` then `train.py`): new cards only need their reference embedded. The full recipe, with volumes, timings and the validation steps, is in [`scripts/ml/RETRAIN.md`](scripts/ml/RETRAIN.md).
 
 ### 4. Package for the app
 

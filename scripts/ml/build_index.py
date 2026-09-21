@@ -54,12 +54,15 @@ SUPPORTED_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
 
 # ─── Chargement des images de référence ───────────────────────────────────────
 
-def load_flat_references(ref_dir, img_size):
+def load_flat_references(ref_dir):
     """
     Structure plate : un fichier par carte.
     Ex : images/riftbound/ogn-001-298.png
 
     C'est le cas idéal : une seule image officielle haute qualité par carte.
+    Retourne les chemins, pas les pixels : les images sont décodées une par une
+    au moment de l'embedding (31 000 références à 384x384 en float32 feraient
+    55 Go en mémoire).
     """
     images_paths = sorted([p for p in Path(ref_dir).iterdir() if p.suffix.lower() in SUPPORTED_EXTS])
 
@@ -67,17 +70,10 @@ def load_flat_references(ref_dir, img_size):
         return None, None
 
     print(f"Structure plate : {len(images_paths)} images de référence")
-    images, card_ids = [], []
-
-    for img_path in tqdm(images_paths, desc="Chargement des références"):
-        img = keras.utils.load_img(str(img_path), target_size=(img_size, img_size))
-        images.append(keras.utils.img_to_array(img))
-        card_ids.append(img_path.stem)
-
-    return np.array(images, dtype=np.float32), card_ids
+    return images_paths, [p.stem for p in images_paths]
 
 
-def load_subdir_references(ref_dir, img_size):
+def load_subdir_references(ref_dir):
     """
     Structure avec sous-dossiers (issue de augment.py).
     Ex : datasets/riftbound/val/ogn-001-298/ogn-001-298_000.jpg
@@ -90,20 +86,24 @@ def load_subdir_references(ref_dir, img_size):
         return None, None
 
     print(f"Structure sous-dossiers : {len(subdirs)} cartes")
-    images, card_ids = [], []
+    paths, card_ids = [], []
 
-    for card_dir in tqdm(subdirs, desc="Chargement des références"):
+    for card_dir in subdirs:
         img_files = sorted([p for p in card_dir.iterdir() if p.suffix.lower() in SUPPORTED_EXTS])
         if not img_files:
             continue
 
         # Cherche en priorité l'image originale (_000) sinon prend la première
-        original = next((p for p in img_files if "_000" in p.stem), img_files[0])
-        img = keras.utils.load_img(str(original), target_size=(img_size, img_size))
-        images.append(keras.utils.img_to_array(img))
+        paths.append(next((p for p in img_files if "_000" in p.stem), img_files[0]))
         card_ids.append(card_dir.name)
 
-    return np.array(images, dtype=np.float32), card_ids
+    return paths, card_ids
+
+
+def load_image(path, img_size):
+    """Décode une image de référence en (img_size, img_size, 3) float32."""
+    img = keras.utils.load_img(str(path), target_size=(img_size, img_size))
+    return keras.utils.img_to_array(img).astype(np.float32)
 
 
 def default_reference_dirs(name):
@@ -124,17 +124,17 @@ def default_reference_dirs(name):
     return sorted(p for p in root.iterdir() if p.is_dir())
 
 
-def load_reference_images(references_dir, img_size):
-    """Détecte automatiquement la structure du dossier et charge les références."""
+def load_reference_images(references_dir):
+    """Détecte automatiquement la structure du dossier et liste les références (chemins, ids)."""
     # Essai structure plate
-    images, card_ids = load_flat_references(references_dir, img_size)
-    if images is not None:
-        return images, card_ids
+    paths, card_ids = load_flat_references(references_dir)
+    if paths is not None:
+        return paths, card_ids
 
     # Fallback structure sous-dossiers
-    images, card_ids = load_subdir_references(references_dir, img_size)
-    if images is not None:
-        return images, card_ids
+    paths, card_ids = load_subdir_references(references_dir)
+    if paths is not None:
+        return paths, card_ids
 
     raise ValueError(f"Aucune image trouvée dans {references_dir}")
 
@@ -173,15 +173,17 @@ def compute_reference_embedding(model, img_array, preprocess_fn, n_aug=8):
     norm = np.linalg.norm(mean_emb, axis=1, keepdims=True)
     return (mean_emb / (norm + 1e-8)).astype(np.float32)
 
-def compute_all_embeddings(model, images, preprocess_fn, batch_size=32):
+def compute_all_embeddings(model, paths, img_size, preprocess_fn):
     """
-    Passe toutes les images de référence dans le modèle.
+    Passe toutes les images de référence dans le modèle, décodées une par une.
     Retourne une matrice (N, embedding_dim) de float32.
     """
     all_embeddings = []
 
-    for i in tqdm(range(len(images)), desc="Calcul des embeddings"):
-        all_embeddings.append(compute_reference_embedding(model, images[i], preprocess_fn))
+    for path in tqdm(paths, desc="Calcul des embeddings"):
+        all_embeddings.append(
+            compute_reference_embedding(model, load_image(path, img_size), preprocess_fn)
+        )
 
     result = np.vstack(all_embeddings).astype(np.float32)
     print(f"Embeddings : {result.shape[0]} vecteurs × {result.shape[1]}D")
@@ -308,12 +310,6 @@ def main():
         default=None,
         help="Chemin du modèle d'embedding (défaut: models/<name>/embedding_model.keras)",
     )
-    parser.add_argument(
-        "--batch-size",
-        type=int,
-        default=32,
-        help="Taille des batches pour le calcul des embeddings (défaut: 32)",
-    )
     args = parser.parse_args()
 
     model_dir = os.path.join("models", args.name)
@@ -365,18 +361,20 @@ def main():
 
     print(f"\nRéférences : {', '.join(str(d) for d in references_dirs)}")
 
-    # Chargement des images
-    images, card_ids = [], []
+    # Liste des images (décodées plus tard, une par une)
+    paths, card_ids = [], []
     for d in references_dirs:
-        imgs, ids = load_reference_images(str(d), img_size)
-        images.append(imgs)
+        p, ids = load_reference_images(str(d))
+        paths.extend(p)
         card_ids.extend(ids)
-    images = np.concatenate(images)
-    print(f"  {len(card_ids)} cartes chargées")
+    print(f"  {len(card_ids)} cartes listées")
+    if len(set(card_ids)) != len(card_ids):
+        dup = sorted({c for c in card_ids if card_ids.count(c) > 1})[:5]
+        raise SystemExit(f"Identifiants en double entre les dossiers de références : {dup} ...")
 
     # Calcul des embeddings
     print()
-    embeddings = compute_all_embeddings(model, images, preprocess_fn, batch_size=args.batch_size)
+    embeddings = compute_all_embeddings(model, paths, img_size, preprocess_fn)
 
     # Construction de l'index
     index = build_faiss_index(embeddings)

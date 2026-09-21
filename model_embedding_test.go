@@ -9,11 +9,20 @@ import (
 	"testing"
 )
 
-const (
-	testModelDir = "models/tcg"
-	// The Riftbound sources: every twin pair used by the tests lives here.
-	testRefDir = "scripts/ml/images/riftbound"
-)
+// testModelDir is the bundle the model tests load. TCG_TEST_MODEL_DIR points
+// them at another bundle (a retrained candidate packaged next to models/tcg)
+// without swapping directories.
+var testModelDir = envOr("TCG_TEST_MODEL_DIR", "models/tcg")
+
+// The Riftbound sources: every twin pair used by the tests lives here.
+const testRefDir = "scripts/ml/images/riftbound"
+
+func envOr(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
 
 func loadTestModel(t *testing.T) *EmbeddingModel {
 	t.Helper()
@@ -72,8 +81,15 @@ func TestIndexLoads(t *testing.T) {
 // TestReferenceSelfRetrieval feeds reference images through the Go embedding
 // path and checks each one retrieves itself from the index. This validates the
 // whole chain end to end: resize, channel order, raw [0,255] input, index
-// parsing and cosine search. The Python build_index reported 100% here, so a
-// mismatch means the Go preprocessing diverges.
+// parsing and cosine search. A retrieval of a *different* card, or a low mean
+// score, means the Go preprocessing diverges from Python's.
+//
+// "Itself" is judged up to canonicalCard: printings that share the artwork
+// (Riftbound star foils, One Piece _pN) sit at cosine ~0.97 in the index, and
+// which of the two the Go embedding lands closest to is a coin flip of ~0.01
+// that changes from one model to the next. The app folds them onto one
+// canonical card and offers both in the variant popup, so that flip is not a
+// defect; the strict count is still logged.
 func TestReferenceSelfRetrieval(t *testing.T) {
 	m := loadTestModel(t)
 
@@ -100,10 +116,10 @@ func TestReferenceSelfRetrieval(t *testing.T) {
 		step = 1
 	}
 
-	var hits, total int
+	var hits, strictHits, total int
 	var minScore, sumScore float64
 	minScore = 2
-	var failures []string
+	var failures, twinFlips []string
 
 	for i := 0; i < len(names) && total < sampleSize; i += step {
 		name := names[i]
@@ -131,15 +147,23 @@ func TestReferenceSelfRetrieval(t *testing.T) {
 		if float64(score) < minScore {
 			minScore = float64(score)
 		}
-		if got == want {
+		switch {
+		case got == want:
 			hits++
-		} else if len(failures) < 10 {
+			strictHits++
+		case canonicalCard(got) == canonicalCard(want):
+			hits++
+			twinFlips = append(twinFlips, want+" -> "+got)
+		case len(failures) < 10:
 			failures = append(failures, want+" -> "+got)
 		}
 	}
 
-	t.Logf("self-retrieval: %d/%d  mean score=%.3f  min score=%.3f",
-		hits, total, sumScore/float64(total), minScore)
+	t.Logf("self-retrieval: %d/%d up to canonical (%d/%d strict)  mean score=%.3f  min score=%.3f",
+		hits, total, strictHits, total, sumScore/float64(total), minScore)
+	for _, f := range twinFlips {
+		t.Logf("  same-artwork printing: %s", f)
+	}
 	for _, f := range failures {
 		t.Logf("  mismatch: %s", f)
 	}

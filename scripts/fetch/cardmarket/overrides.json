@@ -1,0 +1,36 @@
+{
+ "_comment": "Card id -> Cardmarket product id, hand-checked. Wins over every source and still goes through the catalog check (the product must exist); the name check is bypassed for entries here, which is the point: these are the cards the two sides name differently. Keep the reason next to each one, and only add a card whose whole expansion otherwise validates (a lone mismatch in a shifted expansion is a wrong id, not a spelling).",
+
+ "3-10": 757268,
+ "_3-10": "Lorcana. Lorcast 'Miss Bianca - Rescue Aid Society Agent' = Cardmarket 'Miss Bianca - International Rescue Aid Society Agent' (Into the Inklands 10/204); LorcanaJSON publishes this id",
+ "7-103": 814137,
+ "_7-103": "Lorcana. Lorcast 'Tweedledee & Tweedledum' = Cardmarket 'Tweedle Dee & Tweedle Dum' (Archazia's Island 103/204); LorcanaJSON publishes this id",
+
+ "_panorama": "Lorcana, Reign of Jafar: the five Panorama printings (foil-only second print of a card, own artwork, own TCGplayer id). Lorcast numbers them '1f'; LorcanaJSON does not list them; CardTrader has them as '001p' with version 'Panorama', one Cardmarket id each (the set's 'V2' products, 2026-10-07). Not the base card's product: Louie V1 trends 0.04 / 3.61 foil, V2 0.02 / 1.91.",
+ "8-1f": 826335,
+ "_8-1f": "Lorcana. 'Louie - One Cool Duck' Panorama = CardTrader 332002 (001p)",
+ "8-2f": 826337,
+ "_8-2f": "Lorcana. 'Dewey - Lovable Showoff' Panorama = CardTrader 332001 (002p)",
+ "8-3f": 826339,
+ "_8-3f": "Lorcana. 'Huey - Reliable Leader' Panorama = CardTrader blueprint 003p",
+ "8-65f": 826402,
+ "_8-65f": "Lorcana. 'Nero - Fearsome Crocodile' Panorama = CardTrader blueprint 065p",
+ "8-125f": 826463,
+ "_8-125f": "Lorcana. 'Brutus - Fearsome Crocodile' Panorama = CardTrader 332004 (125p)",
+
+ "base1-73": 273768,
+ "_base1-73": "Pokémon. TCGdex 'Impostor Professor Oak' = Cardmarket 'Imposter Professor Oak' (Base Set 73/102); 101/102 of the set validate on this TCGdex id range",
+ "base4-102": 274025,
+ "_base4-102": "Pokémon. Same spelling difference, Base Set 2 102/130; 129/130 of the set validate",
+ "ex6-98": 276274,
+ "_ex6-98": "Pokémon. TCGdex 'Prof. Oak's Research' = Cardmarket 'Professor Oak's Research' (FireRed & LeafGreen 98/112); 115/116 of the set validate",
+
+ "ogs-017-024": 847539,
+ "_ogs-017-024": "Riftbound. The official gallery names the Proving Grounds starter legends by title only ('Dark Child - Starter'); Cardmarket says 'Annie, Dark Child'. Same card, OGS-017/024; CardTrader blueprint cm 847539",
+ "ogs-019-024": 847541,
+ "_ogs-019-024": "Riftbound. 'Wuju Bladesman - Starter' = 'Master Yi, Wuju Bladesman', OGS-019/024",
+ "ogs-021-024": 847543,
+ "_ogs-021-024": "Riftbound. 'Lady of Luminosity - Starter' = 'Lux, Lady of Luminosity', OGS-021/024",
+ "ogs-023-024": 847545,
+ "_ogs-023-024": "Riftbound. 'Might of Demacia - Starter' = 'Garen, Might of Demacia', OGS-023/024"
+}

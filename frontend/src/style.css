@@ -29,9 +29,8 @@
   :root {
     /* Nocturne palette ported onto the shadcn HSL tokens. Hex mapping follows
        the handoff README (app-specific concretes); ramps below come from
-       nocturne.css. Retuning these values means every existing shadcn ui/
-       component (button, select, input, card, badge, dialog) inherits the new
-       look for free. */
+       nocturne.css. The remaining shadcn ui/ primitives (select, dialog) read
+       these. DESIGN.md at the repo root documents the system. */
     --background: 233 27% 12%;        /* #161826 */
     --foreground: 240 10% 92%;        /* #e9e9ed */
     --card: 233 23% 15%;              /* #1d1f2e */
@@ -43,21 +42,23 @@
     --secondary: 232 18% 17%;         /* #232532 */
     --secondary-foreground: 240 10% 92%;
     --muted: 233 23% 15%;             /* #1d1f2e */
-    --muted-foreground: 234 13% 70%;  /* #a9abbd neutral-400 */
-    --accent: 233 25% 20%;            /* #262940 — shadcn "accent" = neutral hover fill, NOT the brand accent */
+    --muted-foreground: 230 18% 75%;  /* #b2b6ca neutral-400 */
+    --accent: 233 25% 20%;            /* #262940: shadcn "accent" = neutral hover fill, NOT the brand accent */
     --accent-foreground: 240 10% 92%;
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 357 81% 69%;       /* #f07178 danger: readable as text on bg (6.1:1) and surface (5.7:1) */
+    --destructive-foreground: 233 27% 12%;
     --border: 233 25% 20%;            /* #262940 divider */
     --input: 233 25% 20%;
     --ring: 249 53% 68%;              /* #9184d9 */
     --radius: 0.5rem;                 /* 8px (md); lg 12px, sm 6px via calc above */
 
-    /* — Nocturne raw tokens for the bespoke redesign classes below — */
+    /* Nocturne raw tokens for the bespoke redesign classes below. */
     --n-bg: #161826;
     --n-surface: #1d1f2e;
+    --n-fg: #e9e9ed;
     --n-accent: #9184d9;
     --n-accent-soft: #c8c2ec;         /* accent-300, readable accent text */
+    --n-danger: #f07178;
     --n-divider: #262940;
     --n-neutral-400: #b2b6ca;
     --n-neutral-500: #9397ab;
@@ -65,6 +66,7 @@
     --n-neutral-700: #595d6c;
     --n-neutral-800: #3f424d;
     --n-neutral-900: #292b31;
+    --n-neutral-50: #f3f5fe;
     --n-accent-100: #f5f4ff;
     --n-accent-800: #423a6a;
     --n-shadow-sm: 0 0 0 1px #3f424d;
@@ -76,11 +78,23 @@
     border-color: hsl(var(--border));
   }
 
+  /* Dark-only app: native scrollbars, checkboxes, sliders and dialogs follow. */
+  html {
+    color-scheme: dark;
+    scrollbar-color: var(--n-neutral-800) transparent;
+  }
+
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     margin: 0;
+    caret-color: var(--n-accent);
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--n-accent) 40%, transparent);
+    color: var(--n-fg);
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -95,7 +109,7 @@
   }
 }
 
-/* ── Inter, loaded locally (offline-first, like the old nunito) ──────────── */
+/* ── Inter, loaded locally (offline-first) ─────────────────────────────── */
 @font-face {
   font-family: "Inter";
   font-style: normal;
@@ -142,8 +156,41 @@
   padding: 3px 10px; border-radius: 6px; white-space: nowrap;
 }
 .n-tag-accent { background: var(--n-accent-800); color: var(--n-accent-100); }
-.n-tag-neutral { background: var(--n-neutral-800); color: #f3f5fe; }
+.n-tag-neutral { background: var(--n-neutral-800); color: var(--n-neutral-50); }
 .n-tag-outline { border: 1px solid var(--n-accent); color: var(--n-accent-soft); }
+button.n-tag { font-family: inherit; cursor: pointer; border: 0; }
+button.n-tag-neutral:hover { background: var(--n-neutral-700); }
+button.n-tag-accent:hover { background: color-mix(in srgb, var(--n-accent-800) 80%, var(--n-accent)); }
+
+/* View chips (collection switcher): a pressed toggle per view. */
+.n-chip {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 280px;
+  font-family: inherit; font-size: 12px; line-height: 1.4; white-space: nowrap;
+  padding: 4px 10px; border-radius: 6px; cursor: pointer;
+  color: var(--n-neutral-400); background: transparent; border: 1px solid var(--n-divider);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.n-chip:hover { color: var(--n-accent-soft); border-color: var(--n-neutral-700); }
+.n-chip[aria-pressed="true"] {
+  color: var(--n-accent); border-color: var(--n-accent);
+  background: color-mix(in srgb, var(--n-accent) 10%, transparent);
+}
+.n-chip-dashed { border-style: dashed; color: var(--n-neutral-500); }
+.n-chip-label { overflow: hidden; text-overflow: ellipsis; }
+.n-chip-count { font-variant-numeric: tabular-nums; opacity: 0.8; }
+
+/* Text field: surface fill, hairline border. Standalone inputs keep the global
+   focus ring; a wrapper with an icon shows it through :focus-within. */
+.n-field {
+  background: var(--n-surface); border: 1px solid var(--n-divider); border-radius: 6px;
+  color: var(--n-fg); font-family: inherit;
+}
+.n-field::placeholder { color: var(--n-neutral-500); }
+.n-field-wrap:focus-within { outline: 2px solid var(--n-accent); outline-offset: 2px; }
+.n-field-wrap input { outline: none; }
+
+/* Status text. */
+.n-danger { color: var(--n-danger); }
 
 /* Viewport corner brackets (26×26, 2px neutral-600). */
 .n-bracket {
@@ -168,21 +215,29 @@
 .n-btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--n-accent) 12%, transparent); }
 .n-btn-primary:active:not(:disabled) { background: color-mix(in srgb, var(--n-accent) 22%, transparent); }
 .n-btn-secondary { border-color: var(--n-divider); }
-.n-btn-secondary:hover:not(:disabled) { background: color-mix(in srgb, #e9e9ed 7%, transparent); }
-.n-btn-secondary:active:not(:disabled) { background: color-mix(in srgb, #e9e9ed 14%, transparent); }
+.n-btn-secondary:hover:not(:disabled) { background: color-mix(in srgb, var(--n-fg) 7%, transparent); }
+.n-btn-secondary:active:not(:disabled) { background: color-mix(in srgb, var(--n-fg) 14%, transparent); }
 .n-btn-ghost { color: var(--n-neutral-500); }
-.n-btn-ghost:hover:not(:disabled) { color: hsl(var(--foreground)); background: color-mix(in srgb, #e9e9ed 7%, transparent); }
+.n-btn-ghost:hover:not(:disabled) { color: hsl(var(--foreground)); background: color-mix(in srgb, var(--n-fg) 7%, transparent); }
+.n-btn-danger { color: var(--n-danger); border-color: color-mix(in srgb, var(--n-danger) 55%, transparent); }
+.n-btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--n-danger) 12%, transparent); }
 .n-btn-icon { width: 36px; height: 36px; padding: 0; }
+.n-btn-icon-sm { width: 28px; height: 28px; padding: 0; border-radius: 6px; }
+.n-btn-sm { font-size: 13px; padding: 5px 10px; }
+.n-btn-link { padding: 2px 4px; font-size: 12px; font-weight: 400; color: var(--n-accent); }
+.n-btn-link:hover:not(:disabled) { color: var(--n-accent-soft); }
 .n-btn-block { width: 100%; }
 
-/* Segmented control (Finish: Normal / Foil). */
+/* Segmented control (Finish: Normal / Foil). The ring sits inside the
+   segment: the rounded group clips anything drawn outside it. */
 .n-seg-opt {
   flex: 1; padding: 7px 12px; font-size: 13px; cursor: pointer;
   background: transparent; color: hsl(var(--foreground)); border: 0;
   font-family: inherit; transition: background 0.15s, color 0.15s;
 }
-.n-seg-opt[data-active="true"] { color: var(--n-accent); box-shadow: inset 0 0 0 1px var(--n-accent); }
-.n-seg-opt[data-active="false"]:hover { background: color-mix(in srgb, #e9e9ed 7%, transparent); }
+.n-seg-opt[aria-pressed="true"] { color: var(--n-accent); box-shadow: inset 0 0 0 1px var(--n-accent); }
+.n-seg-opt[aria-pressed="false"]:hover { background: color-mix(in srgb, var(--n-fg) 7%, transparent); }
+.n-seg-opt:focus-visible { outline-offset: -3px; }
 
 /* Rail nav items. */
 .n-nav {
@@ -192,9 +247,9 @@
   cursor: pointer; text-align: left; transition: background 0.15s, color 0.15s;
 }
 .n-nav:hover { background: color-mix(in srgb, var(--n-accent) 6%, transparent); color: var(--n-accent-soft); }
-.n-nav[data-active="true"] { color: var(--n-accent); background: color-mix(in srgb, var(--n-accent) 10%, transparent); }
-.n-nav:disabled { opacity: 0.5; cursor: default; }
-.n-nav:disabled:hover { background: transparent; color: var(--n-neutral-400); }
+.n-nav[aria-current="page"] { color: var(--n-accent); background: color-mix(in srgb, var(--n-accent) 10%, transparent); }
+.n-nav:disabled { color: var(--n-neutral-600); cursor: default; }
+.n-nav:disabled:hover { background: transparent; color: var(--n-neutral-600); }
 
 /* Home game tile. */
 .n-tile {
@@ -204,12 +259,54 @@
 }
 .n-tile:hover { box-shadow: var(--n-shadow-md); border-color: var(--n-neutral-700); }
 
-/* Detection box (SVG rect over the feed) — accent stroke + gentle glow pulse. */
+/* Detection box (SVG rect over the feed): accent stroke over a dark halo so it
+   reads on any background, with a gentle glow pulse while it tracks. */
+.n-detect-halo { stroke: color-mix(in srgb, var(--n-bg) 70%, transparent); }
 .n-detect-svg {
   filter: drop-shadow(0 0 5px color-mix(in srgb, var(--n-accent) 55%, transparent));
-  animation: n-detect-pulse 1.8s ease-in-out infinite;
 }
+.n-detect-label { paint-order: stroke; stroke: color-mix(in srgb, var(--n-bg) 85%, transparent); stroke-linejoin: round; }
 @keyframes n-detect-pulse {
   0%, 100% { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--n-accent) 45%, transparent)); }
   50% { filter: drop-shadow(0 0 9px color-mix(in srgb, var(--n-accent) 70%, transparent)); }
 }
+
+/* ── Overlays: dialogs, select popovers, notices ────────────────────────────
+   Radix keeps a closing element mounted until its exit animation ends, so the
+   exit keyframes below run before unmount. Reduced motion keeps the fades
+   (they carry the open/close state) and drops the scale and slide. */
+@keyframes n-fade-in { from { opacity: 0; } }
+@keyframes n-fade-out { to { opacity: 0; } }
+@keyframes n-rise-in { from { opacity: 0; transform: scale(0.97); } }
+@keyframes n-sink-out { to { opacity: 0; transform: scale(0.98); } }
+@keyframes n-drop-in { from { opacity: 0; transform: translateY(-4px); } }
+@keyframes n-slide-in { from { opacity: 0; transform: translateY(8px); } }
+
+.n-overlay[data-state="open"] { animation: n-fade-in 160ms ease-out; }
+.n-overlay[data-state="closed"] { animation: n-fade-out 120ms ease-in; }
+.n-dialog[data-state="closed"] { animation: n-fade-out 120ms ease-in; }
+.n-dialog[data-state="open"] { animation: n-fade-in 160ms ease-out; }
+.n-popover[data-state="open"] { animation: n-fade-in 120ms ease-out; }
+.n-notice { animation: n-fade-in 160ms ease-out; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .n-detect-svg { animation: n-detect-pulse 1.8s ease-in-out infinite; }
+  .n-dialog[data-state="open"] { animation: n-rise-in 200ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .n-dialog[data-state="closed"] { animation: n-sink-out 120ms ease-in; }
+  .n-popover[data-state="open"] { animation: n-drop-in 140ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .n-notice { animation: n-slide-in 200ms cubic-bezier(0.16, 1, 0.3, 1); }
+}
+
+/* Notices (toasts): bottom-right stack, above dialogs. */
+.n-notices {
+  position: fixed; right: 20px; bottom: 20px; z-index: 60;
+  display: flex; flex-direction: column; gap: 8px; width: min(380px, calc(100vw - 40px));
+  pointer-events: none;
+}
+.n-notice {
+  pointer-events: auto; display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 10px 10px 14px; border-radius: 8px; font-size: 13px; line-height: 1.45;
+  background: var(--n-surface); color: var(--n-fg); box-shadow: var(--n-shadow-md);
+}
+.n-notice[data-tone="error"] { box-shadow: 0 0 0 1px color-mix(in srgb, var(--n-danger) 60%, transparent), 0 6px 18px rgba(0, 0, 0, 0.55); }
+.n-notice-text { flex: 1; min-width: 0; padding-top: 3px; overflow-wrap: anywhere; }

@@ -18,14 +18,19 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:             "TCGScanner",
-		Width:             1024,
-		Height:            768,
+		Title:  "TCGScanner",
+		Width:  1024,
+		Height: 768,
+		// Below this the scan screen squeezes the camera view (sidebar and
+		// capture panel are fixed-width).
+		MinWidth:         1024,
+		MinHeight:        640,
 		WindowStartState: options.Maximised,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
+		// The UI's background (#161826), so no other colour flashes at startup.
+		BackgroundColour: &options.RGBA{R: 22, G: 24, B: 38, A: 1},
 		OnStartup:        app.startup,
 		Bind: []any{
 			app,

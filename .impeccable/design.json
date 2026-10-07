@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-03T15:30:00Z",
+  "title": "Design System: TCGScanner",
+  "extensions": {
+    "colorMeta": {
+      "night-ink": { "role": "neutral", "displayName": "Night Ink", "canonical": "#161826", "tonalRamp": ["#0b0c14", "#111320", "#161826", "#1d1f2e", "#262940", "#3f424d", "#75798c", "#b2b6ca"] },
+      "desk-slate": { "role": "neutral", "displayName": "Desk Slate", "canonical": "#1d1f2e" },
+      "hairline-indigo": { "role": "neutral", "displayName": "Hairline Indigo", "canonical": "#262940" },
+      "lamp-lavender": { "role": "primary", "displayName": "Lamp Lavender", "canonical": "#9184d9", "tonalRamp": ["#2a2547", "#423a6a", "#5d529a", "#776bc0", "#9184d9", "#ada3e3", "#c8c2ec", "#f5f4ff"] },
+      "soft-lavender": { "role": "primary", "displayName": "Soft Lavender", "canonical": "#c8c2ec" },
+      "deep-lavender": { "role": "primary", "displayName": "Deep Lavender", "canonical": "#423a6a" },
+      "moon-white": { "role": "neutral", "displayName": "Moon White", "canonical": "#e9e9ed" },
+      "mist-400": { "role": "neutral", "displayName": "Mist 400", "canonical": "#b2b6ca", "tonalRamp": ["#292b31", "#3f424d", "#595d6c", "#75798c", "#9397ab", "#b2b6ca", "#e9e9ed", "#f3f5fe"] },
+      "coral-alert": { "role": "error", "displayName": "Coral Alert", "canonical": "#f07178", "tonalRamp": ["#3d1518", "#6b2328", "#9e353c", "#cc4f56", "#f07178", "#f4959a", "#f8babd", "#fde3e4"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Stat values on Home, tabular figures." },
+      "headline": { "displayName": "Headline", "purpose": "The single screen title." },
+      "title": { "displayName": "Title", "purpose": "Dialog titles." },
+      "body": { "displayName": "Body", "purpose": "Buttons, inputs, lists; 12-13px for secondary lines." },
+      "label": { "displayName": "Label", "purpose": "Uppercase stat labels and small section headings." },
+      "data": { "displayName": "Data", "purpose": "Card IDs, the Card ID field, CSV preview, detection label." }
+    },
+    "shadows": [
+      { "name": "hover-lift", "value": "0 0 0 1px #595d6c, 0 6px 18px rgba(0, 0, 0, 0.55)", "purpose": "Game tiles on hover; notices at rest." },
+      { "name": "overlay", "value": "0 16px 40px rgba(0, 0, 0, 0.6)", "purpose": "Dialogs." },
+      { "name": "popover", "value": "0 6px 18px rgba(0, 0, 0, 0.55)", "purpose": "Select popovers." },
+      { "name": "detection-glow", "value": "drop-shadow(0 0 5px color-mix(in srgb, #9184d9 55%, transparent))", "purpose": "The detection box only; pulses unless reduced motion." }
+    ],
+    "motion": [
+      { "name": "ease-arrive", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Dialog, popover and notice entrances." },
+      { "name": "duration-feedback", "value": "150ms", "purpose": "Hover and state colour transitions." },
+      { "name": "duration-overlay-in", "value": "200ms", "purpose": "Dialog open (fade + scale 0.97); fade only under reduced motion." },
+      { "name": "duration-overlay-out", "value": "120ms", "purpose": "Dialog and overlay close." }
+    ],
+    "breakpoints": [
+      { "name": "min-window", "value": "1024x640", "purpose": "Wails MinWidth/MinHeight; layouts are checked down to it." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one main action on a screen. Outlined in the lamp colour, never filled.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Scan cards</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; gap: 6px; font: 500 14px/1.2 Inter, system-ui, sans-serif; padding: 8px 14px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: #e9e9ed; cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; } .ds-btn:focus-visible { outline: 2px solid #9184d9; outline-offset: 2px; } .ds-btn-primary { color: #9184d9; border-color: #9184d9; } .ds-btn-primary:hover { background: rgba(145, 132, 217, 0.12); } .ds-btn-primary:active { background: rgba(145, 132, 217, 0.22); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Every other action: Cancel, Export, Try again.",
+      "html": "<button class=\"ds-btn2\">Cancel</button>",
+      "css": ".ds-btn2 { font: 500 14px/1.2 Inter, system-ui, sans-serif; padding: 8px 14px; border-radius: 8px; border: 1px solid #262940; background: transparent; color: #e9e9ed; cursor: pointer; transition: background 0.15s; } .ds-btn2:hover { background: rgba(233, 233, 237, 0.07); } .ds-btn2:focus-visible { outline: 2px solid #9184d9; outline-offset: 2px; }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Only inside a confirmation that names the destructive action.",
+      "html": "<button class=\"ds-btn-danger\">Delete copy</button>",
+      "css": ".ds-btn-danger { font: 500 13px/1.2 Inter, system-ui, sans-serif; padding: 5px 10px; border-radius: 8px; border: 1px solid rgba(240, 113, 120, 0.55); background: transparent; color: #f07178; cursor: pointer; } .ds-btn-danger:hover { background: rgba(240, 113, 120, 0.12); } .ds-btn-danger:focus-visible { outline: 2px solid #9184d9; outline-offset: 2px; }"
+    },
+    {
+      "name": "View Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Pressed toggle for collection views and export formats.",
+      "html": "<div style=\"display:flex;gap:8px\"><button class=\"ds-chip\" aria-pressed=\"true\">Riftbound <span>110</span></button><button class=\"ds-chip\" aria-pressed=\"false\">One Piece <span>53</span></button></div>",
+      "css": ".ds-chip { display: inline-flex; gap: 6px; font: 400 12px/1.4 Inter, system-ui, sans-serif; padding: 4px 10px; border-radius: 6px; border: 1px solid #262940; background: transparent; color: #b2b6ca; cursor: pointer; transition: color 0.15s, border-color 0.15s; } .ds-chip span { opacity: 0.8; font-variant-numeric: tabular-nums; } .ds-chip:hover { color: #c8c2ec; border-color: #595d6c; } .ds-chip[aria-pressed=\"true\"] { color: #9184d9; border-color: #9184d9; background: rgba(145, 132, 217, 0.1); } .ds-chip:focus-visible { outline: 2px solid #9184d9; outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Surface-filled field with a hairline border; card IDs are set in monospace.",
+      "html": "<input class=\"ds-input\" placeholder=\"e.g. OP01-025\">",
+      "css": ".ds-input { background: #1d1f2e; border: 1px solid #262940; border-radius: 6px; color: #e9e9ed; font: 400 14px ui-monospace, monospace; padding: 8px 12px; text-align: center; caret-color: #9184d9; } .ds-input::placeholder { color: #9397ab; } .ds-input:focus-visible { outline: 2px solid #9184d9; outline-offset: 2px; }"
+    },
+    {
+      "name": "Rail Navigation",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "Left rail items; the current screen carries aria-current.",
+      "html": "<nav class=\"ds-nav\"><button aria-current=\"page\">Home</button><button>Scan</button><button>Collections</button></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 4px; width: 188px; } .ds-nav button { text-align: left; font: 400 14px Inter, system-ui, sans-serif; padding: 8px 12px; border-radius: 8px; border: 0; background: transparent; color: #b2b6ca; cursor: pointer; transition: background 0.15s, color 0.15s; } .ds-nav button:hover { color: #c8c2ec; background: rgba(145, 132, 217, 0.06); } .ds-nav button[aria-current=\"page\"] { color: #9184d9; background: rgba(145, 132, 217, 0.1); } .ds-nav button:focus-visible { outline: 2px solid #9184d9; outline-offset: 2px; }"
+    },
+    {
+      "name": "Status Tags",
+      "kind": "chip",
+      "refersTo": "tag-accent",
+      "description": "Small borderless labels: accent for live detection, neutral for metadata.",
+      "html": "<div style=\"display:flex;gap:8px\"><span class=\"ds-tag ds-tag-accent\">Card detected</span><span class=\"ds-tag ds-tag-neutral\">Origins</span></div>",
+      "css": ".ds-tag { display: inline-flex; font: 400 11px/1.4 Inter, system-ui, sans-serif; letter-spacing: 0.02em; padding: 3px 10px; border-radius: 6px; } .ds-tag-accent { background: #423a6a; color: #f5f4ff; } .ds-tag-neutral { background: #3f424d; color: #f3f5fe; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Night Desk",
+    "overview": "A collector's desk in the evening: dark, quiet surfaces and a single lavender lamp that pulls the eye to the card in hand. The interface is an instrument for a focused, repetitive task (hold a card up, confirm, save, next), so it stays calm and precise and keeps out of the way of the camera feed and the card artwork, which are the only things allowed to be loud. Depth comes from tonal layering of near-black indigo surfaces and 1px hairlines, not from shadows. The app is dark-only.",
+    "keyCharacteristics": [
+      "One accent (lamp lavender) on a cool indigo-neutral ramp.",
+      "Flat surfaces, hairline borders, outline buttons; shadows only for hover lift and overlays.",
+      "Inter 400/500 only; monospace reserved for card IDs and data.",
+      "Motion is feedback and state only, with a reduced-motion path for all of it."
+    ],
+    "rules": [
+      { "name": "The One Lamp Rule", "body": "Lamp Lavender only marks the primary action, the current selection, focus and live detection. It never decorates.", "section": "colors" },
+      { "name": "The Readable Error Rule", "body": "Error text uses Coral Alert, never a dark red: an error the user cannot read is a silent failure.", "section": "colors" },
+      { "name": "The Two Weights Rule", "body": "Only 400 and 500 are loaded. Never ask for 600 or bold: the browser would fake it.", "section": "typography" },
+      { "name": "The Flat-At-Rest Rule", "body": "Surfaces are flat at rest. A shadow appears only as a response to hover, or because something floats above the page (dialog, popover, notice).", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep one accent: Lamp Lavender (#9184d9) for action, selection, focus and detection only.",
+      "Do use Coral Alert (#f07178) for every error, next to what failed, and keep the user's input.",
+      "Do build depth from the Night Ink, Desk Slate, Raised Slate ladder and 1px Hairline Indigo borders.",
+      "Do give every control a visible focus state and every toggle an aria-pressed or aria-current.",
+      "Do honour prefers-reduced-motion: keep fades that carry state, drop scale, slide and the detection pulse."
+    ],
+    "donts": [
+      "Don't fill buttons with the accent; primary buttons are outlined.",
+      "Don't use font weights other than 400 and 500.",
+      "Don't use window.prompt or window.confirm; use the app's dialogs.",
+      "Don't delete anything without a confirmation that names the action.",
+      "Don't show a trademarked game logo; game tiles use the in-house artwork."
+    ]
+  }
+}

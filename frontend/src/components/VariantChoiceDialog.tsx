@@ -3,6 +3,7 @@ import { GetCardImage, GetCardInfo } from "../../wailsjs/go/main/App";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -59,9 +60,9 @@ export function VariantChoiceDialog({ candidates, preselected, onPick, onDismiss
       >
         <DialogHeader>
           <DialogTitle>Which printing is it?</DialogTitle>
-          <p className="text-xs n-n500">
-            These cards share the same artwork — check the number at the bottom of your card.
-          </p>
+          <DialogDescription>
+            These printings share the same artwork. Check the number printed at the bottom of your card.
+          </DialogDescription>
         </DialogHeader>
         <div
           className="grid gap-4 justify-center overflow-y-auto min-h-0 p-1"
@@ -75,13 +76,15 @@ export function VariantChoiceDialog({ candidates, preselected, onPick, onDismiss
                 key={c.card_id}
                 type="button"
                 ref={selected ? preselectedRef : undefined}
-                className="flex flex-col gap-2 rounded-lg p-2 text-left"
+                className="flex flex-col gap-2 rounded-lg p-2 text-left transition-colors hover:border-[var(--n-neutral-700)]"
                 style={{ border: `1px solid ${selected ? "var(--n-accent)" : "var(--n-divider)"}` }}
                 onClick={() => onPick(c.card_id)}
               >
-                <CardImage src={images[c.card_id] ?? null} alt={c.card_id} adaptive className="w-full rounded-md" />
-                {selected && <span className="sr-only">suggested</span>}
-                <span className="font-mono text-xs n-n400">{c.card_id}</span>
+                <CardImage src={images[c.card_id] ?? null} alt="" adaptive className="w-full rounded-md" />
+                <span className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-xs n-n400" translate="no">{c.card_id}</span>
+                  {selected && <span className="n-tag n-tag-outline" style={{ fontSize: "10px", padding: "1px 7px" }}>Suggested</span>}
+                </span>
                 {info && (
                   <div className="flex flex-wrap gap-1.5">
                     {(info.set_name || info.set) && (

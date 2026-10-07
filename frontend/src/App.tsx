@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useModel } from "@/hooks/useModel";
-import { useCollection } from "@/hooks/useCollection";
+import { defaultFilter, useCollection } from "@/hooks/useCollection";
 import { Sidebar, type Screen } from "@/components/Sidebar";
 import { HomeScreen } from "@/components/HomeScreen";
 import { ScanScreen } from "@/components/ScanScreen";
@@ -10,9 +10,12 @@ import type { CardFilter } from "@/types";
 
 function App() {
   const [screen, setScreen] = useState<Screen>("home");
-  const [collectionTarget, setCollectionTarget] = useState<CardFilter>({ game: "pokemon" });
+  // Last collection view opened; null until one is, then the rail's
+  // Collections entry reopens it.
+  const [collectionTarget, setCollectionTarget] = useState<CardFilter | null>(null);
   const model = useModel();
   const collection = useCollection();
+  const target = collectionTarget ?? defaultFilter(collection.games);
 
   function openGame(game: string) {
     setCollectionTarget(game === "" ? { other_bucket: true } : { game });
@@ -26,7 +29,11 @@ function App() {
 
   return (
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
-      <Sidebar screen={screen} onNavigate={setScreen} />
+      <Sidebar
+        screen={screen}
+        onNavigate={setScreen}
+        onExport={() => collection.openExport(screen === "collection" ? target : undefined)}
+      />
 
       <main className="flex-1 min-w-0 overflow-hidden">
         {screen === "home" && (
@@ -43,7 +50,7 @@ function App() {
         {screen === "collection" && (
           <CollectionScreen
             collection={collection}
-            target={collectionTarget}
+            target={target}
             onChangeTarget={setCollectionTarget}
             onScan={() => setScreen("scan")}
           />
@@ -51,8 +58,11 @@ function App() {
       </main>
 
       <ExportModal
-        open={collection.exportTarget !== null}
-        onOpenChange={(o) => !o && collection.closeExport()}
+        target={collection.exportTarget}
+        onChangeTarget={collection.setExportTarget}
+        onClose={collection.closeExport}
+        games={collection.games}
+        customs={collection.customs}
         presets={collection.exportPresets}
         onExport={collection.confirmExport}
       />

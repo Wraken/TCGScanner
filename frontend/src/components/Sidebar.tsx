@@ -5,9 +5,17 @@ export type Screen = "home" | "scan" | "collection";
 interface Props {
   screen: Screen;
   onNavigate: (s: Screen) => void;
+  // Opens the export dialog (an action, not a screen).
+  onExport: () => void;
 }
 
-export function Sidebar({ screen, onNavigate }: Props) {
+const SCREENS: { id: Screen; label: string; Icon: typeof Camera }[] = [
+  { id: "home", label: "Home", Icon: LayoutGrid },
+  { id: "scan", label: "Scan", Icon: Camera },
+  { id: "collection", label: "Collections", Icon: Layers },
+];
+
+export function Sidebar({ screen, onNavigate, onExport }: Props) {
   return (
     <aside
       className="flex flex-col shrink-0 w-[216px] border-r"
@@ -18,33 +26,33 @@ export function Sidebar({ screen, onNavigate }: Props) {
           className="flex items-center justify-center w-[30px] h-[30px] rounded-lg"
           style={{ border: "1px solid var(--n-accent)" }}
         >
-          <WalletCards className="w-4 h-4 n-brand" />
+          <WalletCards className="w-4 h-4 n-brand" aria-hidden="true" />
         </div>
-        <span className="text-[15px] font-medium">TCGScanner</span>
+        <span className="text-[15px] font-medium" translate="no">TCGScanner</span>
       </div>
 
-      <nav className="flex flex-col gap-1">
-        <button className="n-nav" data-active={screen === "home"} onClick={() => onNavigate("home")}>
-          <LayoutGrid className="w-[18px] h-[18px]" />
-          Home
-        </button>
-        <button className="n-nav" data-active={screen === "scan"} onClick={() => onNavigate("scan")}>
-          <Camera className="w-[18px] h-[18px]" />
-          Scan
-        </button>
-        <button className="n-nav" data-active={screen === "collection"} onClick={() => onNavigate("collection")}>
-          <Layers className="w-[18px] h-[18px]" />
-          Collections
-        </button>
-        <button className="n-nav" onClick={() => onNavigate("collection")}>
-          <Upload className="w-[18px] h-[18px]" />
+      <nav aria-label="Main" className="flex flex-col gap-1">
+        {SCREENS.map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            className="n-nav"
+            aria-current={screen === id ? "page" : undefined}
+            onClick={() => onNavigate(id)}
+          >
+            <Icon className="w-[18px] h-[18px]" aria-hidden="true" />
+            {label}
+          </button>
+        ))}
+        <button className="n-nav" onClick={onExport} aria-haspopup="dialog">
+          <Upload className="w-[18px] h-[18px]" aria-hidden="true" />
           Export
         </button>
       </nav>
 
-      <button className="n-nav mt-auto" disabled title="Coming soon">
-        <Settings className="w-[18px] h-[18px]" />
+      <button className="n-nav mt-auto" disabled>
+        <Settings className="w-[18px] h-[18px]" aria-hidden="true" />
         Settings
+        <span className="n-tag n-tag-neutral ml-auto" style={{ fontSize: "10px", padding: "1px 7px" }}>Soon</span>
       </button>
     </aside>
   );

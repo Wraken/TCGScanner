@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { Camera, ImageIcon, Pencil, Plus, Search, Trash2, Upload } from "lucide-react";
+import { Camera, ImageIcon, Pencil, Plus, Search, Sparkle, Trash2, Upload } from "lucide-react";
 import { GetCardImageByModel, GetCardInfo, GetCards, DeleteCard, MoveCardToCustom, UpdateCard } from "../../wailsjs/go/main/App";
 import { LogDebug } from "../../wailsjs/runtime/runtime";
 import { gameLabel } from "@/lib/utils";
 import { CardImage } from "@/components/CardImage";
 import { CardCopiesDialog } from "@/components/CardCopiesDialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { NameDialog } from "@/components/NameDialog";
+import { errorText, useNotices } from "@/components/Notices";
+import { defaultFilter } from "@/hooks/useCollection";
 import type { CardFilter, CardInfo, CollectionCard } from "@/types";
 import type { useCollection } from "@/hooks/useCollection";
 
@@ -28,12 +32,19 @@ function sameFilter(a: CardFilter, b: CardFilter): boolean {
   return a.game === b.game && !!a.other_bucket === !!b.other_bucket && a.collection_id === b.collection_id;
 }
 
+function cards(n: number): string {
+  return `${n.toLocaleString("en-US")} ${n === 1 ? "card" : "cards"}`;
+}
+
 export function CollectionScreen({ collection, target, onChangeTarget, onScan }: Props) {
-  const [cards, setCards] = useState<CollectionCard[]>([]);
+  const { notify } = useNotices();
+  const [cardsList, setCards] = useState<CollectionCard[]>([]);
+  const [loading, setLoading] = useState(true);
   const [images, setImages] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
   const [foilFilter, setFoilFilter] = useState<FoilFilter>("all");
   const [openCard, setOpenCard] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<"new" | "rename" | "delete" | null>(null);
   // Metadata of the card shown in the dialog; null = none in the bundle.
   const [infos, setInfos] = useState<Record<string, CardInfo | null>>({});
   useEffect(() => {
@@ -50,11 +61,13 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
     setCards([]);
     setImages({});
     setOpenCard(null);
+    setLoading(true);
     GetCards(target)
       .then(async (rows) => {
         if (cancelled) return;
         const list = (rows ?? []) as CollectionCard[];
         setCards(list);
+        setLoading(false);
         // One image per distinct card id, loaded after the grid renders, in
         // bounded batches so the view renders progressively instead of
         // waiting on the slowest of potentially hundreds of IPC calls.
@@ -77,7 +90,12 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
           setImages((prev) => ({ ...prev, ...imgs }));
         }
       })
-      .catch((e) => LogDebug(`[CollectionScreen] ${e}`));
+      .catch((e) => {
+        LogDebug(`[CollectionScreen] ${e}`);
+        if (cancelled) return;
+        setLoading(false);
+        notify("error", `Couldn't load this collection: ${errorText(e)}`);
+      });
     return () => { cancelled = true; };
   }, [target.game, target.other_bucket, target.collection_id]);
 
@@ -86,7 +104,7 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
   // the active search/foil filter no longer matches the card being edited.
   const allGroups = useMemo(() => {
     const map = new Map<string, CardGroup>();
-    for (const c of cards) {
+    for (const c of cardsList) {
       let g = map.get(c.card_id);
       if (!g) {
         g = { card_id: c.card_id, normal: 0, foil: 0, copies: [] };
@@ -96,7 +114,7 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
       g.copies.push(c);
     }
     return [...map.values()].sort((a, b) => a.card_id.localeCompare(b.card_id));
-  }, [cards]);
+  }, [cardsList]);
 
   const groups = useMemo(() => {
     let list = allGroups;
@@ -109,16 +127,17 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
     return list;
   }, [allGroups, search, foilFilter]);
 
-  const title =
-    target.collection_id != null && target.collection_id !== 0
-      ? collection.customs.find((c) => c.id === target.collection_id)?.name ?? "Collection"
-      : gameLabel(target.other_bucket ? "" : target.game ?? "");
+  const isCustom = target.collection_id != null && target.collection_id !== 0;
+  const title = isCustom
+    ? collection.customs.find((c) => c.id === target.collection_id)?.name ?? "Collection"
+    : gameLabel(target.other_bucket ? "" : target.game ?? "");
+  const filtered = search.trim() !== "" || foilFilter !== "all";
 
   const openGroup = openCard ? allGroups.find((g) => g.card_id === openCard) ?? null : null;
 
   // Auto-close the dialog once the card it's showing has no copies left
   // (last copy deleted, or the last foil toggled while the last remaining
-  // copy stops matching — allGroups only drops the entry once truly empty).
+  // copy stops matching: allGroups only drops the entry once truly empty).
   useEffect(() => {
     if (openCard && !allGroups.some((g) => g.card_id === openCard)) setOpenCard(null);
   }, [allGroups, openCard]);
@@ -133,21 +152,51 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
     await collection.refresh();
   }
 
+  // Runs one change to a copy, then reloads; a failure is shown, not logged.
+  async function editCopy(what: string, op: () => Promise<unknown>) {
+    try {
+      await op();
+    } catch (e) {
+      LogDebug(`[CollectionScreen] ${what}: ${e}`);
+      notify("error", `Couldn't ${what}: ${errorText(e)}`);
+    }
+    await refreshCards();
+  }
+
+  async function createCollection(name: string) {
+    const c = await collection.createCustom(name);
+    if (c) {
+      onChangeTarget({ collection_id: c.id });
+      setDialog(null);
+    }
+  }
+
+  async function renameCollection(name: string) {
+    if (await collection.renameCustom(target.collection_id!, name)) setDialog(null);
+  }
+
+  async function deleteCollection() {
+    if (!(await collection.deleteCustom(target.collection_id!))) return;
+    setDialog(null);
+    notify("success", `Deleted “${title}”. Its cards are still in their games.`);
+    onChangeTarget(defaultFilter(collection.games));
+  }
+
   return (
     <div className="h-full overflow-y-auto flex flex-col" style={{ padding: "28px 36px", gap: "18px" }}>
       {/* View chips: games, then customs */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div role="group" aria-label="Collections" className="flex flex-wrap items-center gap-2">
         {collection.games.map((g) => {
           const f: CardFilter = g.game === "" ? { other_bucket: true } : { game: g.game };
           return (
             <button
               key={g.game || "__other"}
-              className="n-tag"
-              data-active={sameFilter(target, f)}
-              style={sameFilter(target, f) ? { borderColor: "var(--n-accent)", color: "var(--n-accent)" } : undefined}
+              className="n-chip"
+              aria-pressed={sameFilter(target, f)}
               onClick={() => onChangeTarget(f)}
             >
-              {gameLabel(g.game)} · {g.card_count}
+              <span className="n-chip-label">{gameLabel(g.game)}</span>
+              <span className="n-chip-count">{g.card_count}</span>
             </button>
           );
         })}
@@ -156,67 +205,53 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
           return (
             <button
               key={`c${c.id}`}
-              className="n-tag"
-              data-active={sameFilter(target, f)}
-              style={sameFilter(target, f) ? { borderColor: "var(--n-accent)", color: "var(--n-accent)" } : undefined}
+              className="n-chip"
+              aria-pressed={sameFilter(target, f)}
+              title={c.name}
               onClick={() => onChangeTarget(f)}
             >
-              {c.name} · {c.card_count}
+              <span className="n-chip-label">{c.name}</span>
+              <span className="n-chip-count">{c.card_count}</span>
             </button>
           );
         })}
-        <button
-          className="n-tag n-n500"
-          style={{ border: "1px dashed var(--n-divider)" }}
-          title="New custom collection"
-          onClick={async () => {
-            const name = window.prompt("Name of the new collection:")?.trim();
-            if (!name) return;
-            const c = await collection.createCustom(name);
-            if (c) onChangeTarget({ collection_id: c.id });
-          }}
-        >
-          <Plus className="w-3 h-3" />
-          New
+        <button className="n-chip n-chip-dashed" onClick={() => setDialog("new")}>
+          <Plus className="w-3 h-3" aria-hidden="true" />
+          New collection
         </button>
       </div>
 
       {/* Title row */}
-      <div className="flex items-center gap-3">
-        <h2 className="text-[28px] leading-tight">{title}</h2>
-        <span className="n-tag n-tag-neutral">{cards.length} card{cards.length !== 1 ? "s" : ""}</span>
-        <div className="ml-auto flex items-center gap-2">
-          {target.collection_id != null && target.collection_id !== 0 && (
+      <div className="flex items-center gap-3 min-w-0">
+        <h1 className="text-[28px] leading-tight truncate min-w-0" title={title}>{title}</h1>
+        <span className="n-tag n-tag-neutral tabular-nums shrink-0">{cards(cardsList.length)}</span>
+        <div className="ml-auto flex items-center gap-2 shrink-0">
+          {isCustom && (
             <>
               <button
                 className="n-btn n-btn-secondary n-btn-icon"
-                title="Rename"
-                onClick={async () => {
-                  const name = window.prompt("New name:", title)?.trim();
-                  if (name) await collection.renameCustom(target.collection_id!, name);
-                }}
+                title="Rename collection"
+                aria-label="Rename collection"
+                onClick={() => setDialog("rename")}
               >
-                <Pencil className="w-4 h-4" />
+                <Pencil className="w-4 h-4" aria-hidden="true" />
               </button>
               <button
                 className="n-btn n-btn-secondary n-btn-icon"
-                title="Delete the collection (cards are kept)"
-                onClick={async () => {
-                  if (!window.confirm(`Delete "${title}"? The cards stay in their games.`)) return;
-                  await collection.deleteCustom(target.collection_id!);
-                  onChangeTarget(collection.games[0]?.game ? { game: collection.games[0].game } : { other_bucket: true });
-                }}
+                title="Delete collection"
+                aria-label="Delete collection"
+                onClick={() => setDialog("delete")}
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-4 h-4" aria-hidden="true" />
               </button>
             </>
           )}
-          <button className="n-btn n-btn-secondary" onClick={() => collection.openExport(target)}>
-            <Upload className="w-4 h-4" />
+          <button className="n-btn n-btn-secondary" onClick={() => collection.openExport(target)} aria-haspopup="dialog">
+            <Upload className="w-4 h-4" aria-hidden="true" />
             Export
           </button>
           <button className="n-btn n-btn-primary" onClick={onScan}>
-            <Camera className="w-4 h-4" />
+            <Camera className="w-4 h-4" aria-hidden="true" />
             Scan
           </button>
         </div>
@@ -225,23 +260,32 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
       {/* Search + foil filter */}
       <div className="flex items-center gap-3">
         <div
-          className="flex items-center gap-2 rounded-md px-3 flex-1 max-w-[340px]"
-          style={{ background: "var(--n-surface)", border: "1px solid var(--n-divider)", height: "36px" }}
+          className="n-field n-field-wrap flex items-center gap-2 px-3 flex-1 max-w-[340px]"
+          style={{ height: "36px" }}
         >
-          <Search className="w-4 h-4 n-n500 shrink-0" />
+          <Search className="w-4 h-4 n-n500 shrink-0" aria-hidden="true" />
           <input
+            type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search an ID…"
-            className="bg-transparent outline-none text-sm flex-1 min-w-0"
+            placeholder="Search by card ID…"
+            aria-label="Search by card ID"
+            autoComplete="off"
+            spellCheck={false}
+            className="bg-transparent text-sm flex-1 min-w-0"
           />
         </div>
-        <div className="flex rounded-md overflow-hidden" style={{ border: "1px solid var(--n-divider)" }}>
+        <div
+          role="group"
+          aria-label="Finish"
+          className="flex rounded-md overflow-hidden"
+          style={{ border: "1px solid var(--n-divider)" }}
+        >
           {([["all", "All"], ["normal", "Normal"], ["foil", "Foil"]] as const).map(([v, label], i) => (
             <button
               key={v}
               className="n-seg-opt"
-              data-active={foilFilter === v}
+              aria-pressed={foilFilter === v}
               style={i > 0 ? { borderLeft: "1px solid var(--n-divider)" } : undefined}
               onClick={() => setFoilFilter(v)}
             >
@@ -252,50 +296,78 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
       </div>
 
       {/* Grid */}
-      {groups.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center">
-          <p className="text-sm n-n500">No cards in this view.</p>
+      {loading ? (
+        <div className="flex-1" aria-busy="true" />
+      ) : groups.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center">
+          {filtered ? (
+            <>
+              <p className="text-sm n-n400">No card in {title} matches these filters.</p>
+              <button
+                className="n-btn n-btn-secondary"
+                onClick={() => {
+                  setSearch("");
+                  setFoilFilter("all");
+                }}
+              >
+                Clear filters
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm n-n400">No cards in {title} yet.</p>
+              <button className="n-btn n-btn-primary" onClick={onScan}>
+                <Camera className="w-4 h-4" aria-hidden="true" />
+                Scan cards
+              </button>
+            </>
+          )}
         </div>
       ) : (
-        <div className="grid gap-[14px]" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))" }}>
+        <ul className="grid gap-[14px] list-none p-0 m-0" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))" }}>
           {groups.map((g) => (
-            <button
-              type="button"
-              key={g.card_id}
-              className="flex flex-col gap-1.5 w-full"
-              style={{ textAlign: "inherit", padding: 0 }}
-              onClick={() => setOpenCard(g.card_id)}
-            >
-              <CardImage
-                src={images[g.card_id] ?? null}
-                alt={g.card_id}
-                className="rounded-lg"
-                placeholder={
-                  <div className="w-full h-full flex items-center justify-center">
-                    <ImageIcon className="w-5 h-5 n-n600" />
-                  </div>
-                }
-              />
-              <div className="flex items-center justify-between px-0.5">
-                <span className="font-mono n-n400" style={{ fontSize: "11px" }}>{g.card_id}</span>
-                <span
-                  className="flex items-center gap-1.5"
-                  style={{ fontSize: "11px" }}
-                  title={`${g.normal} normal · ${g.foil} foil${g.foil !== 1 ? "s" : ""}`}
-                >
-                  {g.normal > 0 && <span className="n-n500">×{g.normal}</span>}
-                  {g.foil > 0 && <span style={{ color: "var(--n-accent)" }}>✦{g.foil}</span>}
-                </span>
-              </div>
-            </button>
+            <li key={g.card_id} className="min-w-0" style={{ contentVisibility: "auto", containIntrinsicSize: "auto 260px" }}>
+              <button
+                type="button"
+                className="flex flex-col gap-1.5 w-full rounded-lg"
+                style={{ textAlign: "inherit", padding: 0 }}
+                aria-label={`${g.card_id}: ${g.normal} normal, ${g.foil} foil`}
+                onClick={() => setOpenCard(g.card_id)}
+              >
+                <CardImage
+                  src={images[g.card_id] ?? null}
+                  alt=""
+                  className="rounded-lg w-full"
+                  placeholder={
+                    <div className="w-full h-full flex items-center justify-center">
+                      <ImageIcon className="w-5 h-5 n-n600" aria-hidden="true" />
+                    </div>
+                  }
+                />
+                <div className="flex items-center justify-between gap-2 px-0.5 w-full min-w-0">
+                  <span className="font-mono n-n400 truncate min-w-0" style={{ fontSize: "11px" }} translate="no">
+                    {g.card_id}
+                  </span>
+                  <span className="flex items-center gap-1.5 shrink-0 tabular-nums" style={{ fontSize: "11px" }} aria-hidden="true">
+                    {g.normal > 0 && <span className="n-n400">×{g.normal}</span>}
+                    {g.foil > 0 && (
+                      <span className="n-brand inline-flex items-center gap-0.5">
+                        <Sparkle className="w-3 h-3" aria-hidden="true" />
+                        {g.foil}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              </button>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
       {/* Footer line */}
-      {cards.length > 0 && (
+      {!loading && cardsList.length > 0 && (
         <p className="text-xs n-n500">
-          {cards.length} card{cards.length !== 1 ? "s" : ""} · {groups.length} unique — sorted by number
+          {cards(cardsList.length)}, {groups.length.toLocaleString("en-US")} unique, sorted by card ID
         </p>
       )}
 
@@ -306,39 +378,35 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
         info={openCard && Object.hasOwn(infos, openCard) ? infos[openCard] : null}
         customs={collection.customs}
         languages={collection.languages}
-        onChangeLang={async (c, lang) => {
-          try {
-            await UpdateCard({ ...c, lang });
-            await refreshCards();
-          } catch (e) {
-            LogDebug(`[CollectionScreen] change language: ${e}`);
-          }
-        }}
+        onChangeLang={(c, lang) => editCopy("change the language", () => UpdateCard({ ...c, lang }))}
         onClose={() => setOpenCard(null)}
-        onToggleFoil={async (c) => {
-          try {
-            await UpdateCard({ ...c, foil: !c.foil });
-            await refreshCards();
-          } catch (e) {
-            LogDebug(`[CollectionScreen] toggle foil: ${e}`);
-          }
-        }}
-        onMove={async (rowId, customId) => {
-          try {
-            await MoveCardToCustom(rowId, customId);
-            await refreshCards();
-          } catch (e) {
-            LogDebug(`[CollectionScreen] move: ${e}`);
-          }
-        }}
-        onDelete={async (rowId) => {
-          try {
-            await DeleteCard(rowId);
-            await refreshCards();
-          } catch (e) {
-            LogDebug(`[CollectionScreen] delete: ${e}`);
-          }
-        }}
+        onToggleFoil={(c) => editCopy("change the finish", () => UpdateCard({ ...c, foil: !c.foil }))}
+        onMove={(rowId, customId) => editCopy("move the copy", () => MoveCardToCustom(rowId, customId))}
+        onDelete={(rowId) => editCopy("delete the copy", () => DeleteCard(rowId))}
+      />
+
+      <NameDialog
+        open={dialog === "new"}
+        onOpenChange={(o) => !o && setDialog(null)}
+        title="New custom collection"
+        submitLabel="Create"
+        onSubmit={createCollection}
+      />
+      <NameDialog
+        open={dialog === "rename"}
+        onOpenChange={(o) => !o && setDialog(null)}
+        title="Rename collection"
+        submitLabel="Rename"
+        initialValue={title}
+        onSubmit={renameCollection}
+      />
+      <ConfirmDialog
+        open={dialog === "delete"}
+        onOpenChange={(o) => !o && setDialog(null)}
+        title={`Delete “${title}”?`}
+        description="The collection goes away. Its cards stay in their games."
+        confirmLabel="Delete collection"
+        onConfirm={deleteCollection}
       />
     </div>
   );

@@ -4,7 +4,7 @@ import { stopStream } from "@/lib/utils";
 import type { CameraDevice } from "@/types";
 
 const CAMERA_ERROR =
-  "Error while accessing the camera. Please check permissions and try again.";
+  "Can't open the camera. Close any other app using it, check that camera access is allowed in your system settings, then try again.";
 
 export function useCamera() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -14,6 +14,9 @@ export function useCamera() {
   const [cameras, setCameras] = useState<CameraDevice[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string>("");
   const [cameraError, setCameraError] = useState<string>("");
+  // Bumped by every successful init so a retry restarts the stream even when
+  // the same camera stays selected (the <video> was unmounted by the error).
+  const [attempt, setAttempt] = useState(0);
 
   async function initCameras() {
     if (cameraInitRef.current) return;
@@ -39,8 +42,12 @@ export function useCamera() {
 
       LogInfo(`[Camera] Found ${videoDevices.length} device(s): ${videoDevices.map((d) => d.label).join(", ")}`);
       setCameras(videoDevices);
-      if (videoDevices.length > 0) setSelectedCamera(videoDevices[0].deviceId);
-      else setCameraError("No camera detected.");
+      if (videoDevices.length > 0) {
+        setSelectedCamera((prev) => (videoDevices.some((d) => d.deviceId === prev) ? prev : videoDevices[0].deviceId));
+        setAttempt((a) => a + 1);
+      } else {
+        setCameraError("No camera found. Plug one in, then try again.");
+      }
     } catch (e) {
       LogInfo(`[Camera] Error: ${e}`);
       setCameraError(CAMERA_ERROR);
@@ -78,7 +85,7 @@ export function useCamera() {
       aborted = true;
       stopStream(videoRef.current?.srcObject as MediaStream | null);
     };
-  }, [selectedCamera]);
+  }, [selectedCamera, attempt]);
 
   return { videoRef, canvasRef, cameras, selectedCamera, setSelectedCamera, cameraError, initCameras };
 }

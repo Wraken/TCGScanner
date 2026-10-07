@@ -41,6 +41,10 @@ function App() {
             games={collection.games}
             customs={collection.customs}
             covers={collection.gameCovers}
+            values={collection.gameValues}
+            prices={collection.prices}
+            onRefreshPrices={collection.refreshPrices}
+            onTogglePrices={collection.setPricesEnabled}
             onScan={() => setScreen("scan")}
             onOpenGame={openGame}
             onOpenCustom={openCustom}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Sparkle, Trash2 } from "lucide-react";
 import {
   Dialog,
@@ -16,13 +16,16 @@ import {
 } from "@/components/ui/select";
 import { CardImage } from "@/components/CardImage";
 import { formatDate } from "@/lib/utils";
-import type { CardInfo, CardLanguage, Collection, CollectionCard } from "@/types";
+import { formatEUR, formatGuideDate, sumValues } from "@/lib/prices";
+import type { CardInfo, CardLanguage, CardPrice, Collection, CollectionCard } from "@/types";
 
 interface Props {
   cardId: string | null;              // null = closed
   copies: CollectionCard[];           // copies of that card id
   image: string | null;
   info: CardInfo | null;
+  // Cardmarket price of the card; undefined = none.
+  price?: CardPrice;
   customs: Collection[];
   languages: CardLanguage[];
   onClose: () => void;
@@ -32,9 +35,27 @@ interface Props {
   onDelete: (rowId: number) => void;
 }
 
-export function CardCopiesDialog({
-  cardId, copies, image, info, customs, languages, onClose, onToggleFoil, onChangeLang, onMove, onDelete,
-}: Props) {
+// "Trend €8.33 · foil €35.36 · other languages €4.56": the columns the
+// card has, in that order.
+function priceLine(p: CardPrice): string {
+  const parts: string[] = [];
+  if (p.trend > 0) parts.push(`Trend ${formatEUR(p.trend)}`);
+  if (p.trend_foil > 0) parts.push(`${parts.length ? "foil" : "Foil"} ${formatEUR(p.trend_foil)}`);
+  if (p.trend_non_english > 0) parts.push(`other languages ${formatEUR(p.trend_non_english)}`);
+  else if (p.trend_non_english_foil > 0) parts.push(`other languages foil ${formatEUR(p.trend_non_english_foil)}`);
+  return parts.join(" · ");
+}
+
+export function CardCopiesDialog(props: Props) {
+  const { customs, languages, onClose, onToggleFoil, onChangeLang, onMove, onDelete } = props;
+  // While the dialog fades out, its card is already null upstream; keep
+  // showing the last card instead of "null · 0 copies" for the duration
+  // of the exit animation.
+  const shown = useRef<Pick<Props, "cardId" | "copies" | "image" | "info" | "price">>(props);
+  if (props.cardId !== null) shown.current = props;
+  const { cardId, copies, image, info, price } = shown.current;
+  const open = props.cardId !== null;
+
   // The copy whose delete is armed: the trash button turns into an explicit
   // "Delete copy" / "Keep" pair, since a deleted copy cannot be restored.
   const [arming, setArming] = useState<number | null>(null);
@@ -43,8 +64,13 @@ export function CardCopiesDialog({
   }, [cardId]);
 
   const subtitle = `${cardId} · ${copies.length} ${copies.length !== 1 ? "copies" : "copy"}`;
+  const owned = price && cardId ? sumValues(copies, { [cardId]: price }) : null;
+  const game = info?.game || copies[0]?.game || "";
+  const scope = game === "onepiece"
+    ? (price && (price.trend_non_english > 0 || price.trend_non_english_foil > 0) ? "English and other languages" : "English")
+    : "all languages";
   return (
-    <Dialog open={cardId !== null} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
         <DialogHeader>
           {info?.name ? (
@@ -73,6 +99,18 @@ export function CardCopiesDialog({
               {info.colors.map((c, i) => (
                 <span key={i} className="n-tag n-tag-accent">{c}</span>
               ))}
+            </div>
+          )}
+          {price && owned && (
+            <div className="flex flex-col gap-0.5 pt-2 tabular-nums">
+              <p className="m-0 text-sm">{priceLine(price)}</p>
+              <p className="m-0 text-sm n-n400">
+                {owned.priced === 0
+                  ? `Your ${copies.length === 1 ? "copy has" : "copies have"} no price for this finish`
+                  : `Your ${copies.length} ${copies.length === 1 ? "copy" : "copies"}: ${formatEUR(owned.value)}` +
+                    (owned.priced < owned.copies ? ` (${owned.priced} priced)` : "")}
+              </p>
+              <p className="m-0 text-xs n-n500">Cardmarket trend, {scope} · {formatGuideDate(price.as_of)}</p>
             </div>
           )}
         </DialogHeader>

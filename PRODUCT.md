@@ -49,7 +49,7 @@ Everything runs on the user's machine: no account, no server of ours, no upload.
 
 ## Product Principles
 
-1. Local first: nothing leaves the machine unless the user points it somewhere they own.
+1. Local first: nothing leaves the machine unless the user points it somewhere they own. One named exception: the daily download of Cardmarket's public price guides (a plain GET of four files, no account, no data sent, can be turned off on Home).
 2. Never fail silently: a wrong or failed action is always visible, and an uncertain identification asks instead of guessing.
 3. The card in hand is the source of truth: the user can always correct what the model says.
 4. Open and honest: only claim what the code and data support.

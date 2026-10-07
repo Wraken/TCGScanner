@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { Camera, ImageIcon, Pencil, Plus, Search, Sparkle, Trash2, Upload } from "lucide-react";
-import { GetCardImageByModel, GetCardInfo, GetCards, DeleteCard, MoveCardToCustom, UpdateCard } from "../../wailsjs/go/main/App";
+import { GetCardImageByModel, GetCardInfo, GetCardPrices, GetCards, DeleteCard, MoveCardToCustom, UpdateCard } from "../../wailsjs/go/main/App";
 import { LogDebug } from "../../wailsjs/runtime/runtime";
 import { gameLabel } from "@/lib/utils";
+import { copyValue, describeTotal, formatEUR, sumValues } from "@/lib/prices";
 import { CardImage } from "@/components/CardImage";
 import { CardCopiesDialog } from "@/components/CardCopiesDialog";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { NameDialog } from "@/components/NameDialog";
 import { errorText, useNotices } from "@/components/Notices";
 import { defaultFilter } from "@/hooks/useCollection";
-import type { CardFilter, CardInfo, CollectionCard } from "@/types";
+import type { CardFilter, CardInfo, CardPrice, CollectionCard } from "@/types";
 import type { useCollection } from "@/hooks/useCollection";
 
 interface Props {
@@ -36,6 +37,14 @@ function cards(n: number): string {
   return `${n.toLocaleString("en-US")} ${n === 1 ? "card" : "cards"}`;
 }
 
+// The one price a tile shows for a card: the foil price when every copy is
+// foil, else the normal one; on the non-English shelf when every copy is in
+// another language.
+function tilePrice(g: CardGroup, price: CardPrice | undefined): number | null {
+  const lang = g.copies.length > 0 && g.copies.every((c) => c.lang !== "en") ? g.copies[0].lang : "en";
+  return copyValue({ foil: g.normal === 0, lang }, price);
+}
+
 export function CollectionScreen({ collection, target, onChangeTarget, onScan }: Props) {
   const { notify } = useNotices();
   const [cardsList, setCards] = useState<CollectionCard[]>([]);
@@ -47,6 +56,24 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
   const [dialog, setDialog] = useState<"new" | "rename" | "delete" | null>(null);
   // Metadata of the card shown in the dialog; null = none in the bundle.
   const [infos, setInfos] = useState<Record<string, CardInfo | null>>({});
+  // Cardmarket prices of the cards in view, refetched when the guides change.
+  const [prices, setPrices] = useState<Record<string, CardPrice>>({});
+  useEffect(() => {
+    const ids = [...new Set(cardsList.map((c) => c.card_id))];
+    if (ids.length === 0) {
+      setPrices({});
+      return;
+    }
+    let cancelled = false;
+    GetCardPrices(ids)
+      .then((p) => { if (!cancelled) setPrices((p ?? {}) as Record<string, CardPrice>); })
+      .catch((e) => {
+        LogDebug(`[CollectionScreen] prices: ${e}`);
+        if (!cancelled) notify("error", `Couldn't load the prices: ${errorText(e)}`);
+      });
+    return () => { cancelled = true; };
+  }, [cardsList, collection.pricesVersion]);
+  const total = describeTotal(sumValues(cardsList, prices));
   useEffect(() => {
     if (!openCard || Object.hasOwn(infos, openCard)) return;
     let cancelled = false;
@@ -349,6 +376,10 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
                     {g.card_id}
                   </span>
                   <span className="flex items-center gap-1.5 shrink-0 tabular-nums" style={{ fontSize: "11px" }} aria-hidden="true">
+                    {(() => {
+                      const v = tilePrice(g, prices[g.card_id]);
+                      return v !== null && <span className="n-n400">{formatEUR(v)}</span>;
+                    })()}
                     {g.normal > 0 && <span className="n-n400">×{g.normal}</span>}
                     {g.foil > 0 && (
                       <span className="n-brand inline-flex items-center gap-0.5">
@@ -366,8 +397,9 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
 
       {/* Footer line */}
       {!loading && cardsList.length > 0 && (
-        <p className="text-xs n-n500">
+        <p className="text-xs n-n500 tabular-nums">
           {cards(cardsList.length)}, {groups.length.toLocaleString("en-US")} unique, sorted by card ID
+          {total && ` · ${total}`}
         </p>
       )}
 
@@ -376,6 +408,7 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
         copies={openGroup?.copies ?? []}
         image={openCard ? images[openCard] ?? null : null}
         info={openCard && Object.hasOwn(infos, openCard) ? infos[openCard] : null}
+        price={openCard ? prices[openCard] : undefined}
         customs={collection.customs}
         languages={collection.languages}
         onChangeLang={(c, lang) => editCopy("change the language", () => UpdateCard({ ...c, lang }))}

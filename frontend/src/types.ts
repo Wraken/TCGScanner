@@ -96,3 +96,39 @@ export interface CardInfo {
   type: string;
   colors: string[];
 }
+
+// Cardmarket prices (see prices.go). 0 = no such price. A One Piece card
+// carries, besides its English product, the same printing on Cardmarket's
+// non-English shelf, read for copies in another language.
+export interface CardPrice {
+  trend: number;
+  trend_foil: number;
+  trend_non_english: number;
+  trend_non_english_foil: number;
+  // The price guide's date, ISO ("2026-10-07").
+  as_of: string;
+}
+
+export interface GamePriceStatus {
+  as_of: string;
+  fetched_at: string;
+  error: string;
+}
+
+export interface PricesStatus {
+  enabled: boolean;
+  // A bundle ships the card -> product mapping; without it there are no prices.
+  available: boolean;
+  built_at: string;
+  refreshing: boolean;
+  // Some game has no guide on disk, or one older than three days.
+  stale: boolean;
+  games: Record<string, GamePriceStatus>;
+}
+
+// Worth of every copy of one game (keyed by game, "" = unknown-game bucket).
+export interface GameValue {
+  value: number;
+  priced: number;
+  copies: number;
+}

@@ -1,6 +1,7 @@
 import { Camera, FolderOpen, ImageIcon } from "lucide-react";
 import { gameLabel } from "@/lib/utils";
-import type { Collection, GameCollection } from "@/types";
+import { formatEUR, formatGuideDate } from "@/lib/prices";
+import type { Collection, GameCollection, GameValue, PricesStatus } from "@/types";
 import pokemonCover from "@/assets/games/pokemon.svg";
 import onepieceCover from "@/assets/games/onepiece.svg";
 import lorcanaCover from "@/assets/games/lorcana.svg";
@@ -20,6 +21,11 @@ interface Props {
   customs: Collection[];
   // Bundle cover art per game, cached app-wide by useCollection.
   covers: Record<string, string>;
+  // Cardmarket prices: per-game totals, and the facts behind the status line.
+  values: Record<string, GameValue>;
+  prices: PricesStatus | null;
+  onRefreshPrices: () => void;
+  onTogglePrices: (enabled: boolean) => void;
   onScan: () => void;
   onOpenGame: (game: string) => void;
   onOpenCustom: (id: number) => void;
@@ -33,15 +39,61 @@ function cards(n: number): string {
   return `${fmt(n)} ${n === 1 ? "card" : "cards"}`;
 }
 
-export function HomeScreen({ games, customs, covers, onScan, onOpenGame, onOpenCustom }: Props) {
+// The one quiet line about prices: off, fetching, missing or old, else the
+// guides' date. Refresh and the on/off switch live here, since there is no
+// settings screen yet.
+function PricesLine({ prices, onRefresh, onToggle }: { prices: PricesStatus; onRefresh: () => void; onToggle: (on: boolean) => void }) {
+  if (!prices.available) return <p className="text-xs n-n500 m-0">This model bundle has no price data.</p>;
+  const link = (label: string, onClick: () => void, disabled = false) => (
+    <button type="button" className="n-btn n-btn-link" onClick={onClick} disabled={disabled}>{label}</button>
+  );
+  if (!prices.enabled) {
+    return (
+      <p className="text-xs n-n500 m-0 flex items-center gap-1">
+        Prices off {link("Turn on", () => onToggle(true))}
+      </p>
+    );
+  }
+  const games = Object.entries(prices.games);
+  const missing = games.filter(([, g]) => !g.as_of).map(([game]) => gameLabel(game));
+  const failed = games.filter(([, g]) => g.error).map(([game]) => gameLabel(game));
+  const dates = games.map(([, g]) => g.as_of).filter(Boolean).sort();
+  let text: string;
+  if (prices.refreshing) text = "Fetching today's prices…";
+  else if (dates.length === 0) text = "No prices yet";
+  else if (missing.length > 0) text = `Prices from ${formatGuideDate(dates[0])} · none for ${missing.join(", ")}`;
+  else text = `${prices.stale ? "Prices from" : "Cardmarket prices from"} ${formatGuideDate(dates[0])}`;
+  if (failed.length > 0 && !prices.refreshing) text += ` · last refresh failed for ${failed.join(", ")}`;
+  return (
+    <p className="text-xs n-n500 m-0 flex items-center gap-1 flex-wrap" aria-live="polite">
+      {text}
+      {!prices.refreshing && link("Refresh", onRefresh)}
+      {link("Turn off", () => onToggle(false))}
+    </p>
+  );
+}
+
+export function HomeScreen({
+  games, customs, covers, values, prices, onRefreshPrices, onTogglePrices, onScan, onOpenGame, onOpenCustom,
+}: Props) {
   const totalCards = games.reduce((s, g) => s + g.card_count, 0);
   const trackedGames = games.filter((g) => g.game !== "").length;
+  const worth = Object.values(values).reduce(
+    (s, v) => ({ value: s.value + v.value, priced: s.priced + v.priced }),
+    { value: 0, priced: 0 }
+  );
 
   const stats = [
     { value: fmt(totalCards), label: "Cards" },
     { value: fmt(trackedGames), label: "Games tracked" },
     { value: fmt(customs.length), label: "Custom collections" },
   ];
+  if (worth.priced > 0) {
+    stats.push({
+      value: formatEUR(worth.value),
+      label: worth.priced === totalCards ? "Collection value" : `Value · ${fmt(worth.priced)} of ${fmt(totalCards)} priced`,
+    });
+  }
 
   return (
     <div className="h-full overflow-y-auto" style={{ padding: "36px 44px" }}>
@@ -70,6 +122,8 @@ export function HomeScreen({ games, customs, covers, onScan, onOpenGame, onOpenC
           ))}
         </dl>
 
+        {prices && <PricesLine prices={prices} onRefresh={onRefreshPrices} onToggle={onTogglePrices} />}
+
         <hr className="n-hr" />
 
         {/* Game tiles: as many columns as fit, so names never wrap at the
@@ -97,7 +151,12 @@ export function HomeScreen({ games, customs, covers, onScan, onOpenGame, onOpenC
               </div>
               <div style={{ padding: "14px 16px 16px" }} className="flex items-baseline justify-between gap-3">
                 <span className="text-base font-medium truncate min-w-0">{gameLabel(g.game)}</span>
-                <span className="text-xs n-n400 whitespace-nowrap tabular-nums">{cards(g.card_count)}</span>
+                <span className="flex flex-col items-end text-xs n-n400 whitespace-nowrap tabular-nums">
+                  <span>{cards(g.card_count)}</span>
+                  {(values[g.game]?.priced ?? 0) > 0 && (
+                    <span className="n-n500">{formatEUR(values[g.game].value)}</span>
+                  )}
+                </span>
               </div>
             </button>
             );

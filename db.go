@@ -25,6 +25,11 @@ const schemaV2 = `
 		model_name    TEXT    NOT NULL DEFAULT '',
 		scanned_at    DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
+	-- 2026-10-07: user settings, one row per key (prices_enabled, see prices.go).
+	CREATE TABLE IF NOT EXISTS settings (
+		key   TEXT PRIMARY KEY,
+		value TEXT NOT NULL
+	);
 `
 
 func openDB(path string) (*sql.DB, error) {

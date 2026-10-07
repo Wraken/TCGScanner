@@ -2,7 +2,7 @@
 
 An open-source desktop app to scan physical trading cards with a webcam, identify them with a local vision model, and keep a collection you can export to CSV (for instance for [riftbound.gg](https://riftbound.gg)).
 
-Built with [Wails](https://wails.io/) (Go + React/TypeScript) into a single native binary. Everything runs on your machine: no account, no server, no upload.
+Built with [Wails](https://wails.io/) (Go + React/TypeScript) into a single native binary. Everything runs on your machine: no account, no server, no upload. The one network call is the daily download of Cardmarket's public price guides, which you can turn off.
 
 Supported games today: **Riftbound**, **One Piece**, **Lorcana**, **Pokémon**.
 
@@ -10,6 +10,7 @@ Supported games today: **Riftbound**, **One Piece**, **Lorcana**, **Pokémon**.
 
 - **Live scanning** — a YOLO detector finds the card in the webcam frame, an embedding model turns the crop into a vector, and a nearest-neighbour search over the reference index names the card (≈5 scans/s).
 - **Confident lock** — the UI locks when the best match clears a score floor *and* leads the best different card by a margin, so look-alikes never lock silently.
+- **Prices** — Cardmarket trend prices per card (foil and non-foil, and per shelf for One Piece), the value of each collection and of the whole; the card → product table ships in the model bundle, the guides are fetched once a day.
 - **Variant choice** — when several printings share the same artwork (reprints, alt-art foils), the app shows them side by side and lets you pick the one in your hand.
 - **Card details** — name, set, number, rarity, type and colours from the bundled metadata.
 - **Collections** — one collection per game, plus custom collections you create; per copy: finish (normal / foil) and printed language.

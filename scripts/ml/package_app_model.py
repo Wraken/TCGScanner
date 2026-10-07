@@ -23,6 +23,9 @@ Copies models/tcg/ (scripts side) into the app's models/<name>/ directory:
   - metadata/<game>.json             : card id -> {name, set, set_name, number,
                                        rarity, type, colors}, copied from each
                                        fetcher's cards.json (core of the bundle)
+  - metadata/cardmarket.json         : card id -> Cardmarket product id, built by
+                                       scripts/fetch/cardmarket; the app prices
+                                       the collection with it (core of the bundle)
 
 Re-runnable: only missing/outdated images are converted, and files left over
 from a previous layout are removed. Use after every add_to_index.py run to
@@ -191,6 +194,30 @@ def fill_variant_fallbacks(labels: list[str], manifest: dict[str, str],
 STRING_FIELDS = ("name", "set", "set_name", "number", "rarity", "type")
 
 
+def is_pocket_id(label: str) -> bool:
+    """Pokémon TCG Pocket ids (A1-001, A2a-080, B1-019, P-A-001): mobile-only
+    cards, never priced, left out of the price coverage."""
+    head = label.split("-", 1)[0]
+    return label.startswith("P-A-") or (head[:1] in ("A", "B") and head[1:2].isdigit())
+
+
+def price_coverage(labels: list[str], manifest: dict[str, str],
+                   mapping: dict) -> dict[str, tuple[int, int]]:
+    """Per game: (index labels with a Cardmarket product, index labels)."""
+    cards = mapping.get("cards", {})
+    other = mapping.get("cards_non_english", {})
+    out: dict[str, list[int]] = {}
+    for label in labels:
+        game = manifest_game(manifest, label)
+        if game == "" or is_pocket_id(label):
+            continue
+        n = out.setdefault(game, [0, 0])
+        n[1] += 1
+        if label in cards or label in other:
+            n[0] += 1
+    return {g: (p, t) for g, (p, t) in out.items()}
+
+
 def metadata_problems(cards) -> list[str]:
     """cards.json shapes the app's Go unmarshalling would reject outright,
     dropping the WHOLE game file (e.g. "colors" sent as a string, not a list,
@@ -232,6 +259,11 @@ def main() -> None:
                              "pokemon=../fetch/pokemon/cards.json"],
                     help="card metadata per game (fetcher cards.json); missing files are skipped")
     ap.add_argument("--skip-metadata", action="store_true")
+    ap.add_argument("--cardmarket", default="../fetch/cardmarket/cardmarket.json",
+                    help="card id -> Cardmarket product mapping to ship (see scripts/fetch/cardmarket)")
+    ap.add_argument("--allow-price-regression", action="store_true",
+                    help="ship a cardmarket.json that prices fewer index labels of some game than the "
+                         "bundle's current one (otherwise the build stops)")
     ap.add_argument("--dest", default="../../models/tcg", help="app model dir")
     ap.add_argument("--score-floor", type=float, default=0.4,
                     help="min top-1 cosine to lock (rejects noise)")
@@ -390,6 +422,31 @@ def main() -> None:
         for game, missing in metadata_coverage(labels, manifest, metadata).items():
             print(f"  WARNING: {game}: {len(missing)} index labels without metadata "
                   f"(e.g. {missing[:5]})")
+
+        # 6. Cardmarket mapping — one file for every game, next to the
+        #    metadata. Coverage is reported per game against the index
+        #    labels, and a game that would lose coverage against the bundle's
+        #    current file stops the build: a broken upstream must not ship
+        #    quietly as "no prices".
+        cm_src = Path(args.cardmarket)
+        cm_dest = meta_dest / "cardmarket.json"
+        if not cm_src.exists():
+            print(f"  cardmarket: {cm_src} not found, skipped (the app will show no prices)")
+        else:
+            new = price_coverage(labels, manifest, json.loads(cm_src.read_text(encoding="utf-8")))
+            old = (price_coverage(labels, manifest, json.loads(cm_dest.read_text(encoding="utf-8")))
+                   if cm_dest.exists() else {})
+            regressed = []
+            for game, (priced, total) in sorted(new.items()):
+                was = old.get(game, (0, total))[0]
+                note = f" (was {was})" if old and was != priced else ""
+                print(f"  cardmarket: {game}: {priced}/{total} index labels priced{note}")
+                if priced < was:
+                    regressed.append(f"{game} {was} -> {priced}")
+            if regressed and not args.allow_price_regression:
+                ap.error("cardmarket.json prices fewer labels than the shipped one: "
+                         + "; ".join(regressed) + " (pass --allow-price-regression to ship anyway)")
+            shutil.copyfile(cm_src, cm_dest)
 
     print("done.")
 

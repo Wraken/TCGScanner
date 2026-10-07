@@ -31,6 +31,17 @@ type App struct {
 	// defaultLanguage. Bound methods run concurrently: guard with the mutex.
 	scanLangMu sync.Mutex
 	scanLang   string
+
+	// Cardmarket prices (prices.go). One refresh at a time; the flag is
+	// what GetPricesStatus reports while one runs.
+	pricesMu         sync.Mutex
+	pricesRefreshing atomic.Bool
+	// Test seams: where the guides are cached (default ./prices), where the
+	// mapping is looked for (default every bundle's metadata dir) and the
+	// guide URL per Cardmarket game id (default Cardmarket's S3).
+	pricesDir          string
+	priceMappingDirsFn func() []string
+	priceGuideURLFn    func(gameID int) string
 }
 
 func NewApp() *App {
@@ -77,6 +88,10 @@ func (a *App) startup(ctx context.Context) {
 	} else if n > 0 {
 		fmt.Printf("game backfill: %d copies resolved\n", n)
 	}
+
+	// Price guides older than a day are fetched in the background; the UI
+	// shows what is on disk meanwhile and reloads on the prices:updated event.
+	go a.autoRefreshPrices()
 }
 
 func (a *App) ListModels() ([]string, error) {

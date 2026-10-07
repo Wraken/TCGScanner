@@ -33,3 +33,6 @@ scripts/fetch/cardmarket/report*.txt
 
 # Cardmarket mapper: CardTrader previews downloaded by visual_tiebreak.py
 scripts/fetch/cardmarket/cache/previews/
+
+# Cardmarket price guides cached by the app next to collection.db (prices.go)
+prices/

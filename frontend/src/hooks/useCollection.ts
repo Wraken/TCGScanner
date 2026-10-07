@@ -6,17 +6,23 @@ import {
   GetCustomCollections,
   GetGameCollections,
   GetGameCover,
+  GetGameValues,
+  GetPricesStatus,
   GetScanLang,
   ListExportPresets,
   ListLanguages,
   NewCustomCollection,
+  RefreshPrices,
   RenameCollection,
   SetActiveCustom,
+  SetPricesEnabled,
   SetScanLang,
 } from "../../wailsjs/go/main/App";
-import { LogDebug } from "../../wailsjs/runtime/runtime";
+import { EventsOn, LogDebug } from "../../wailsjs/runtime/runtime";
 import { errorText, useNotices } from "@/components/Notices";
-import type { CardFilter, CardLanguage, Collection, ExportConfig, ExportPreset, GameCollection } from "@/types";
+import type {
+  CardFilter, CardLanguage, Collection, ExportConfig, ExportPreset, GameCollection, GameValue, PricesStatus,
+} from "@/types";
 
 // The view to open when nothing else says which: the first game holding
 // cards, else the first known game, else the unknown-game bucket.
@@ -45,6 +51,22 @@ export function useCollection() {
   // retried on every refresh: dropping a _cover file while the app runs makes
   // it appear after the next scan/refresh.
   const [gameCovers, setGameCovers] = useState<Record<string, string>>({});
+  // Cardmarket prices: what the status line says, and the per-game totals
+  // Home shows. null until the first load. pricesVersion ticks on every
+  // reload so a screen holding per-card prices refetches them.
+  const [prices, setPrices] = useState<PricesStatus | null>(null);
+  const [gameValues, setGameValues] = useState<Record<string, GameValue>>({});
+  const [pricesVersion, setPricesVersion] = useState(0);
+
+  // The backend refreshes the guides in the background (on start, and when
+  // prices are turned on) and says so; the prices then appear without a
+  // restart.
+  useEffect(() => {
+    const off = EventsOn("prices:updated", () => {
+      loadPrices();
+    });
+    return off;
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,6 +103,44 @@ export function useCollection() {
     } catch (e) {
       LogDebug(`[Collections] refresh error: ${e}`);
       notify("error", `Couldn't load your collections: ${errorText(e)}`);
+    }
+    await loadPrices();
+  }
+
+  async function loadPrices() {
+    try {
+      const [s, v] = await Promise.all([GetPricesStatus(), GetGameValues()]);
+      setPrices(s as PricesStatus);
+      setGameValues((v ?? {}) as Record<string, GameValue>);
+      setPricesVersion((n) => n + 1);
+    } catch (e) {
+      LogDebug(`[Prices] load error: ${e}`);
+      notify("error", `Couldn't load the prices: ${errorText(e)}`);
+    }
+  }
+
+  // Fetches today's guides now; resolves once they are on disk (or failed).
+  async function refreshPrices(): Promise<boolean> {
+    setPrices((p) => (p ? { ...p, refreshing: true } : p));
+    let ok = true;
+    try {
+      await RefreshPrices();
+    } catch (e) {
+      ok = false;
+      LogDebug(`[Prices] refresh error: ${e}`);
+      notify("error", `Couldn't refresh the prices: ${errorText(e)}`);
+    }
+    await loadPrices();
+    return ok;
+  }
+
+  async function setPricesEnabled(enabled: boolean) {
+    try {
+      await SetPricesEnabled(enabled);
+      await loadPrices();
+    } catch (e) {
+      LogDebug(`[Prices] enable error: ${e}`);
+      notify("error", `Couldn't turn the prices ${enabled ? "on" : "off"}: ${errorText(e)}`);
     }
   }
 
@@ -184,5 +244,10 @@ export function useCollection() {
     closeExport,
     exportPresets,
     confirmExport,
+    prices,
+    gameValues,
+    pricesVersion,
+    refreshPrices,
+    setPricesEnabled,
   };
 }

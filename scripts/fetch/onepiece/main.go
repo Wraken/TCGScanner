@@ -63,6 +63,24 @@ type meta struct {
 	Rarity  string   `json:"rarity"`
 	Type    string   `json:"type"`
 	Colors  []string `json:"colors"`
+	// Pack is the product this printing comes from, as punk-records labels
+	// it ("OP-01", "ST-34", "PRB-02", the combined "OP14-EB04", "PROMO" for
+	// the promo bucket; "" for the other-product bucket). A reprint
+	// ("_r1") or a parallel ("_p1") is told from the base card by its
+	// pack: the Cardmarket mapper narrows its candidates to that pack's
+	// CardTrader expansion. The app's packager does not copy this field.
+	Pack string `json:"pack,omitempty"`
+}
+
+// packLabel names the product of a pack for meta.Pack.
+func packLabel(p pack) string {
+	if p.TitleParts != nil && p.TitleParts.Label != "" {
+		return p.TitleParts.Label
+	}
+	if p.RawTitle == "Promotion card" {
+		return "PROMO"
+	}
+	return ""
 }
 
 var client = &http.Client{Timeout: 120 * time.Second}
@@ -253,7 +271,7 @@ func main() {
 		}
 		cards[id] = meta{
 			Name: html.UnescapeString(c.Name), Set: set, SetName: setName, Number: number,
-			Rarity: c.Rarity, Type: c.Category, Colors: colors,
+			Rarity: c.Rarity, Type: c.Category, Colors: colors, Pack: packLabel(packs[c.PackID]),
 		}
 	}
 

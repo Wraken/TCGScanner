@@ -35,6 +35,8 @@ interface Props {
   onChangeLang: (copy: CollectionCard, code: string) => void;
   onMove: (rowId: number, customId: number) => void;
   onDelete: (rowId: number) => void;
+  // Opens the price reference dialog for this card id.
+  onSetReference?: () => void;
 }
 
 // "Trend €8.33 · foil €35.36 · other languages €4.56": the columns the
@@ -116,10 +118,21 @@ export function CardCopiesDialog(props: Props) {
               <p className="m-0 text-xs n-n500">Cardmarket trend, {scope} · {formatGuideDate(price.as_of)}</p>
             </div>
           )}
+          {price?.ref && props.onSetReference && (
+            <p className="m-0 text-xs n-n500 pt-1">
+              Priced on your Cardmarket reference.{" "}
+              <button type="button" className="underline" onClick={props.onSetReference}>Change</button>
+            </p>
+          )}
           {props.pricesAvailable && refState !== "priced" && (
             <p className="m-0 text-sm pt-2 inline-flex items-center gap-1.5" style={{ color: refState === "unset" ? "var(--n-warn)" : "var(--n-neutral-500)" }}>
               <TriangleAlert className="w-4 h-4" aria-hidden="true" />
               {refState === "unset" ? "No Cardmarket reference, set it by hand." : "Not on Cardmarket."}
+              {refState === "unset" && props.onSetReference && (
+                <button type="button" className="n-btn n-btn-secondary" style={{ padding: "2px 10px" }} onClick={props.onSetReference}>
+                  Set reference
+                </button>
+              )}
             </p>
           )}
         </DialogHeader>

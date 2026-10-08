@@ -8,6 +8,7 @@ import { CardImage } from "@/components/CardImage";
 import { CardCopiesDialog } from "@/components/CardCopiesDialog";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { NameDialog } from "@/components/NameDialog";
+import { PriceReferenceDialog } from "@/components/PriceReferenceDialog";
 import { errorText, useNotices } from "@/components/Notices";
 import { defaultFilter } from "@/hooks/useCollection";
 import type { CardFilter, CardInfo, CardPrice, CollectionCard } from "@/types";
@@ -53,6 +54,8 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
   const [search, setSearch] = useState("");
   const [foilFilter, setFoilFilter] = useState<FoilFilter>("all");
   const [openCard, setOpenCard] = useState<string | null>(null);
+  // Card id whose Cardmarket reference is being chosen; null = closed.
+  const [refCard, setRefCard] = useState<string | null>(null);
   const [dialog, setDialog] = useState<"new" | "rename" | "delete" | null>(null);
   // Metadata of the card shown in the dialog; null = none in the bundle.
   const [infos, setInfos] = useState<Record<string, CardInfo | null>>({});
@@ -427,6 +430,14 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
         onToggleFoil={(c) => editCopy("change the finish", () => UpdateCard({ ...c, foil: !c.foil }))}
         onMove={(rowId, customId) => editCopy("move the copy", () => MoveCardToCustom(rowId, customId))}
         onDelete={(rowId) => editCopy("delete the copy", () => DeleteCard(rowId))}
+        onSetReference={() => { if (openCard) setRefCard(openCard); }}
+      />
+
+      <PriceReferenceDialog
+        cardId={refCard}
+        image={refCard ? images[refCard] ?? null : null}
+        info={refCard && Object.hasOwn(infos, refCard) ? infos[refCard] : null}
+        onClose={() => setRefCard(null)}
       />
 
       <NameDialog

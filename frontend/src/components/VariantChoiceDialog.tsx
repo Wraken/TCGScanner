@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { GetCardImage, GetCardInfo } from "../../wailsjs/go/main/App";
+import { GetCardImage, GetCardInfo, GetCardPrices, GetPriceRefs } from "../../wailsjs/go/main/App";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CardImage } from "@/components/CardImage";
-import type { Candidate, CardInfo } from "@/types";
+import { copyValue, formatEUR } from "@/lib/prices";
+import type { Candidate, CardInfo, CardPrice, PriceRef } from "@/types";
 
 interface Props {
   candidates: Candidate[] | null; // null = closed
@@ -26,6 +27,8 @@ export function VariantChoiceDialog({ candidates, preselected, onPick, onDismiss
   // batch reopens on the same printings.
   const [images, setImages] = useState<Record<string, string>>({});
   const [infos, setInfos] = useState<Record<string, CardInfo | null>>({});
+  const [refs, setRefs] = useState<Record<string, PriceRef>>({});
+  const [prices, setPrices] = useState<Record<string, CardPrice>>({});
   const preselectedRef = useRef<HTMLButtonElement | null>(null);
   const open = candidates !== null;
 
@@ -47,6 +50,18 @@ export function VariantChoiceDialog({ candidates, preselected, onPick, onDismiss
     return () => { cancelled = true; };
   }, [candidates]);
 
+  useEffect(() => {
+    if (!candidates) return;
+    let cancelled = false;
+    const ids = candidates.map((c) => c.card_id);
+    Promise.all([GetPriceRefs().catch(() => ({})), GetCardPrices(ids).catch(() => ({}))]).then(([r, p]) => {
+      if (cancelled) return;
+      setRefs((r ?? {}) as Record<string, PriceRef>);
+      setPrices((p ?? {}) as Record<string, CardPrice>);
+    });
+    return () => { cancelled = true; };
+  }, [candidates]);
+
   const columns = Math.min(candidates?.length ?? 1, 3);
 
   return (
@@ -61,7 +76,7 @@ export function VariantChoiceDialog({ candidates, preselected, onPick, onDismiss
         <DialogHeader>
           <DialogTitle>Which printing is it?</DialogTitle>
           <DialogDescription>
-            These printings share the same artwork. Check the number printed at the bottom of your card.
+            These printings share the same artwork. Check the number printed at the bottom of your card, and the Cardmarket printing you chose for each.
           </DialogDescription>
         </DialogHeader>
         <div
@@ -97,6 +112,22 @@ export function VariantChoiceDialog({ candidates, preselected, onPick, onDismiss
                     {info.rarity && <span className="n-tag n-tag-neutral">{info.rarity}</span>}
                   </div>
                 )}
+                {(() => {
+                  const ref = refs[c.card_id];
+                  const price = prices[c.card_id];
+                  if (ref) {
+                    const v = copyValue({ foil: false, lang: "en" }, price);
+                    return (
+                      <span className="text-xs n-n400">
+                        {ref.label}{v !== null ? ` · ${formatEUR(v)}` : ""}
+                      </span>
+                    );
+                  }
+                  if (price && price.candidates > 0) {
+                    return <span className="text-xs" style={{ color: "var(--n-warn)" }}>Price reference not set</span>;
+                  }
+                  return null;
+                })()}
               </button>
             );
           })}

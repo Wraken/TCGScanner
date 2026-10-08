@@ -30,6 +30,15 @@ const schemaV2 = `
 		key   TEXT PRIMARY KEY,
 		value TEXT NOT NULL
 	);
+	-- 2026-10-08: the owner's Cardmarket product per card id, for the ids the
+	-- mapper ships candidates for (price_refs.go, the price reference selector).
+	CREATE TABLE IF NOT EXISTS price_refs (
+		card_id     TEXT PRIMARY KEY,
+		product     INTEGER NOT NULL,
+		non_english INTEGER NOT NULL DEFAULT 0,
+		label       TEXT NOT NULL DEFAULT '',
+		chosen_at   TEXT NOT NULL
+	);
 `
 
 func openDB(path string) (*sql.DB, error) {

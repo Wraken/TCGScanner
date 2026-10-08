@@ -433,3 +433,40 @@ func TestPriceReferenceBindings(t *testing.T) {
 		t.Errorf("a settled id has no candidates: %v, %v", views, err)
 	}
 }
+
+func TestGetPriceCandidateImage(t *testing.T) {
+	var hits int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&hits, 1)
+		if r.Header.Get("User-Agent") == "" {
+			t.Error("no User-Agent")
+		}
+		if strings.HasSuffix(r.URL.Path, "missing.jpg") {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "image/jpeg")
+		w.Write([]byte(strings.Repeat("J", 2000)))
+	}))
+	defer srv.Close()
+	app, _ := pricesApp(t, testMappingWithCandidates)
+	app.priceImageAllowFn = func(u string) bool { return strings.HasPrefix(u, srv.URL) }
+
+	got, err := app.GetPriceCandidateImage(srv.URL + "/uploads/blueprints/image/1/f.jpg")
+	if err != nil || !strings.HasPrefix(got, "data:image/jpeg;base64,") {
+		t.Fatalf("first fetch: %q, %v", got[:min(len(got), 40)], err)
+	}
+	again, _ := app.GetPriceCandidateImage(srv.URL + "/uploads/blueprints/image/1/f.jpg")
+	if again != got || atomic.LoadInt32(&hits) != 1 {
+		t.Errorf("second call must come from the cache (hits %d)", hits)
+	}
+	if got, err := app.GetPriceCandidateImage(srv.URL + "/uploads/blueprints/image/1/missing.jpg"); got != "" || err != nil {
+		t.Errorf("a missing image is empty and no error: %q, %v", got, err)
+	}
+	if _, err := app.GetPriceCandidateImage("https://example.com/x.jpg"); err == nil {
+		t.Error("a URL outside CardTrader was accepted")
+	}
+	if _, err := os.Stat(filepath.Join(app.pricesDirPath(), "images")); err != nil {
+		t.Errorf("cache dir: %v", err)
+	}
+}

@@ -1,7 +1,10 @@
 package main
 
 import (
+	"crypto/sha1"
 	"database/sql"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -708,4 +712,53 @@ func (a *App) GetPriceRefs() (map[string]PriceRef, error) {
 		return map[string]PriceRef{}, nil
 	}
 	return getPriceRefs(a.db)
+}
+
+const (
+	priceImageAllowedPrefix = "https://cardtrader.com/uploads/"
+	priceImageMaxBytes      = 4 << 20
+)
+
+func (a *App) priceImageAllowed(url string) bool {
+	if a.priceImageAllowFn != nil {
+		return a.priceImageAllowFn(url)
+	}
+	return strings.HasPrefix(url, priceImageAllowedPrefix)
+}
+
+// GetPriceCandidateImage returns a candidate's CardTrader scan as a data
+// URL for the price reference selector. Fetched once (an explicit
+// User-Agent, one request per call) and cached under ./prices/images/ by
+// the URL's hash; "" when the fetch fails, so the dialog shows "no image".
+// Only CardTrader's upload URLs are accepted.
+func (a *App) GetPriceCandidateImage(url string) (string, error) {
+	if !a.priceImageAllowed(url) {
+		return "", fmt.Errorf("not a CardTrader image URL")
+	}
+	sum := sha1.Sum([]byte(url))
+	path := filepath.Join(a.pricesDirPath(), "images", hex.EncodeToString(sum[:])+".jpg")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		req, err := http.NewRequest(http.MethodGet, url, nil)
+		if err != nil {
+			return "", nil
+		}
+		req.Header.Set("User-Agent", "TCGScanner desktop app (price reference images)")
+		resp, err := priceHTTPClient.Do(req)
+		if err != nil {
+			return "", nil
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return "", nil
+		}
+		data, err = io.ReadAll(io.LimitReader(resp.Body, priceImageMaxBytes))
+		if err != nil || len(data) < 1000 {
+			return "", nil
+		}
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err == nil {
+			_ = writeFileAtomic(path, data)
+		}
+	}
+	return "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(data), nil
 }

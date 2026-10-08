@@ -42,6 +42,7 @@ type App struct {
 	pricesDir          string
 	priceMappingDirsFn func() []string
 	priceGuideURLFn    func(gameID int) string
+	priceImageAllowFn  func(url string) bool // tests: which image URLs may be fetched
 }
 
 func NewApp() *App {

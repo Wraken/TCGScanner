@@ -50,11 +50,22 @@ const (
 
 // priceMapping is scripts/fetch/cardmarket/cardmarket.json.
 type priceMapping struct {
-	Version         int            `json:"version"`
-	BuiltAt         string         `json:"built_at"`
-	Games           map[string]int `json:"games"` // our game name -> Cardmarket game id
-	Cards           map[string]int `json:"cards"`
-	CardsNonEnglish map[string]int `json:"cards_non_english"`
+	Version         int                         `json:"version"`
+	BuiltAt         string                      `json:"built_at"`
+	Games           map[string]int              `json:"games"` // our game name -> Cardmarket game id
+	Cards           map[string]int              `json:"cards"`
+	CardsNonEnglish map[string]int              `json:"cards_non_english"`
+	Candidates      map[string][]PriceCandidate `json:"candidates"`
+}
+
+// PriceCandidate is one selectable printing of a card the mapper could not
+// settle: the product the app would price on, its non-English twin, a
+// label and CardTrader's scan. Shipped in cardmarket.json under "candidates".
+type PriceCandidate struct {
+	Product    int    `json:"product"`
+	NonEnglish int    `json:"non_english"`
+	Label      string `json:"label"`
+	Image      string `json:"image"`
 }
 
 // priceRow is one product of a Cardmarket price guide. The guide has more
@@ -113,6 +124,11 @@ type CardPrice struct {
 	TrendNonEnglish     float64 `json:"trend_non_english"`
 	TrendNonEnglishFoil float64 `json:"trend_non_english_foil"`
 	AsOf                string  `json:"as_of"` // the guide's date, ISO
+	// Ref: priced through the owner's reference (price_refs), not the bundle.
+	Ref bool `json:"ref"`
+	// Candidates: printings the owner can choose from in the price reference
+	// selector; 0 when the bundle settled the id or has nothing for it.
+	Candidates int `json:"candidates"`
 }
 
 type GamePriceStatus struct {
@@ -233,6 +249,9 @@ func parsePriceMapping(data []byte) (*priceMapping, error) {
 	if m.Games == nil {
 		m.Games = map[string]int{}
 	}
+	if m.Candidates == nil {
+		m.Candidates = map[string][]PriceCandidate{}
+	}
 	return m, nil
 }
 
@@ -337,14 +356,33 @@ func (a *App) priceOf(m *priceMapping, product int) (priceRow, string, bool) {
 	return priceRow{}, "", false
 }
 
-func (a *App) cardPrice(m *priceMapping, cardID string) (CardPrice, bool) {
-	var p CardPrice
+func (a *App) priceRefs() map[string]PriceRef {
+	if a.db == nil {
+		return map[string]PriceRef{}
+	}
+	refs, err := getPriceRefs(a.db)
+	if err != nil {
+		return map[string]PriceRef{}
+	}
+	return refs
+}
+
+// cardPrice prices one card id: the owner's reference when there is one,
+// else the bundle's product and non-English twin. An id without a price
+// but with candidates is reported (Candidates > 0, every column 0) so the
+// UI can offer the selector; an id with neither is absent.
+func (a *App) cardPrice(m *priceMapping, refs map[string]PriceRef, cardID string) (CardPrice, bool) {
+	p := CardPrice{Candidates: len(m.Candidates[cardID])}
+	product, twin := m.Cards[cardID], m.CardsNonEnglish[cardID]
+	if r, ok := refs[cardID]; ok {
+		product, twin, p.Ref = r.Product, r.NonEnglish, true
+	}
 	found := false
-	if r, asOf, ok := a.priceOf(m, m.Cards[cardID]); ok {
+	if r, asOf, ok := a.priceOf(m, product); ok {
 		p.Trend, p.TrendFoil, p.AsOf = r.Trend, r.TrendFoil, asOf
 		found = true
 	}
-	if r, asOf, ok := a.priceOf(m, m.CardsNonEnglish[cardID]); ok {
+	if r, asOf, ok := a.priceOf(m, twin); ok {
 		p.TrendNonEnglish, p.TrendNonEnglishFoil = r.Trend, r.TrendFoil
 		if p.AsOf == "" {
 			p.AsOf = asOf
@@ -352,6 +390,9 @@ func (a *App) cardPrice(m *priceMapping, cardID string) (CardPrice, bool) {
 		found = true
 	}
 	if !found || (p.Trend == 0 && p.TrendFoil == 0 && p.TrendNonEnglish == 0 && p.TrendNonEnglishFoil == 0) {
+		if p.Candidates > 0 {
+			return CardPrice{Ref: p.Ref, Candidates: p.Candidates}, true
+		}
 		return CardPrice{}, false
 	}
 	return p, true
@@ -397,8 +438,9 @@ func (a *App) GetCardPrices(cardIDs []string) (map[string]CardPrice, error) {
 	if m == nil {
 		return out, nil
 	}
+	refs := a.priceRefs()
 	for _, id := range cardIDs {
-		if p, ok := a.cardPrice(m, id); ok {
+		if p, ok := a.cardPrice(m, refs, id); ok {
 			out[id] = p
 		}
 	}
@@ -461,6 +503,7 @@ func (a *App) GetGameValues() (map[string]GameValue, error) {
 		return nil, fmt.Errorf("database not initialized")
 	}
 	out := map[string]GameValue{}
+	refs := a.priceRefs() // before the rows cursor below holds the connection
 	rows, err := a.db.Query(`SELECT card_id, game, foil, lang FROM cards`)
 	if err != nil {
 		return nil, err
@@ -480,7 +523,7 @@ func (a *App) GetGameValues() (map[string]GameValue, error) {
 		if m != nil {
 			p, ok := prices[c.CardID]
 			if !ok {
-				p, _ = a.cardPrice(m, c.CardID)
+				p, _ = a.cardPrice(m, refs, c.CardID)
 				prices[c.CardID] = p
 			}
 			if v, ok := copyValue(c, p); ok {

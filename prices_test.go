@@ -333,3 +333,63 @@ func TestSettings(t *testing.T) {
 func itoa(i int) string {
 	return strconv.Itoa(i)
 }
+
+// testMappingWithCandidates adds an ambiguous One Piece card with two printings.
+const testMappingWithCandidates = `{
+ "version": 1, "built_at": "2026-10-08",
+ "games": {"onepiece": 18},
+ "cards": {"OP05-119": 2001},
+ "cards_non_english": {"OP05-119": 2002},
+ "candidates": {"OP01-006_p4": [
+   {"product": 3001, "non_english": 3002, "label": "Full Art (OP01-006f) · PRB-01: The Best", "image": "https://cardtrader.com/uploads/blueprints/image/1/f.jpg"},
+   {"product": 3003, "non_english": 0, "label": "Jolly Roger Foil (OP01-006j) · PRB-01: The Best", "image": ""}
+ ]}
+}`
+
+func TestCardPriceReferenceOutranksTheBundle(t *testing.T) {
+	app, _ := pricesApp(t, testMappingWithCandidates)
+	writeGuide(t, app, "onepiece", testGuide("2026-10-08T02:00:00+0200",
+		priceRow{IDProduct: 2001, Trend: 8.33}, priceRow{IDProduct: 2005, Trend: 1.11},
+		priceRow{IDProduct: 3001, Trend: 3.2, TrendFoil: 3.5}, priceRow{IDProduct: 3002, Trend: 2.0},
+		priceRow{IDProduct: 3003, Trend: 15.2},
+	))
+	got, err := app.GetCardPrices([]string{"OP05-119", "OP01-006_p4"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// No reference yet: the ambiguous id is reported with its candidate count and no price.
+	if p := got["OP01-006_p4"]; p.Trend != 0 || p.Candidates != 2 || p.Ref {
+		t.Errorf("unset reference: %+v", p)
+	}
+	if err := setPriceRef(app.db, PriceRef{CardID: "OP01-006_p4", Product: 3001, NonEnglish: 3002, Label: "Full Art"}); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = app.GetCardPrices([]string{"OP05-119", "OP01-006_p4"})
+	want := CardPrice{Trend: 3.2, TrendFoil: 3.5, TrendNonEnglish: 2.0, AsOf: "2026-10-08", Ref: true, Candidates: 2}
+	if got["OP01-006_p4"] != want {
+		t.Errorf("with a reference: %+v, want %+v", got["OP01-006_p4"], want)
+	}
+	// A reference outranks the bundle for a mapped id too.
+	if err := setPriceRef(app.db, PriceRef{CardID: "OP05-119", Product: 2005}); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = app.GetCardPrices([]string{"OP05-119"})
+	if p := got["OP05-119"]; p.Trend != 1.11 || !p.Ref || p.TrendNonEnglish != 0 {
+		t.Errorf("reference over bundle: %+v", p)
+	}
+	// A reference to a product the day's guide lacks is unpriced, not wrong.
+	if err := setPriceRef(app.db, PriceRef{CardID: "OP01-006_p4", Product: 4444}); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = app.GetCardPrices([]string{"OP01-006_p4"})
+	if p := got["OP01-006_p4"]; p.Trend != 0 || !p.Ref || p.Candidates != 2 {
+		t.Errorf("stale reference: %+v", p)
+	}
+}
+
+func TestParsePriceMappingWithoutCandidates(t *testing.T) {
+	m, err := parsePriceMapping([]byte(testMapping))
+	if err != nil || m.Candidates == nil || len(m.Candidates) != 0 {
+		t.Errorf("an older file must read as no candidates: %v, %v", m.Candidates, err)
+	}
+}

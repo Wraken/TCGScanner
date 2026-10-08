@@ -393,3 +393,43 @@ func TestParsePriceMappingWithoutCandidates(t *testing.T) {
 		t.Errorf("an older file must read as no candidates: %v, %v", m.Candidates, err)
 	}
 }
+
+func TestPriceReferenceBindings(t *testing.T) {
+	app, _ := pricesApp(t, testMappingWithCandidates)
+	writeGuide(t, app, "onepiece", testGuide("2026-10-08T02:00:00+0200",
+		priceRow{IDProduct: 3001, Trend: 3.2, TrendFoil: 3.5}, priceRow{IDProduct: 3002, Trend: 2.0}, priceRow{IDProduct: 3003, Trend: 15.2},
+	))
+	views, err := app.GetPriceCandidates("OP01-006_p4")
+	if err != nil || len(views) != 2 {
+		t.Fatalf("candidates: %v, %v", views, err)
+	}
+	if views[0].Label != "Full Art (OP01-006f) · PRB-01: The Best" || views[0].Price.Trend != 3.2 || views[0].Price.TrendNonEnglish != 2.0 || views[0].Chosen {
+		t.Errorf("first view: %+v", views[0])
+	}
+	if views[1].Price.Trend != 15.2 || views[1].Image != "" {
+		t.Errorf("second view: %+v", views[1])
+	}
+	if err := app.SetPriceRef("OP01-006_p4", 4444); err == nil {
+		t.Error("a product outside the candidates was accepted")
+	}
+	if err := app.SetPriceRef("OP01-006_p4", 3003); err != nil {
+		t.Fatal(err)
+	}
+	refs, _ := app.GetPriceRefs()
+	if r := refs["OP01-006_p4"]; r.Product != 3003 || r.Label != "Jolly Roger Foil (OP01-006j) · PRB-01: The Best" || r.NonEnglish != 0 {
+		t.Errorf("stored reference: %+v", r)
+	}
+	views, _ = app.GetPriceCandidates("OP01-006_p4")
+	if views[0].Chosen || !views[1].Chosen {
+		t.Errorf("chosen marks: %v %v", views[0].Chosen, views[1].Chosen)
+	}
+	if err := app.ClearPriceRef("OP01-006_p4"); err != nil {
+		t.Fatal(err)
+	}
+	if refs, _ := app.GetPriceRefs(); len(refs) != 0 {
+		t.Errorf("after clear: %v", refs)
+	}
+	if views, err := app.GetPriceCandidates("OP05-119"); err != nil || len(views) != 0 {
+		t.Errorf("a settled id has no candidates: %v, %v", views, err)
+	}
+}

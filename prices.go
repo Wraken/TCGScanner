@@ -636,3 +636,76 @@ func (a *App) fetchPriceGuide(url, path string, gs *gamePriceState) error {
 	gs.FetchedAt = time.Now().UTC().Format(time.RFC3339)
 	return nil
 }
+
+// PriceCandidateView is a candidate as the selector shows it: with today's
+// price of its products and whether it is the owner's current choice.
+type PriceCandidateView struct {
+	PriceCandidate
+	Price  CardPrice `json:"price"`
+	Chosen bool      `json:"chosen"`
+}
+
+// GetPriceCandidates lists the printings the owner may choose for an id
+// the bundle could not settle. Empty for a settled or unknown id.
+func (a *App) GetPriceCandidates(cardID string) ([]PriceCandidateView, error) {
+	m := a.priceMapping()
+	if m == nil {
+		return nil, nil
+	}
+	ref, hasRef := a.priceRefs()[cardID]
+	var out []PriceCandidateView
+	for _, c := range m.Candidates[cardID] {
+		v := PriceCandidateView{PriceCandidate: c, Chosen: hasRef && ref.Product == c.Product}
+		if r, asOf, ok := a.priceOf(m, c.Product); ok {
+			v.Price.Trend, v.Price.TrendFoil, v.Price.AsOf = r.Trend, r.TrendFoil, asOf
+		}
+		if r, asOf, ok := a.priceOf(m, c.NonEnglish); ok {
+			v.Price.TrendNonEnglish, v.Price.TrendNonEnglishFoil = r.Trend, r.TrendFoil
+			if v.Price.AsOf == "" {
+				v.Price.AsOf = asOf
+			}
+		}
+		out = append(out, v)
+	}
+	return out, nil
+}
+
+// SetPriceRef records the owner's choice: product must be one of the id's
+// candidates, whose label and non-English twin are stored with it.
+func (a *App) SetPriceRef(cardID string, product int) error {
+	if a.db == nil {
+		return fmt.Errorf("no database")
+	}
+	m := a.priceMapping()
+	if m == nil {
+		return fmt.Errorf("no price mapping loaded")
+	}
+	for _, c := range m.Candidates[cardID] {
+		if c.Product == product {
+			if err := setPriceRef(a.db, PriceRef{CardID: cardID, Product: c.Product, NonEnglish: c.NonEnglish, Label: c.Label}); err != nil {
+				return err
+			}
+			a.emitPricesUpdated()
+			return nil
+		}
+	}
+	return fmt.Errorf("product %d is not a candidate of %s", product, cardID)
+}
+
+func (a *App) ClearPriceRef(cardID string) error {
+	if a.db == nil {
+		return fmt.Errorf("no database")
+	}
+	if err := clearPriceRef(a.db, cardID); err != nil {
+		return err
+	}
+	a.emitPricesUpdated()
+	return nil
+}
+
+func (a *App) GetPriceRefs() (map[string]PriceRef, error) {
+	if a.db == nil {
+		return map[string]PriceRef{}, nil
+	}
+	return getPriceRefs(a.db)
+}

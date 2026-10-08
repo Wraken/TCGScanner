@@ -66,12 +66,15 @@ the bundle), bindings `GetPriceCandidates` / `SetPriceRef` / `ClearPriceRef`
 / `GetPriceRefs` / `GetPriceCandidateImage` (scans fetched on demand into
 `./prices/images/`); UI in three commits: the "no ref" chip on tiles and in
 the copies dialog, the `PriceReferenceDialog` (our image vs the scans, with
-prices, digits pick), the twin's reference and price under each id in the
+prices, keys 1-9 then A-M pick), the twin's reference and price under each id in the
 scan duplicate selector. Note: `scripts/fetch/cardmarket/manual.json`
 (untracked) still holds the 149 hand picks made on 2026-10-08 after the
 cleanup; the mapper applies them first (140 mapped, so the rebuild shows
 `visual 395` rather than 491), and whether to keep them is the owner's call:
-delete the file, rebuild offline and recommit to drop them.
+delete the file, rebuild offline and recommit to drop them. Re-runs of
+`pixel_tiebreak.py` merge into `visual.json` (picks of cards no longer in the
+report are kept), and a card settles only when every candidate has a scan;
+checked 2026-10-08: none of the 491 picks sat on an incomplete field.
 
 **Owner's steps (desktop PC):**
 
@@ -79,7 +82,10 @@ delete the file, rebuild offline and recommit to drop them.
    copies `cardmarket.json`, candidates included, into `metadata/`.
 2. Launch the app: a One Piece card with a "no ref" chip opens its copies
    dialog, "Set reference" shows the printings with CardTrader's scans and
-   today's prices; choose with the card in hand.
+   today's prices; choose with the card in hand. Two checks in the same
+   pass: open a One Piece copies dialog before the first guide download
+   completes (no "Not on Cardmarket." may show), and open a card with 10
+   or more printings to try the letter keys (A, B…).
 3. The review tool (`cd scripts/fetch/cardmarket/review; python review.py`)
    now lists the 73 "low" cards first: the ones where our image matches no
    candidate, worth a look; the twins can be skipped, the app handles them.

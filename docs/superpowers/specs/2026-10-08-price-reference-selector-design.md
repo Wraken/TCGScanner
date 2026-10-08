@@ -110,7 +110,10 @@ product is no longer in the day's guide is simply unpriced until re-chosen
    tool), both grayscale 200×280. Writes `visual.json` in the format the
    mapper already reads (`floor` 0.7, `margin` 0.15, `picks` {id: {product,
    score, lead}}), with one extra rule: two ids of one base card in one pack
-   that pick the same printing are both dropped (identical twins). Writes
+   that pick the same printing are both dropped (identical twins), and a
+   card settles only when every candidate printing has a scan. Re-runs
+   merge with the existing files (cards no longer in the report keep their
+   pick). Writes
    `pixel_status.json` {id: "settled" | "tied" | "twin" | "low"} for the
    review tool. Measured 2026-10-08: 491 settled, 271 tied, 45 twin, 73 low
    of 880. `visual_tiebreak.py` (embedding model, WSL) stays as an
@@ -171,7 +174,8 @@ product is no longer in the day's guide is simply unpriced until re-chosen
    the label, the trend price (foil column too when present) and a
    "chosen" mark; a "None" action that clears the reference. Picking a
    tile calls `SetPriceRef`, closes, and the views refresh on
-   `prices:updated`. Keyboard: digits pick a tile, Escape closes. The
+   `prices:updated`. Keyboard: 1-9 then a-m pick a tile (the review tool's
+   map; some ids have 10-14 printings), Escape closes. The
    layout is the review tool's, with the card in hand and the prices on top.
 3. **Duplicate selector label** (`VariantChoiceDialog`): under each
    candidate id, when the id has a price reference, its label and today's

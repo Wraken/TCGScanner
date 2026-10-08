@@ -66,6 +66,12 @@ priced, an English one is not, rather than wrongly. Measured 2026-10-07:
 2,177 twins for 2,742 cards; the cards without one are the anniversary
 sets and most promos, which Cardmarket sells on one shelf.
 
+**Candidates.** An id that stays ambiguous (several candidate products,
+nothing settled) ships under `candidates` instead of `cards`: one entry
+per printing, `{"product", "non_english", "label", "image"}` (the English
+shelf, its foreign twin or 0, "version (number) · expansion", the
+CardTrader scan URL or ""), for the app's price reference selector.
+
 **Rule C, the pack names the expansion (One Piece variants).** Our
 `_rN` reprints and `_pN` parallels carry, in `../onepiece/cards.json`, the
 product they come from (`pack`: "PRB-02", "ST-34", "OP-01", the combined
@@ -108,6 +114,13 @@ picked blueprint itself (`visualShelf`).
 Measured 2026-10-07: 2,064 cards, 5,954 previews to embed.
 
 `pixel_tiebreak.py` is the tie-break in use (pixel correlation, no GPU, `cache/images/`); `visual_tiebreak.py` is the embedding alternative. The ids neither settles ship in `cardmarket.json` as `candidates` (product, non-English twin, label, scan URL) for the app's price reference selector, spec `docs/superpowers/specs/2026-10-08-price-reference-selector-design.md`.
+A card settles only when every candidate printing has a scan (a product on
+no blueprint or on several, or a failed download, leaves it `no image`).
+Re-runs of `pixel_tiebreak.py` merge: the report lists only the cards still
+ambiguous, so picks and statuses of the others are kept and only the listed
+ones are recomputed. For a fresh run, delete `visual.json` and
+`pixel_status.json`, rebuild the report without them (`go run . -games
+onepiece -offline -report report.txt`), then run the script.
 
 Step 4 is `overrides.json`: hand-checked picks, with the reason next to
 each (`"_<id>"` keys are comments). They bypass the name check only.

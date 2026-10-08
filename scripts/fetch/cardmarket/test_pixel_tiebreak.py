@@ -28,6 +28,28 @@ class DecideTest(unittest.TestCase):
         self.assertEqual(pt.decide([], 0.7, 0.15)[0], "no image")
 
 
+class SettleTest(unittest.TestCase):
+    def test_a_complete_field_is_decided_as_usual(self):
+        status, best = pt.settle([(0.88, 1, [10]), (0.31, 2, [12])], 0, 0.7, 0.15)
+        self.assertEqual((status, best), ("settled", (0.88, 1, [10])))
+
+    def test_a_candidate_without_image_blocks_the_settlement(self):
+        # The lone survivor would "settle" against nothing: it must not.
+        self.assertEqual(pt.settle([(0.95, 1, [10])], 1, 0.7, 0.15), ("no image", None))
+        self.assertEqual(pt.settle([(0.88, 1, [10]), (0.31, 2, [12])], 2, 0.7, 0.15), ("no image", None))
+
+
+class MergePicksTest(unittest.TestCase):
+    def test_a_rerun_keeps_the_picks_of_ids_no_longer_in_the_report(self):
+        existing = {"A": {"product": 1}, "B": {"product": 2}, "C": {"product": 3}}
+        fresh = {"B": {"product": 22}}
+        merged = pt.merge_picks(existing, fresh, {"B", "C"})
+        # A: settled earlier, gone from the report -> kept.
+        # B: in the report, recomputed -> the fresh pick.
+        # C: in the report, no longer settled -> dropped.
+        self.assertEqual(merged, {"A": {"product": 1}, "B": {"product": 22}})
+
+
 class TwinRuleTest(unittest.TestCase):
     def test_two_ids_of_one_pack_on_one_printing_are_both_dropped(self):
         picks = {"OP01-006_p3": 7, "OP01-006_p4": 7, "OP01-006_p5": 8, "OP02-001_p1": 7}

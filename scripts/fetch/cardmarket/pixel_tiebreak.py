@@ -13,15 +13,22 @@ can tell apart) and are both dropped. pixel_status.json records the
 outcome per card for the review tool. Scans are cached in cache/images/,
 the review tool's folder. Design: docs/superpowers/specs/
 2026-10-08-price-reference-selector-design.md.
+
+A card settles only on a complete field: when one candidate product has no
+scan (on no blueprint, on several, or the download failed) the card is
+"no image" and gets no pick.
+
+Re-runs merge: the report only lists the cards still ambiguous (the mapper
+applies visual.json), so picks and statuses of cards absent from it are
+kept and only the listed cards are recomputed. Delete visual.json and
+pixel_status.json, and pass a report built without them, for a fresh run.
 """
 
 from __future__ import annotations
 
 import argparse
 import collections
-import io
 import json
-import re
 import sys
 import time
 import urllib.request
@@ -50,6 +57,24 @@ def decide(scored, floor, margin):
     return "settled", best
 
 
+def settle(scored, missing, floor, margin):
+    """decide, on a complete field only: missing counts the candidates that
+    could not be scored (no blueprint, several, or no scan). Comparing the
+    best against an incomplete field could settle on the wrong printing."""
+    if missing:
+        return "no image", None
+    return decide(scored, floor, margin)
+
+
+def merge_picks(existing, fresh, in_report):
+    """A re-run's result: entries of ids absent from the report are kept,
+    ids in the report take the fresh entry (or none when it no longer has
+    one). Works for picks and for statuses alike."""
+    out = {k: v for k, v in existing.items() if k not in in_report}
+    out.update({k: v for k, v in fresh.items() if k in in_report})
+    return dict(sorted(out.items()))
+
+
 def kind(card_id):
     return "p" if "_p" in card_id else "r"
 
@@ -66,6 +91,8 @@ def twin_rule(picks, pack_of):
 
 
 def load_blueprints(game):
+    """Cardmarket product -> the blueprints listing it (the mapper's byCM);
+    a product on several blueprints cannot be scored."""
     exps = json.loads((HERE / "cache" / "cardtrader_expansions.json").read_text("utf-8"))
     by_cm = {}
     for e in exps:
@@ -76,8 +103,8 @@ def load_blueprints(game):
             continue
         for b in json.loads(f.read_text("utf-8")):
             for cm in b.get("card_market_ids") or []:
-                if cm:
-                    by_cm.setdefault(cm, b)
+                if cm and all(x["id"] != b["id"] for x in by_cm.get(cm, [])):
+                    by_cm.setdefault(cm, []).append(b)
     return by_cm
 
 
@@ -143,18 +170,23 @@ def main():
         if ref is None:
             status[card_id] = "no image"
             continue
-        scored, seen = [], set()
+        scored, seen, missing = [], set(), 0
         for p in cands:
-            b = by_cm.get(p)
-            if not b or b["id"] in seen:
+            bps = by_cm.get(p, [])
+            if len(bps) != 1:
+                missing += 1
+                continue
+            b = bps[0]
+            if b["id"] in seen:
                 continue
             seen.add(b["id"])
             path = fetch(b)
             if not path:
+                missing += 1
                 continue
             scored.append((corr(arr(ref), arr(path)), b["id"], [cm for cm in b.get("card_market_ids") or [] if cm in cands]))
         scored.sort(reverse=True)
-        st, best = decide(scored, FLOOR, MARGIN)
+        st, best = settle(scored, missing, FLOOR, MARGIN)
         status[card_id] = st
         if best:
             picks[card_id] = best[1]
@@ -165,16 +197,23 @@ def main():
     kept, twins = twin_rule(picks, pack_of)
     for t in twins:
         status[t] = "twin"
-    out = {"floor": FLOOR, "margin": MARGIN, "picks": {}}
+    fresh = {}
     for card_id in sorted(kept):
         (score, _, products), lead = best_of[card_id]
-        out["picks"][card_id] = {"product": products[0], "score": round(score, 4), "lead": round(lead, 4)}
-    Path(args.out).write_text(json.dumps(out, indent=1) + "\n", "utf-8")
-    Path(args.status).write_text(json.dumps(dict(sorted(status.items())), indent=1) + "\n", "utf-8")
+        fresh[card_id] = {"product": products[0], "score": round(score, 4), "lead": round(lead, 4)}
+    # Merge with the previous run: the report no longer lists what it settled.
+    in_report = set(amb)
+    out_path, status_path = Path(args.out), Path(args.status)
+    old = json.loads(out_path.read_text("utf-8")) if out_path.exists() else {}
+    old_status = json.loads(status_path.read_text("utf-8")) if status_path.exists() else {}
+    out = {"floor": FLOOR, "margin": MARGIN, "picks": merge_picks(old.get("picks", {}), fresh, in_report)}
+    merged_status = merge_picks(old_status, status, in_report)
+    out_path.write_text(json.dumps(out, indent=1) + "\n", "utf-8")
+    status_path.write_text(json.dumps(merged_status, indent=1) + "\n", "utf-8")
     counts = collections.Counter(status.values())
-    print(f"{args.game}: {len(amb)} ambiguous -> settled {len(out['picks'])}, "
+    print(f"{args.game}: {len(amb)} ambiguous -> settled {len(fresh)}, "
           + ", ".join(f"{k} {v}" for k, v in sorted(counts.items()) if k != "settled"))
-    print(f"wrote {args.out} and {args.status}")
+    print(f"wrote {args.out} ({len(out['picks'])} picks after merging) and {args.status}")
 
 
 if __name__ == "__main__":

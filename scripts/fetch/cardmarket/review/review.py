@@ -144,9 +144,14 @@ def candidates_for_number(card_id: str, cards: dict, ix: dict) -> list[dict]:
     return [_tile(b, ix, [cm for cm in b.get("card_market_ids") or [] if cm]) for b in ix["by_base"].get(base, [])]
 
 
-def choice_queue(ambiguous: dict[str, list[int]], manual: dict) -> list[str]:
+def choice_queue(ambiguous: dict[str, list[int]], manual: dict, status: dict[str, str] | None = None) -> list[str]:
+    """The cards still to settle, "low" ones first (our image matches no
+    candidate: worth a look) then the rest, each in the report's order."""
     done = set(manual.get("picks", {})) | set(manual.get("none", []))
-    return [i for i in ambiguous if i not in done]
+    left = [i for i in ambiguous if i not in done]
+    if not status:
+        return left
+    return [i for i in left if status.get(i) == "low"] + [i for i in left if status.get(i) != "low"]
 
 
 def check_rows(mapping: dict[str, int], cards: dict, ix: dict, prefixes: tuple[str, ...]) -> list[dict]:
@@ -229,13 +234,15 @@ class App:
         self.cards = json.loads((MAPPER.parent / game / "cards.json").read_text("utf-8"))
         self.ix = load_game_index(game)
         self.ambiguous = read_ambiguous(report.read_text("utf-8"), self.prefixes)
+        status_path = MAPPER / "pixel_status.json"
+        self.status = json.loads(status_path.read_text("utf-8")) if status_path.exists() else {}
         mapping = json.loads(MAPPING.read_text("utf-8")) if MAPPING.exists() else {"cards": {}}
         self.check = check_rows(mapping.get("cards", {}), self.cards, self.ix, self.prefixes)
         self.manual_path = MANUAL
 
     def state(self) -> dict:
         manual = load_manual(self.manual_path)
-        queue = choice_queue(self.ambiguous, manual)
+        queue = choice_queue(self.ambiguous, manual, self.status)
         return {
             "game": self.game,
             "total": len(self.ambiguous),
@@ -261,6 +268,7 @@ class App:
             "number": c.get("number", ""),
             "rarity": c.get("rarity", ""),
             "pack": c.get("pack", ""),
+            "pixel": self.status.get(card_id, ""),
             "ref": f"/ref/{card_id}",
             "tiles": tiles,
         }

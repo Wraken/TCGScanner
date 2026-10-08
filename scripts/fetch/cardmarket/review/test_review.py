@@ -129,3 +129,14 @@ class ImageUrlTest(unittest.TestCase):
         self.assertEqual(review.image_url({"image": {"url": "https://cdn/x.jpg"}}), "https://cdn/x.jpg")
         self.assertEqual(review.image_url({"image_url": "https://cardtrader.com/p.jpg", "image": {}}), "https://cardtrader.com/p.jpg")
         self.assertIsNone(review.image_url({}))
+
+
+class PixelStatusTest(unittest.TestCase):
+    def test_low_cards_come_first_then_report_order(self):
+        ambiguous = {"A_p1": [1], "B_p1": [1], "C_p1": [1], "D_p1": [1]}
+        status = {"A_p1": "tied", "B_p1": "low", "C_p1": "twin", "D_p1": "low"}
+        self.assertEqual(review.choice_queue(ambiguous, {"picks": {}, "none": []}, status), ["B_p1", "D_p1", "A_p1", "C_p1"])
+
+    def test_without_a_status_file_the_order_is_unchanged(self):
+        ambiguous = {"A_p1": [1], "B_p1": [1]}
+        self.assertEqual(review.choice_queue(ambiguous, {"picks": {}, "none": []}), ["A_p1", "B_p1"])

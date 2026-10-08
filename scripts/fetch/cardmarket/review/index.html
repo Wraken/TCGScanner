@@ -78,6 +78,12 @@
 
 <script>
 const KEYS = "123456789abcdefghijklm";
+const PIXEL_HINT = {
+  low: "Our image matches no candidate: look closely, it may be none of them",
+  tied: "Same artwork on every candidate: no image can tell these apart",
+  twin: "Twin of another id with this artwork: no image can tell these apart",
+  "no image": "No reference image on our side",
+};
 const S = { state: null, queue: [], pos: 0, view: "choice", card: null, from: null, check: null, checkSet: "" };
 
 async function api(path, body) {
@@ -130,6 +136,7 @@ function renderCard() {
       <div class="id">${esc(c.id)}</div>
       <div>${esc(c.name)}</div>
       <div class="meta">${esc(c.set_name || c.set)} · ${esc(c.rarity)}${c.pack ? " · from pack <b>" + esc(c.pack) + "</b>" : ""} · ${c.tiles.length} printing${c.tiles.length === 1 ? "" : "s"} listed</div>
+      ${c.pixel ? `<div class="meta" style="color:var(--warn)">${esc(PIXEL_HINT[c.pixel] || c.pixel)}</div>` : ""}
       <div class="verdict ${v && v.none ? "none" : ""}" id="verdict"></div>
       <div class="actions">
         <button class="btn" id="prev" title="Backspace">← Previous</button>

@@ -18,28 +18,53 @@ clean**, apart from four untracked `brag-output*/` folders (see Housekeeping).
 | `83e015e` | Cardmarket mapper `scripts/fetch/cardmarket/` → `cardmarket.json` (26,639 cards + 2,185 One Piece non-English twins). Spec `docs/superpowers/specs/2026-10-07-cardmarket-prices-design.md`; the mapper's `README.md` explains the sources, the One Piece shelves and the visual tie-break. |
 | `59e0e92` | Prices in the app: `prices.go` fetches Cardmarket's daily guides into `./prices/` (once a day, ETag, atomic replace, `settings.prices_enabled`, event `prices:updated`); Home value stat + per-game values + status line (Refresh / Turn off); grid price per card + view total; copies dialog trend/foil/other-languages lines. `package_app_model.py` ships `cardmarket.json` with a coverage gate. Verified live with `wails dev` on 2026-10-07. |
 
-Mapping coverage on 2026-10-07: Riftbound 1,187/1,189; Lorcana 3,153/3,192;
+Mapping coverage on 2026-10-07 (unchanged 2026-10-08): Riftbound 1,187/1,189; Lorcana 3,153/3,192;
 Pokémon 19,557/21,065 physical cards (2,480 TCG Pocket ids excluded);
 One Piece 2,742/4,843 plus 2,064 parallel printings waiting on the visual step.
 
-**Owner's steps on the training PC (none of this has run there yet):**
+**Desktop PC, 2026-10-08:** pulled; the mapper ran here for all four
+games with the CardTrader token (same numbers as the laptop), so `cache/`
+and `report.txt` now exist on this PC too. Fixed on the way: a single-game
+build (`-games pokemon,lorcana`) dropped 59 Riftbound entries, `gameOfID`
+classified ids by shape and the signed `ogn-299-star-298` / token `sfd-t03`
+ids fell into "Pokémon = everything else"; it now classifies by the
+fetchers' `cards.json` lists. **Decision: the One Piece printings are
+settled by hand, not by the visual tie-break** (owner wants zero errors).
+Built for it: `scripts/fetch/cardmarket/review/` (`review.py`, stdlib, a
+local page: choice mode for the 2,064 ambiguous printings, check mode for
+the 2,742 plain cards; every verdict written at once to `manual.json`) and
+a `manual` source in the mapper (before blueprint and visual, after
+overrides; "none" verdicts stay unresolved). Verified live in the browser
+and through an offline mapper run; Go and Python tests green.
 
-1. `git pull`.
-2. Visual tie-break for the One Piece printings. The mapper's `cache/` is
-   git-ignored and the CardTrader token lives on the laptop only, so copy
-   `scripts/fetch/cardmarket/cache/` (32 MB, `previews/` not needed) and
-   `report.txt` from the laptop, then in WSL (`conda activate riftbound`):
-   ```
-   cd scripts/fetch/cardmarket
-   python visual_tiebreak.py --report report.txt --game onepiece --model ../../ml/models/tcg --references ../../ml/images/onepiece --out visual.json
-   go run . -games onepiece -offline -report report.txt
-   ```
-   Commit `visual.json` and the rebuilt `cardmarket.json`. The script downloads
-   the 5,954 CardTrader previews itself (public URLs, ~10 min).
-3. Repackage the bundle with the usual `package_app_model.py` command: it now
-   copies `cardmarket.json` into `metadata/`, prints the priced share per game
-   and stops if a game would lose coverage (`--allow-price-regression` to
-   force).
+**Rule C, the pack names the expansion (same day):** the manual pass hit a
+wall, 330 of the 408 `_r` reprints have the very same artwork as their base
+card, so no eye can tell them apart. punk-records' pack of each printing
+(now `pack` in `scripts/fetch/onepiece/cards.json`, not copied by the
+packager) names the CardTrader expansion; the mapper narrows a variant's
+candidates to that expansion, reprint = the unmarked print, parallels =
+the marked ones, and settles the print when both sides count exactly one
+(`resolve.go` rule C, source `pack`; a manual pick it disagrees with is
+listed as `disagree` in the report). Offline rebuild: One Piece 3,860/4,843
+mapped (was 2,742), 1,060 by the rule, 861 ambiguous left at 5.4 candidates
+on average. 10 of the owner's first 59 manual picks disagreed with the
+rule, all PRB-02 reprints or foils picked as their EB-01 original
+(identical art): the owner had all 59 cleared (backup in the assistant's
+scratchpad only). Rebuilt with the rule alone: 3,841/4,843 mapped, 1,099 by
+the rule, 880 left for the review tool.
+
+**Owner's steps (desktop PC):**
+
+1. Review pass (restart the server after a pull, it reads `report.txt` at
+   start): `cd scripts/fetch/cardmarket/review; python review.py`,
+   open http://127.0.0.1:8765/, keys 1-9/a-m pick, 0 none, Backspace back,
+   S skip; Check tab for the plain cards. Stop and resume at will.
+2. `cd scripts/fetch/cardmarket; go run . -games onepiece -offline -report report.txt`
+   applies `manual.json`; commit it with the rebuilt `cardmarket.json`.
+3. Repackage the bundle with the usual `package_app_model.py` command: it
+   copies `cardmarket.json` into `metadata/`, prints the priced share per
+   game and stops if a game would lose coverage (`--allow-price-regression`
+   to force).
 4. Launch the app: Home should show "Cardmarket prices from <date>" after the
    first background download (about 19 MB).
 

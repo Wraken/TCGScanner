@@ -58,3 +58,13 @@ export function describeTotal(s: ValueSum): string {
   if (s.priced === s.copies) return amount;
   return `${amount} · ${s.priced.toLocaleString("en-US")} of ${s.copies.toLocaleString("en-US")} cards priced`;
 }
+
+export type ReferenceState = "priced" | "unset" | "absent";
+
+// "unset": the bundle has printings to choose from but none chosen yet;
+// "absent": no product and nothing to choose (not on Cardmarket).
+export function referenceState(price: CardPrice | undefined): ReferenceState {
+  if (!price) return "absent";
+  if (price.trend > 0 || price.trend_foil > 0 || price.trend_non_english > 0 || price.trend_non_english_foil > 0) return "priced";
+  return price.candidates > 0 ? "unset" : "absent";
+}

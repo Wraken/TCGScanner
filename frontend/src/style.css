@@ -59,6 +59,7 @@
     --n-accent: #9184d9;
     --n-accent-soft: #c8c2ec;         /* accent-300, readable accent text */
     --n-danger: #f07178;
+    --n-warn: #f0b35a;                /* warning: a reference to set, nothing broken */
     --n-divider: #262940;
     --n-neutral-400: #b2b6ca;
     --n-neutral-500: #9397ab;

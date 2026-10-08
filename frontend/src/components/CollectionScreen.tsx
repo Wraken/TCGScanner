@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Camera, ImageIcon, Pencil, Plus, Search, Sparkle, Trash2, Upload } from "lucide-react";
+import { Camera, ImageIcon, Pencil, Plus, Search, Sparkle, Trash2, TriangleAlert, Upload } from "lucide-react";
 import { GetCardImageByModel, GetCardInfo, GetCardPrices, GetCards, DeleteCard, MoveCardToCustom, UpdateCard } from "../../wailsjs/go/main/App";
 import { LogDebug } from "../../wailsjs/runtime/runtime";
 import { gameLabel } from "@/lib/utils";
-import { copyValue, describeTotal, formatEUR, sumValues } from "@/lib/prices";
+import { copyValue, describeTotal, formatEUR, referenceState, sumValues } from "@/lib/prices";
 import { CardImage } from "@/components/CardImage";
 import { CardCopiesDialog } from "@/components/CardCopiesDialog";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -377,8 +377,18 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
                   </span>
                   <span className="flex items-center gap-1.5 shrink-0 tabular-nums" style={{ fontSize: "11px" }} aria-hidden="true">
                     {(() => {
-                      const v = tilePrice(g, prices[g.card_id]);
-                      return v !== null && <span className="n-n400">{formatEUR(v)}</span>;
+                      const p = prices[g.card_id];
+                      const v = tilePrice(g, p);
+                      if (v !== null) return <span className="n-n400">{formatEUR(v)}</span>;
+                      if (collection.prices?.available && referenceState(p) === "unset") {
+                        return (
+                          <span className="inline-flex items-center gap-0.5" style={{ color: "var(--n-warn)" }} title="No Cardmarket reference: set it by hand in the card's details">
+                            <TriangleAlert className="w-3 h-3" aria-hidden="true" />
+                            no ref
+                          </span>
+                        );
+                      }
+                      return null;
                     })()}
                     {g.normal > 0 && <span className="n-n400">×{g.normal}</span>}
                     {g.foil > 0 && (
@@ -409,6 +419,7 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
         image={openCard ? images[openCard] ?? null : null}
         info={openCard && Object.hasOwn(infos, openCard) ? infos[openCard] : null}
         price={openCard ? prices[openCard] : undefined}
+        pricesAvailable={!!collection.prices?.available}
         customs={collection.customs}
         languages={collection.languages}
         onChangeLang={(c, lang) => editCopy("change the language", () => UpdateCard({ ...c, lang }))}

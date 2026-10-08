@@ -107,6 +107,10 @@ export interface CardPrice {
   trend_non_english_foil: number;
   // The price guide's date, ISO ("2026-10-07").
   as_of: string;
+  // Priced through the owner's reference (price_refs), not the bundle.
+  ref: boolean;
+  // Printings the owner can choose from; 0 when settled or absent.
+  candidates: number;
 }
 
 export interface GamePriceStatus {
@@ -131,4 +135,22 @@ export interface GameValue {
   value: number;
   priced: number;
   copies: number;
+}
+
+// One selectable printing of an unsettled card (see prices.go).
+export interface PriceCandidateView {
+  product: number;
+  non_english: number;
+  label: string;
+  image: string; // CardTrader scan URL, "" when none
+  price: CardPrice;
+  chosen: boolean;
+}
+
+export interface PriceRef {
+  card_id: string;
+  product: number;
+  non_english: number;
+  label: string;
+  chosen_at: string;
 }

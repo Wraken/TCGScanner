@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Sparkle, Trash2 } from "lucide-react";
+import { Sparkle, Trash2, TriangleAlert } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { CardImage } from "@/components/CardImage";
 import { formatDate } from "@/lib/utils";
-import { formatEUR, formatGuideDate, sumValues } from "@/lib/prices";
+import { formatEUR, formatGuideDate, referenceState, sumValues } from "@/lib/prices";
 import type { CardInfo, CardLanguage, CardPrice, Collection, CollectionCard } from "@/types";
 
 interface Props {
@@ -26,6 +26,8 @@ interface Props {
   info: CardInfo | null;
   // Cardmarket price of the card; undefined = none.
   price?: CardPrice;
+  // Cardmarket prices are on and a bundle is present; gates the reference notes.
+  pricesAvailable: boolean;
   customs: Collection[];
   languages: CardLanguage[];
   onClose: () => void;
@@ -65,6 +67,7 @@ export function CardCopiesDialog(props: Props) {
 
   const subtitle = `${cardId} · ${copies.length} ${copies.length !== 1 ? "copies" : "copy"}`;
   const owned = price && cardId ? sumValues(copies, { [cardId]: price }) : null;
+  const refState = referenceState(price);
   const game = info?.game || copies[0]?.game || "";
   const scope = game === "onepiece"
     ? (price && (price.trend_non_english > 0 || price.trend_non_english_foil > 0) ? "English and other languages" : "English")
@@ -112,6 +115,12 @@ export function CardCopiesDialog(props: Props) {
               </p>
               <p className="m-0 text-xs n-n500">Cardmarket trend, {scope} · {formatGuideDate(price.as_of)}</p>
             </div>
+          )}
+          {props.pricesAvailable && refState !== "priced" && (
+            <p className="m-0 text-sm pt-2 inline-flex items-center gap-1.5" style={{ color: refState === "unset" ? "var(--n-warn)" : "var(--n-neutral-500)" }}>
+              <TriangleAlert className="w-4 h-4" aria-hidden="true" />
+              {refState === "unset" ? "No Cardmarket reference, set it by hand." : "Not on Cardmarket."}
+            </p>
           )}
         </DialogHeader>
         <div className="flex gap-6 min-h-0">

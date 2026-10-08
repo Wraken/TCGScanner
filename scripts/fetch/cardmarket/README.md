@@ -107,6 +107,8 @@ one artwork, so they tie), and the mapper chooses the English shelf of the
 picked blueprint itself (`visualShelf`).
 Measured 2026-10-07: 2,064 cards, 5,954 previews to embed.
 
+`pixel_tiebreak.py` is the tie-break in use (pixel correlation, no GPU, `cache/images/`); `visual_tiebreak.py` is the embedding alternative. The ids neither settles ship in `cardmarket.json` as `candidates` (product, non-English twin, label, scan URL) for the app's price reference selector, spec `docs/superpowers/specs/2026-10-08-price-reference-selector-design.md`.
+
 Step 4 is `overrides.json`: hand-checked picks, with the reason next to
 each (`"_<id>"` keys are comments). They bypass the name check only.
 Lorcana's `8-1f`… ids are the Reign of Jafar *Panorama* prints: a
@@ -207,6 +209,7 @@ failed check drops the entry and lists it; it never ships.
 - `cardmarket.json` — the output, committed
 - `tcgdex_ids.json` — TCGdex lookups, committed (0 = TCGdex has no product)
 - `visual.json` — the tie-break's picks, committed
+- `pixel_status.json` — the pixel tie-break's outcome per card, read by the review tool
 - `manual.json` — the review tool's hand picks, committed
 - `review/` — the review tool (`review.py`, `index.html`, tests)
 - `overrides.json` — hand picks, committed

@@ -59,6 +59,10 @@ type gameResult struct {
 	// otherwise (card -> the pack rule's product): a cross-check, the
 	// manual pick still ships.
 	PackDisagree map[string]int
+	// Candidates are the selectable printings of every ambiguous card,
+	// shipped in cardmarket.json for the app's price reference selector
+	// (spec 2026-10-08-price-reference-selector-design.md).
+	Candidates map[string][]candidateView
 }
 
 // resolveGame runs the steps of the spec for one game. published holds the
@@ -70,7 +74,7 @@ func resolveGame(game string, cards map[string]ourCard, published map[string]int
 	exps map[int]ctExpansion, blueprints []ctBlueprint, visual map[string]visualPick, manual manualPicks, overrides map[string]int,
 	catalog map[int]cmProduct, shelf map[int]shelfLang, catalogDay string) gameResult {
 
-	r := gameResult{Game: game, CatalogDay: catalogDay, Mapped: map[string]resolved{}, Dropped: map[string]string{}, ManualNone: map[string]bool{}, PackDisagree: map[string]int{}}
+	r := gameResult{Game: game, CatalogDay: catalogDay, Mapped: map[string]resolved{}, Dropped: map[string]string{}, ManualNone: map[string]bool{}, PackDisagree: map[string]int{}, Candidates: map[string][]candidateView{}}
 
 	ids := make([]string, 0, len(cards))
 	for id := range cards {
@@ -134,6 +138,7 @@ func resolveGame(game string, cards map[string]ourCard, published map[string]int
 		if pick.Product == 0 {
 			if len(cands) > 1 {
 				r.Ambiguous = append(r.Ambiguous, ambiguity{id, cands})
+				r.Candidates[id] = candidateViews(cands, ix, exps, shelf, catalog)
 			} else {
 				r.Unresolved = append(r.Unresolved, id)
 			}
@@ -710,18 +715,83 @@ func nonEnglishTwins(r *gameResult, ix *blueprintIndex, shelf map[int]shelfLang,
 		if len(bps) != 1 {
 			continue
 		}
-		var twins []int
-		for _, cm := range nonZero(bps[0].CardMarketIDs) {
-			p, ok := catalog[cm]
-			if cm == m.Product || !ok || shelf[p.IDExpansion] != shelfForeign || p.Name != catalog[m.Product].Name {
-				continue
-			}
-			twins = append(twins, cm)
-		}
-		if len(twins) == 1 {
-			r.NonEnglish[id] = twins[0]
+		if twin := twinOf(m.Product, bps[0], shelf, catalog); twin != 0 {
+			r.NonEnglish[id] = twin
 		}
 	}
+}
+
+// twinOf is the same printing on a foreign shelf: the one other Cardmarket
+// id of the blueprint that sits on a foreign shelf and carries the very
+// same product name; 0 when there is none or several.
+func twinOf(product int, b ctBlueprint, shelf map[int]shelfLang, catalog map[int]cmProduct) int {
+	var twins []int
+	for _, cm := range nonZero(b.CardMarketIDs) {
+		p, ok := catalog[cm]
+		if cm == product || !ok || shelf[p.IDExpansion] != shelfForeign || p.Name != catalog[product].Name {
+			continue
+		}
+		twins = append(twins, cm)
+	}
+	if len(twins) == 1 {
+		return twins[0]
+	}
+	return 0
+}
+
+// candidateView is one selectable printing of an ambiguous card: the
+// product the app prices on (the English shelf), its non-English twin, a
+// label a person can read, and CardTrader's scan to look at.
+type candidateView struct {
+	Product    int    `json:"product"`
+	NonEnglish int    `json:"non_english"`
+	Label      string `json:"label"`
+	Image      string `json:"image"`
+}
+
+const cardTraderSite = "https://cardtrader.com"
+
+// candidateViews groups a card's candidate products by printing (blueprint),
+// in the candidates' order. A product no blueprint lists is a view of its own.
+func candidateViews(cands []int, ix *blueprintIndex, exps map[int]ctExpansion, shelf map[int]shelfLang, catalog map[int]cmProduct) []candidateView {
+	var out []candidateView
+	seenBP, seenP := map[int]bool{}, map[int]bool{}
+	for _, p := range cands {
+		var bps []ctBlueprint
+		if ix != nil {
+			bps = ix.byCM[p]
+		}
+		if len(bps) != 1 {
+			if !seenP[p] {
+				seenP[p] = true
+				out = append(out, candidateView{Product: p, Label: fmt.Sprintf("product %d", p)})
+			}
+			continue
+		}
+		b := bps[0]
+		if seenBP[b.ID] {
+			continue
+		}
+		seenBP[b.ID] = true
+		product, ok := pickShelf(nonZero(b.CardMarketIDs), shelf, catalog)
+		if !ok {
+			product = p
+		}
+		version := strings.TrimSpace(b.Version)
+		if version == "" {
+			version = "Plain"
+		}
+		label := fmt.Sprintf("%s (%s)", version, strings.TrimSpace(b.FixedProperties.CollectorNumber))
+		if e, ok := exps[b.ExpansionID]; ok && e.Name != "" {
+			label += " · " + e.Name
+		}
+		image := strings.TrimSpace(b.Image.URL)
+		if image != "" && !strings.HasPrefix(image, "http") {
+			image = cardTraderSite + image
+		}
+		out = append(out, candidateView{Product: product, NonEnglish: twinOf(product, b, shelf, catalog), Label: label, Image: image})
+	}
+	return out
 }
 
 func nonZero(ids []int) []int {

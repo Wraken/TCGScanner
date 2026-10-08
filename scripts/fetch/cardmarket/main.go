@@ -52,10 +52,14 @@ type mapping struct {
 	// shelf, for the One Piece cards that have one: the product a copy in
 	// another language is priced on. Absent: the app uses Cards.
 	CardsNonEnglish map[string]int `json:"cards_non_english"`
+	// Candidates are the selectable printings of every ambiguous card
+	// (product, non-English twin, label, scan URL), for the app's price
+	// reference selector. Absent in older files: readers treat it as empty.
+	Candidates map[string][]candidateView `json:"candidates"`
 }
 
 func loadMapping() (mapping, error) {
-	m := mapping{Version: 1, Games: map[string]int{}, Cards: map[string]int{}, CardsNonEnglish: map[string]int{}}
+	m := mapping{Version: 1, Games: map[string]int{}, Cards: map[string]int{}, CardsNonEnglish: map[string]int{}, Candidates: map[string][]candidateView{}}
 	data, err := os.ReadFile(outFile)
 	if errors.Is(err, fs.ErrNotExist) {
 		return m, nil
@@ -74,6 +78,9 @@ func loadMapping() (mapping, error) {
 	}
 	if m.CardsNonEnglish == nil {
 		m.CardsNonEnglish = map[string]int{}
+	}
+	if m.Candidates == nil {
+		m.Candidates = map[string][]candidateView{}
 	}
 	return m, nil
 }
@@ -172,11 +179,19 @@ func main() {
 				delete(m.CardsNonEnglish, id)
 			}
 		}
+		for id := range m.Candidates {
+			if gameOfID(id, game) {
+				delete(m.Candidates, id)
+			}
+		}
 		for id, r := range res.Mapped {
 			m.Cards[id] = r.Product
 		}
 		for id, p := range res.NonEnglish {
 			m.CardsNonEnglish[id] = p
+		}
+		for id, v := range res.Candidates {
+			m.Candidates[id] = v
 		}
 		m.Games[game] = cmGames[game]
 		printSummary(res, &report)
@@ -186,7 +201,7 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	fmt.Printf("%s written: %d cards, %d with a non-English twin\n", outFile, len(m.Cards), len(m.CardsNonEnglish))
+	fmt.Printf("%s written: %d cards, %d with a non-English twin, %d with candidates\n", outFile, len(m.Cards), len(m.CardsNonEnglish), len(m.Candidates))
 	if *reportPath != "" {
 		if err := os.WriteFile(*reportPath, []byte(report.String()), 0o644); err != nil {
 			fmt.Println(err)
@@ -351,6 +366,9 @@ func printSummary(r gameResult, report *strings.Builder) {
 		fmt.Printf(", skipped (Pocket) %d", r.Skipped)
 	}
 	fmt.Println()
+	if len(r.Candidates) > 0 {
+		fmt.Printf("  candidates shipped for %d cards\n", len(r.Candidates))
+	}
 	switch {
 	case r.Game == "onepiece":
 		fmt.Printf("  non-English twins %d, non-English shelf only %d\n", len(r.NonEnglish)-len(r.ForeignShelf), len(r.ForeignShelf))

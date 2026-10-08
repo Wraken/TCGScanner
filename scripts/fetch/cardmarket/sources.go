@@ -572,6 +572,12 @@ type ctBlueprint struct {
 	FixedProperties struct {
 		CollectorNumber string `json:"collector_number"`
 	} `json:"fixed_properties"`
+	// Image.URL is the original scan, relative to https://cardtrader.com
+	// (ImageURL is the 180px preview). Shipped to the app for the price
+	// reference selector.
+	Image struct {
+		URL string `json:"url"`
+	} `json:"image"`
 }
 
 func cardTraderHeaders() (map[string]string, error) {

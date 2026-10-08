@@ -366,3 +366,47 @@ func TestResolveGameManualPickDisagreeingWithPackRuleIsListed(t *testing.T) {
 		t.Errorf("disagreements = %v, want EB01-009_r1 -> 11", r.PackDisagree)
 	}
 }
+
+func TestCandidateViewsOnePerPrinting(t *testing.T) {
+	cards, exps, bps, catalog, shelf := packFixture()
+	bps[3].Image.URL = "/uploads/blueprints/image/4/pirate-foil.jpg" // blueprint 4, products 13/14
+	// A second versioned print in PRB-02 makes our one _p2 ambiguous there.
+	b := ctBlueprint{ID: 5, Version: "Manga Panel Alternate Art | Reprint", ExpansionID: 200, CardMarketIDs: []int{15, 16}}
+	b.FixedProperties.CollectorNumber = "EB01-009m"
+	bps = append(bps, b)
+	catalog[15] = cmProduct{IDProduct: 15, Name: "Just Shut Up and Come with Us!!!! (EB01-009)", IDExpansion: 10}
+	catalog[16] = cmProduct{IDProduct: 16, Name: "Just Shut Up and Come with Us!!!! (EB01-009)", IDExpansion: 11}
+	r := resolveGame("onepiece", cards, nil, exps, bps, nil, manualPicks{}, nil, catalog, shelf, "2026-10-08")
+	got := r.Candidates["EB01-009_p2"]
+	want := []candidateView{
+		{Product: 13, NonEnglish: 14, Label: "Pirate Foil (EB01-009f) · PRB-02: Premium Booster vol.2", Image: "https://cardtrader.com/uploads/blueprints/image/4/pirate-foil.jpg"},
+		{Product: 15, NonEnglish: 16, Label: "Manga Panel Alternate Art | Reprint (EB01-009m) · PRB-02: Premium Booster vol.2", Image: ""},
+	}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("candidates of EB01-009_p2 = %+v, want %+v", got, want)
+	}
+	for id := range r.Candidates {
+		if _, mapped := r.Mapped[id]; mapped {
+			t.Errorf("%s is mapped and has candidates", id)
+		}
+	}
+	if _, ok := r.Candidates["EB01-009_r1"]; ok {
+		t.Error("a settled card carries candidates")
+	}
+}
+
+func TestCandidateViewsProductOnNoBlueprint(t *testing.T) {
+	_, exps, bps, catalog, shelf := packFixture()
+	ix := indexBlueprints(exps, bps)
+	got := candidateViews([]int{1, 2, 99}, ix, exps, shelf, catalog)
+	want := []candidateView{
+		{Product: 1, NonEnglish: 2, Label: "Plain (EB01-009) · EB-01: Memorial Collection"},
+		{Product: 99, Label: "product 99"},
+	}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("candidateViews = %+v, want %+v", got, want)
+	}
+	if candidateViews([]int{1}, nil, exps, shelf, catalog)[0].Label != "product 1" {
+		t.Error("without blueprints every product is a bare product")
+	}
+}

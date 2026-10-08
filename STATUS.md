@@ -53,20 +53,38 @@ rule, all PRB-02 reprints or foils picked as their EB-01 original
 scratchpad only). Rebuilt with the rule alone: 3,841/4,843 mapped, 1,099 by
 the rule, 880 left for the review tool.
 
+**Price reference selector (shipped 2026-10-08):** spec
+`docs/superpowers/specs/2026-10-08-price-reference-selector-design.md`. The
+identical twins (same artwork, a treatment no image shows) are settled in
+the app by the owner, card in hand. Mapper: `pixel_tiebreak.py` settles the
+different-artwork printings into `visual.json` (491 settled, 271 tied, 45 twin,
+73 low of 880; `pixel_status.json` orders the review tool's queue, "low"
+first) and `cardmarket.json` ships `candidates` for the remaining 330 ids
+(product, non-English twin, label, CardTrader scan URL; never both in `cards`
+and `candidates`). App: `price_refs` table (one product per card id, outranks
+the bundle), bindings `GetPriceCandidates` / `SetPriceRef` / `ClearPriceRef`
+/ `GetPriceRefs` / `GetPriceCandidateImage` (scans fetched on demand into
+`./prices/images/`); UI in three commits: the "no ref" chip on tiles and in
+the copies dialog, the `PriceReferenceDialog` (our image vs the scans, with
+prices, digits pick), the twin's reference and price under each id in the
+scan duplicate selector. Note: `scripts/fetch/cardmarket/manual.json`
+(untracked) still holds the 149 hand picks made on 2026-10-08 after the
+cleanup; the mapper applies them first (140 mapped, so the rebuild shows
+`visual 395` rather than 491), and whether to keep them is the owner's call:
+delete the file, rebuild offline and recommit to drop them.
+
 **Owner's steps (desktop PC):**
 
-1. Review pass (restart the server after a pull, it reads `report.txt` at
-   start): `cd scripts/fetch/cardmarket/review; python review.py`,
-   open http://127.0.0.1:8765/, keys 1-9/a-m pick, 0 none, Backspace back,
-   S skip; Check tab for the plain cards. Stop and resume at will.
-2. `cd scripts/fetch/cardmarket; go run . -games onepiece -offline -report report.txt`
-   applies `manual.json`; commit it with the rebuilt `cardmarket.json`.
-3. Repackage the bundle with the usual `package_app_model.py` command: it
-   copies `cardmarket.json` into `metadata/`, prints the priced share per
-   game and stops if a game would lose coverage (`--allow-price-regression`
-   to force).
-4. Launch the app: Home should show "Cardmarket prices from <date>" after the
-   first background download (about 19 MB).
+1. Repackage the bundle with the usual `package_app_model.py` command: it
+   copies `cardmarket.json`, candidates included, into `metadata/`.
+2. Launch the app: a One Piece card with a "no ref" chip opens its copies
+   dialog, "Set reference" shows the printings with CardTrader's scans and
+   today's prices; choose with the card in hand.
+3. The review tool (`cd scripts/fetch/cardmarket/review; python review.py`)
+   now lists the 73 "low" cards first: the ones where our image matches no
+   candidate, worth a look; the twins can be skipped, the app handles them.
+4. After new picks, `cd scripts/fetch/cardmarket; go run . -games onepiece -offline -report report.txt`
+   and commit `manual.json` + `cardmarket.json`; repackage.
 
 **Backlog (by priority)**
 

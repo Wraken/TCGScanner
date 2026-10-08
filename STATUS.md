@@ -1,51 +1,90 @@
-# Project status — 2026-09-21
+# Project status — 2026-10-08
 
 Two repositories, one product: the desktop scanner (this repo) and the Android
 app (`E:\TCGScannerMobile`, https://github.com/Wraken/TCGScannerMobile, private).
 This file is the "where were we" note; the detailed docs are linked from each
-section.
+section. Previous note: 2026-09-21 (in git history).
 
 ## TCGScanner (desktop, this repo)
 
-**Branch `main`, 88 commits ahead of `origin/main`, never pushed since August.**
-Push is the owner's call.
+**Branch `main` = `origin/main` at `59e0e92`, pushed 2026-10-07. Working tree
+clean**, apart from four untracked `brag-output*/` folders (see Housekeeping).
 
-**Uncommitted in the working tree** (all from the September retrain work, all
-tested, waiting for a commit decision):
+**Shipped since 2026-09-21** (three commits, all pushed):
 
-| File | Change |
+| Commit | What |
 |---|---|
-| `scripts/ml/train.py` | `--dataset-dir`, `--resume`, best-weights checkpoints per phase, `train_log.csv`, the dummy pass builds the model |
-| `scripts/ml/build_index.py` | references decoded one at a time (31 k refs no longer need 55 GB of RAM), duplicate-id check |
-| `model_embedding_test.go` | `TCG_TEST_MODEL_DIR` env override; self-retrieval judged up to `canonicalCard` |
-| `scripts/ml/RETRAIN.md` (new) | the retrain runbook + the September run log |
-| `README.md` | link to the runbook, Lorcana id example `1-1` |
-| `frontend/vite.config.ts` | Vite on port 3000 (5173 fell into a Hyper-V reserved range after a reboot) |
+| `ed29496` | Nocturne redesign after the impeccable audit (11/20 before): a notice for every backend error, in-app dialogs instead of `window.prompt/confirm`, scan screen accessibility, two-step copy delete, dead UI kit and deps dropped; `PRODUCT.md`, `DESIGN.md`, `.impeccable/design.json`; window minimum 1024×640. |
+| `83e015e` | Cardmarket mapper `scripts/fetch/cardmarket/` → `cardmarket.json` (26,639 cards + 2,185 One Piece non-English twins). Spec `docs/superpowers/specs/2026-10-07-cardmarket-prices-design.md`; the mapper's `README.md` explains the sources, the One Piece shelves and the visual tie-break. |
+| `59e0e92` | Prices in the app: `prices.go` fetches Cardmarket's daily guides into `./prices/` (once a day, ETag, atomic replace, `settings.prices_enabled`, event `prices:updated`); Home value stat + per-game values + status line (Refresh / Turn off); grid price per card + view total; copies dialog trend/foil/other-languages lines. `package_app_model.py` ships `cardmarket.json` with a coverage gate. Verified live with `wails dev` on 2026-10-07. |
 
-**Shipped and live**
-- Embedding model retrained on all four games (30 999 classes, `models/tcg` on
-  both sides since 2026-09-20; August model kept as `models/tcg.pre-retrain-2026-09`).
-  Offline gains: lock rate Pokémon 82 → 89 %, Lorcana 75 → 80 %, One Piece 76 → 72 %,
-  Riftbound unchanged; live pass convincing. Details: `scripts/ml/RETRAIN.md`.
-- Variant-choice popup for identical-artwork printings (2026-09-07).
-- Card language per copy (code complete; live pass of the scan selector, the
-  Saved line, the copies dialog and the CSV Language field still to do).
-- Card metadata for all games, Nocturne redesign, One Piece English catalogue
-  (4 843 cleaned refs), Riftbound metadata via `-extract`.
+Mapping coverage on 2026-10-07: Riftbound 1,187/1,189; Lorcana 3,153/3,192;
+Pokémon 19,557/21,065 physical cards (2,480 TCG Pocket ids excluded);
+One Piece 2,742/4,843 plus 2,064 parallel printings waiting on the visual step.
 
-**Backlog (unchanged, by priority as discussed)**
-1. Pokémon images: 53 listed + 61 recoverable from the CDN (fetcher fallback not
-   written); ~1 655 absent upstream.
-2. Cardmarket prices from the public daily files (one source for all games;
-   mapping via TCGdex `idProduct` for Pokémon, code-in-name for One Piece,
-   name + expansion for Lorcana/Riftbound) — spec not written.
-3. Foil-only finishes, persisted scan language, per-game language availability,
-   rarity label prettifying.
-4. Packager: Pokémon palette PNGs → webp with alpha (grey corners today; cosmetic).
-5. Distribution (GitHub Releases: core + per-game image packs) — design decided,
+**Owner's steps on the training PC (none of this has run there yet):**
+
+1. `git pull`.
+2. Visual tie-break for the One Piece printings. The mapper's `cache/` is
+   git-ignored and the CardTrader token lives on the laptop only, so copy
+   `scripts/fetch/cardmarket/cache/` (32 MB, `previews/` not needed) and
+   `report.txt` from the laptop, then in WSL (`conda activate riftbound`):
+   ```
+   cd scripts/fetch/cardmarket
+   python visual_tiebreak.py --report report.txt --game onepiece --model ../../ml/models/tcg --references ../../ml/images/onepiece --out visual.json
+   go run . -games onepiece -offline -report report.txt
+   ```
+   Commit `visual.json` and the rebuilt `cardmarket.json`. The script downloads
+   the 5,954 CardTrader previews itself (public URLs, ~10 min).
+3. Repackage the bundle with the usual `package_app_model.py` command: it now
+   copies `cardmarket.json` into `metadata/`, prints the priced share per game
+   and stops if a game would lose coverage (`--allow-price-regression` to
+   force).
+4. Launch the app: Home should show "Cardmarket prices from <date>" after the
+   first background download (about 19 MB).
+
+**Backlog (by priority)**
+
+1. Prices, leftovers. One Piece: 29 plain cards (21 promos, EB04-036,
+   OP12-118/119, 5 starter reprints) → `overrides.json` by hand. Riftbound: 2
+   tokens Cardmarket does not sell. Lorcana: 39 (C2/P2/cp promos, "Coconut",
+   `P1-25ja`/`P1-25zh` left unpriced on purpose). Pokémon: 1,508 without a
+   TCGdex id (Gym Heroes/Challenge, XY trainer kits, BW/DP/Wizards/Nintendo
+   promos, Shiny Vault, Sandstorm's shifted ids); CardTrader has ids but
+   disagrees with TCGdex on 5 % of same-named cards, so only behind a visual
+   check, later. To confirm on Cardmarket's site (its bot check blocked the
+   read): shelf 5230 = "Promotion Cards", 5511 = its non-English twin.
+2. Settings screen: the prices on/off switch sits on Home's status line until
+   it exists. With it: persisted scan language, foil-only finishes, per-game
+   language availability, rarity label prettifying.
+3. Animations: `/impeccable animate` plan written on 2026-10-07 (nine
+   candidates), deferred by the owner. Recommended set: detection frame glides
+   and its pulse stops once locked (1), lock ring on recognition (2), artwork
+   reveal in the right panel (3), grid images fade in (6), status colour fade
+   (8). Nothing implemented.
+4. Pokémon images (unchanged): 53 listed + 61 recoverable from the CDN
+   (fetcher fallback not written); ~1,655 absent upstream.
+5. Packager: Pokémon palette PNGs → webp with alpha (cosmetic).
+6. Distribution (GitHub Releases: core + per-game image packs): design decided,
    nothing built.
+7. Lorcana Panorama prints of Winterspell / Wilds Unknown / Attack of the
+   Vine! are absent from Lorcast, so from the fetcher and the index (Reign of
+   Jafar's five are in, priced by hand).
+
+**Housekeeping**
+
+- `brag-output/`, `brag-output-2026-10-03-*/`: four /brag video runs, 650 MB,
+  untracked. The `--voice` render was never approved. Keep one, git-ignore or
+  delete: owner's call.
+- The card-language live pass noted on 2026-09-21 (scan selector, Saved line,
+  copies dialog, CSV Language field) was exercised during the redesign pass
+  except the CSV field.
 
 ## TCGScanner Mobile (`E:\TCGScannerMobile`)
+
+Unchanged since 2026-09-21 as far as this note knows: the E: drive is not on
+the laptop, so nothing was checked. The 2026-09-21 state, kept here so it is
+not lost:
 
 **Milestone 1 done on 2026-09-21** — 21 commits `ed1b50b..08307eb` on `master`,
 pushed to GitHub, 130 Jest tests, `tsc` clean. Built by subagent-driven
@@ -73,7 +112,8 @@ recognition filter). Images are placeholders everywhere by decision.
 2. Native rebuild (new modules): `npx expo prebuild --platform android` then
    `npx expo run:android`.
 3. Push the current model + metadata: `powershell -File scripts\push-models.ps1`
-   (the phone still has the 28 362-card index).
+   (the phone still has the 28 362-card index). The desktop bundle now also
+   carries `metadata/cardmarket.json`; the mobile app does not read it yet.
 4. Device pass: spec §9 checklist, including double-tap Undo, Edit ID with a
    lowercase id (`ogn-…`), Scanner after Developer → Camera, top half of the Scan
    button, keyboard vs sheet actions, tray/toast vs the gesture bar. Record the
@@ -87,9 +127,19 @@ Deferred polish list in the ledger ("minor (deferred)" lines), all triaged as
 
 ## How to resume
 
-- Desktop: `wails dev` (Vite on port 3000), `go test ./...`; retrain / index
-  work in WSL `Ubuntu-22.04` with `conda activate riftbound`, never with the
-  dataset under the WSL home (the vhdx lives on C:); runbook `scripts/ml/RETRAIN.md`.
+- Desktop: `wails dev` (Vite on port 3000), `go test ./...`. The Wails CLI on
+  the laptop is rebuilt with `golang.org/x/tools` v0.51 (`~/go/bin/wails.exe`)
+  because Go 1.27 broke the stock one; after a change to the bound Go methods,
+  `wails generate module` refreshes `frontend/wailsjs/`. Without a model
+  bundle, a `models/dev/metadata/cardmarket.json` (copy of the mapper's file)
+  is enough to see prices.
+- Mapper: `cd scripts/fetch/cardmarket && go run . -offline -report report.txt`
+  rebuilds from `cache/`; drop `-offline` to refetch (CardTrader needs
+  `CARDTRADER_TOKEN` in the environment, never in the repo). `go test ./...`
+  there too.
+- Retrain / index work in WSL `Ubuntu-22.04` with `conda activate riftbound`,
+  never with the dataset under the WSL home (the vhdx lives on C:); runbook
+  `scripts/ml/RETRAIN.md`.
 - Mobile: from `E:\TCGScannerMobile`, `npm install`, `npx expo run:android`,
   `npm test`; models are pushed by `scripts/push-models.ps1`, not bundled;
   Expo 57 APIs are checked against the versioned docs (`AGENTS.md`).

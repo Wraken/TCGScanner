@@ -366,6 +366,7 @@ func (a *App) priceRefs() map[string]PriceRef {
 	}
 	refs, err := getPriceRefs(a.db)
 	if err != nil {
+		fmt.Printf("price refs: %v\n", err)
 		return map[string]PriceRef{}
 	}
 	return refs
@@ -434,8 +435,10 @@ func sortedKeys(m map[string]int) []string {
 // ── Bindings ─────────────────────────────────────────────────────────────
 
 // GetCardPrices returns the prices of the given cards, from the guides on
-// disk. A card without a mapping or without a price is absent from the map;
-// no mapping at all yields an empty map, not an error.
+// disk. An id with candidates but no chosen reference is present with
+// Candidates > 0 and no price, so the UI can offer the selector; any other
+// card without a mapping or without a price is absent from the map. No
+// mapping at all yields an empty map, not an error.
 func (a *App) GetCardPrices(cardIDs []string) (map[string]CardPrice, error) {
 	out := map[string]CardPrice{}
 	m := a.priceMapping()
@@ -737,28 +740,59 @@ func (a *App) GetPriceCandidateImage(url string) (string, error) {
 	}
 	sum := sha1.Sum([]byte(url))
 	path := filepath.Join(a.pricesDirPath(), "images", hex.EncodeToString(sum[:])+".jpg")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		req, err := http.NewRequest(http.MethodGet, url, nil)
-		if err != nil {
-			return "", nil
-		}
-		req.Header.Set("User-Agent", "TCGScanner desktop app (price reference images)")
-		resp, err := priceHTTPClient.Do(req)
-		if err != nil {
-			return "", nil
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			return "", nil
-		}
-		data, err = io.ReadAll(io.LimitReader(resp.Body, priceImageMaxBytes))
-		if err != nil || len(data) < 1000 {
-			return "", nil
-		}
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err == nil {
-			_ = writeFileAtomic(path, data)
+	// The cache holds the raw bytes (".jpg" is only part of the key); the
+	// type is sniffed again on a hit.
+	if data, err := os.ReadFile(path); err == nil {
+		if mime := imageMIME(data); mime != "" {
+			return "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(data), nil
 		}
 	}
-	return "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(data), nil
+	data, err := fetchPriceImage(url)
+	if err != nil {
+		fmt.Printf("price image %s: %v\n", url, err)
+		return "", nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err == nil {
+		_ = writeFileAtomic(path, data)
+	}
+	return "data:" + imageMIME(data) + ";base64," + base64.StdEncoding.EncodeToString(data), nil
+}
+
+// fetchPriceImage downloads one scan; only a whole image under the size cap
+// is returned, so an error page or a cut body is never cached.
+func fetchPriceImage(url string) ([]byte, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "TCGScanner desktop app (price reference images)")
+	resp, err := priceHTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, priceImageMaxBytes+1))
+	switch {
+	case err != nil:
+		return nil, err
+	case len(data) > priceImageMaxBytes:
+		return nil, fmt.Errorf("larger than %d bytes", priceImageMaxBytes)
+	case len(data) < 1000:
+		return nil, fmt.Errorf("only %d bytes", len(data))
+	case imageMIME(data) == "":
+		return nil, fmt.Errorf("not an image (%s)", http.DetectContentType(data))
+	}
+	return data, nil
+}
+
+// imageMIME is data's sniffed image type, "" when it is not an image.
+func imageMIME(data []byte) string {
+	mime := http.DetectContentType(data)
+	if !strings.HasPrefix(mime, "image/") {
+		return ""
+	}
+	return mime
 }

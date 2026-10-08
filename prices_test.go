@@ -445,8 +445,18 @@ func TestGetPriceCandidateImage(t *testing.T) {
 			http.NotFound(w, r)
 			return
 		}
+		if strings.HasSuffix(r.URL.Path, "error.jpg") {
+			// A 200 that is not an image (an HTML error page).
+			w.Write([]byte("<!DOCTYPE html><html><body>" + strings.Repeat("x", 2000) + "</body></html>"))
+			return
+		}
 		w.Header().Set("Content-Type", "image/jpeg")
-		w.Write([]byte(strings.Repeat("J", 2000)))
+		if strings.HasSuffix(r.URL.Path, "huge.jpg") {
+			// Over the size cap: cut, so never cached nor shown.
+			w.Write(jpegBytes(priceImageMaxBytes + 10))
+			return
+		}
+		w.Write(jpegBytes(2000))
 	}))
 	defer srv.Close()
 	app, _ := pricesApp(t, testMappingWithCandidates)
@@ -469,4 +479,19 @@ func TestGetPriceCandidateImage(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(app.pricesDirPath(), "images")); err != nil {
 		t.Errorf("cache dir: %v", err)
 	}
+	for _, name := range []string{"error.jpg", "huge.jpg"} {
+		if got, err := app.GetPriceCandidateImage(srv.URL + "/uploads/blueprints/image/1/" + name); got != "" || err != nil {
+			t.Errorf("%s: want empty and no error, got %q, %v", name, got[:min(len(got), 40)], err)
+		}
+	}
+	if entries, _ := os.ReadDir(filepath.Join(app.pricesDirPath(), "images")); len(entries) != 1 {
+		t.Errorf("only the real image may be cached, got %d entries", len(entries))
+	}
+}
+
+// jpegBytes is n bytes that start with a JFIF header, which
+// http.DetectContentType reports as image/jpeg.
+func jpegBytes(n int) []byte {
+	b := append([]byte("\xFF\xD8\xFF\xE0\x00\x10JFIF\x00"), make([]byte, n)...)
+	return b[:n]
 }

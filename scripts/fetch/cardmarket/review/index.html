@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cardmarket review</title>
+<style>
+  :root { --bg:#161826; --card:#1d1f2e; --line:#262940; --text:#e6e6f0; --dim:#9a9db5; --accent:#9184d9; --ok:#5fcf8a; --warn:#f0b35a; --bad:#e86a6a; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.4 Inter, system-ui, sans-serif; }
+  header { display:flex; align-items:center; gap:16px; padding:10px 16px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:2; }
+  header h1 { font-size:16px; margin:0; font-weight:600; }
+  header .tabs button { background:none; border:1px solid var(--line); color:var(--dim); padding:5px 12px; border-radius:6px; cursor:pointer; }
+  header .tabs button.on { color:var(--text); border-color:var(--accent); }
+  .progress { color:var(--dim); margin-left:auto; }
+  .progress b { color:var(--text); }
+  main { padding:16px; }
+  button { font:inherit; }
+  .btn { background:var(--card); border:1px solid var(--line); color:var(--text); padding:6px 12px; border-radius:6px; cursor:pointer; }
+  .btn:hover { border-color:var(--accent); }
+  .btn.danger { border-color:var(--bad); color:var(--bad); }
+  kbd { display:inline-block; min-width:22px; text-align:center; padding:1px 6px; border-radius:4px; background:#2b2e45; border:1px solid #3a3d5c; font:600 13px/1.4 ui-monospace, monospace; }
+
+  /* choice */
+  .choice { display:grid; grid-template-columns: minmax(280px, 420px) 1fr; gap:24px; align-items:start; }
+  .ref { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; position:sticky; top:64px; }
+  .ref img { width:100%; border-radius:6px; display:block; background:#000; }
+  .ref .id { font-size:20px; font-weight:600; margin-top:10px; }
+  .ref .meta { color:var(--dim); }
+  .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .tiles { display:grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap:12px; }
+  .tile { background:var(--card); border:2px solid var(--line); border-radius:10px; padding:8px; cursor:pointer; position:relative; }
+  .tile:hover { border-color:var(--accent); }
+  .tile.picked { border-color:var(--ok); box-shadow:0 0 0 2px rgba(95,207,138,.25); }
+  .tile img { width:100%; aspect-ratio:63/88; object-fit:contain; background:#000; border-radius:6px; display:block; cursor:zoom-in; }
+  .tile .nopic { aspect-ratio:63/88; display:flex; align-items:center; justify-content:center; color:var(--dim); background:#000; border-radius:6px; }
+  .tile kbd { position:absolute; top:12px; left:12px; }
+  .tile .v { font-weight:600; margin-top:6px; min-height:1.4em; }
+  .tile .e { color:var(--dim); font-size:13px; }
+  .tile .p { color:var(--dim); font-size:12px; font-family:ui-monospace, monospace; }
+  .verdict { margin-top:8px; color:var(--ok); min-height:1.4em; }
+  .verdict.none { color:var(--warn); }
+  .done { text-align:center; padding:60px 0; color:var(--dim); }
+  .done b { color:var(--text); font-size:20px; display:block; margin-bottom:8px; }
+
+  /* check */
+  .check-bar { display:flex; gap:10px; align-items:center; margin-bottom:12px; flex-wrap:wrap; }
+  select { background:var(--card); color:var(--text); border:1px solid var(--line); padding:6px 10px; border-radius:6px; font:inherit; }
+  .rows { display:grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap:10px; }
+  .row { display:grid; grid-template-columns: 150px 150px 1fr; gap:10px; background:var(--card); border:1px solid var(--line); border-radius:8px; padding:8px; align-items:center; }
+  .row img { width:150px; aspect-ratio:63/88; object-fit:contain; background:#000; border-radius:4px; display:block; cursor:zoom-in; }
+  .row .nopic { width:150px; aspect-ratio:63/88; display:flex; align-items:center; justify-content:center; color:var(--dim); background:#000; border-radius:4px; font-size:12px; }
+  .row .id { font-weight:600; }
+  .row .meta { color:var(--dim); font-size:13px; }
+  .row .status { font-size:13px; margin:4px 0; }
+  .row .status.ok { color:var(--ok); } .row .status.none { color:var(--warn); }
+  .hint { color:var(--dim); font-size:13px; }
+
+  /* zoom: our reference next to one candidate, full size */
+  .zoom { position:fixed; inset:0; background:rgba(10,11,20,.94); z-index:10; display:flex; align-items:center; justify-content:center; gap:28px; cursor:zoom-out; }
+  .zoom-pane { display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .zoom-pane img { max-height:88vh; max-width:44vw; border-radius:8px; background:#000; }
+  .zoom-pane .nopic { height:60vh; width:30vw; display:flex; align-items:center; justify-content:center; color:var(--dim); background:#000; border-radius:8px; }
+  .zoom .cap { color:var(--dim); }
+  .zoom-hint { position:fixed; bottom:12px; left:0; right:0; text-align:center; color:var(--dim); font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Cardmarket review</h1>
+  <div class="tabs">
+    <button id="tab-choice" class="on">Choice</button>
+    <button id="tab-check">Check</button>
+  </div>
+  <div class="progress" id="progress"></div>
+</header>
+<main id="main"></main>
+
+<script>
+const KEYS = "123456789abcdefghijklm";
+const S = { state: null, queue: [], pos: 0, view: "choice", card: null, from: null, check: null, checkSet: "" };
+
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : undefined);
+  return r.json();
+}
+
+function el(html) { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; }
+function esc(s) { return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+function verdictOf(id) {
+  const m = S.state.manual;
+  if (id in m.picks) return { product: m.picks[id] };
+  if (m.none.includes(id)) return { none: true };
+  return null;
+}
+
+function renderProgress() {
+  const st = S.state;
+  document.getElementById("progress").innerHTML =
+    `${st.game} · choice <b>${st.settled}</b> / ${st.total} settled · check ${st.check_total} plain cards`;
+}
+
+// ── choice ──────────────────────────────────────────────────────────────
+
+async function showChoice() {
+  S.view = "choice";
+  setTab();
+  if (S.pos >= S.queue.length) { renderDone(); return; }
+  const id = S.queue[S.pos];
+  S.card = await api(`/api/card?id=${encodeURIComponent(id)}`);
+  renderCard();
+}
+
+function renderDone() {
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  main.append(el(`<div class="done"><b>Nothing left in this pass.</b>
+    ${S.state.settled} of ${S.state.total} settled, ${S.state.total - S.state.settled} skipped or unsettled.
+    <div class="actions" style="justify-content:center"><button class="btn" id="reload">Reload the queue</button></div></div>`));
+  document.getElementById("reload").onclick = async () => { await refresh(true); showChoice(); };
+}
+
+function renderCard() {
+  const c = S.card, v = verdictOf(c.id);
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const left = el(`<div class="ref">
+      <img src="${c.ref}" alt="">
+      <div class="id">${esc(c.id)}</div>
+      <div>${esc(c.name)}</div>
+      <div class="meta">${esc(c.set_name || c.set)} · ${esc(c.rarity)}${c.pack ? " · from pack <b>" + esc(c.pack) + "</b>" : ""} · ${c.tiles.length} printing${c.tiles.length === 1 ? "" : "s"} listed</div>
+      <div class="verdict ${v && v.none ? "none" : ""}" id="verdict"></div>
+      <div class="actions">
+        <button class="btn" id="prev" title="Backspace">← Previous</button>
+        <button class="btn" id="skip" title="S">Skip</button>
+        <button class="btn danger" id="none" title="0"><kbd>0</kbd> None matches</button>
+        ${S.from === "check" ? '<button class="btn" id="back">Back to check (Esc)</button>' : ""}
+      </div>
+      <p class="hint">Press the key on a tile to pick it. Click an image or press <kbd>Z</kbd> to compare it full size. ${S.from ? "" : `Card ${S.pos + 1} of ${S.queue.length} in this pass.`}</p>
+    </div>`);
+  const tiles = el(`<div class="tiles"></div>`);
+  c.tiles.forEach((t, i) => {
+    const picked = v && !v.none && t.products.includes(v.product);
+    const tile = el(`<div class="tile ${picked ? "picked" : ""}">
+        ${t.preview ? `<img src="${t.preview}" alt="" loading="lazy">` : `<div class="nopic">no preview</div>`}
+        <kbd>${KEYS[i] ?? "·"}</kbd>
+        <div class="v">${esc(t.version) || "<span style='color:var(--dim)'>plain</span>"}</div>
+        <div class="e">${esc(t.expansion)}${t.number ? " · " + esc(t.number) : ""}</div>
+        <div class="p">products ${t.products.join(", ")}</div>
+      </div>`);
+    tile.onclick = () => pick(t);
+    tile.onmouseenter = () => { Z.hover = i; };
+    const img = tile.querySelector("img");
+    if (img) img.onclick = e => { e.stopPropagation(); zoomTile(i); };
+    tiles.append(tile);
+  });
+  const grid = el(`<div class="choice"></div>`);
+  grid.append(left, tiles);
+  main.append(grid);
+  document.getElementById("verdict").textContent = v ? (v.none ? "Settled: none of the candidates" : `Settled: product ${v.product}`) : "";
+  document.getElementById("prev").onclick = prev;
+  document.getElementById("skip").onclick = next;
+  document.getElementById("none").onclick = () => verdict({ none: true });
+  const back = document.getElementById("back");
+  if (back) back.onclick = () => showCheck();
+  window.scrollTo(0, 0);
+}
+
+async function pick(tile) {
+  if (!tile.products.length) return;
+  await verdict({ product: tile.products[0] });
+}
+
+async function verdict(body) {
+  closeZoom();
+  S.state = await api("/api/pick", { id: S.card.id, ...body });
+  renderProgress();
+  if (S.from === "check") { S.from = null; showCheck(); return; }
+  next();
+}
+
+function next() { S.pos = Math.min(S.pos + 1, S.queue.length); showChoice(); }
+function prev() { if (S.pos > 0) { S.pos--; showChoice(); } }
+
+// ── zoom ────────────────────────────────────────────────────────────────
+
+const Z = { open: false, index: -1, hover: 0 };
+
+function openZoom(refSrc, candSrc, caption, index) {
+  Z.open = true; Z.index = index;
+  let o = document.getElementById("zoom");
+  if (!o) { o = el(`<div id="zoom" class="zoom"></div>`); document.body.append(o); o.onclick = closeZoom; }
+  o.innerHTML = `<div class="zoom-pane"><img src="${refSrc}" alt=""><div class="cap">our reference</div></div>
+    <div class="zoom-pane">${candSrc ? `<img src="${candSrc}" alt="">` : `<div class="nopic">no image</div>`}<div class="cap">${caption}</div></div>
+    <div class="zoom-hint">${index >= 0 ? "← → other candidates · a tile's key picks it · " : ""}Esc or click closes</div>`;
+}
+
+function closeZoom() { const o = document.getElementById("zoom"); if (o) o.remove(); Z.open = false; Z.index = -1; }
+
+function zoomTile(i) {
+  const t = S.card && S.card.tiles[i];
+  if (!t) return;
+  openZoom(S.card.ref, t.preview, `<kbd>${KEYS[i] ?? "·"}</kbd> ${esc(t.version) || "plain"} · ${esc(t.expansion)}${t.number ? " · " + esc(t.number) : ""}`, i);
+}
+
+document.addEventListener("keydown", e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (Z.open && e.key === "Escape") { closeZoom(); return; }
+  if (S.view !== "choice" || !S.card) return;
+  if (Z.open && (e.key === "ArrowRight" || e.key === "ArrowLeft")) {
+    e.preventDefault();
+    const n = S.card.tiles.length;
+    zoomTile((Z.index + (e.key === "ArrowRight" ? 1 : n - 1)) % n);
+    return;
+  }
+  if (e.key === "z" || e.key === "Z") { if (Z.open) closeZoom(); else zoomTile(Z.hover); return; }
+  if (e.key === "Backspace") { e.preventDefault(); prev(); return; }
+  if (e.key === "Escape" && S.from === "check") { S.from = null; showCheck(); return; }
+  if (e.key === "0") { verdict({ none: true }); return; }
+  if (e.key === "s" || e.key === "S") { next(); return; }
+  const i = KEYS.indexOf(e.key.toLowerCase());
+  if (i >= 0 && i < S.card.tiles.length) pick(S.card.tiles[i]);
+});
+
+// ── check ───────────────────────────────────────────────────────────────
+
+async function showCheck() {
+  S.view = "check";
+  setTab();
+  if (!S.check) S.check = await api("/api/check");
+  const sets = [...new Set(S.check.map(r => r.id.split("-")[0]))];
+  if (!S.checkSet) S.checkSet = sets[0] || "";
+  const main = document.getElementById("main");
+  main.innerHTML = "";
+  const bar = el(`<div class="check-bar">
+      <label>Set <select id="set">${sets.map(s => `<option value="${s}" ${s === S.checkSet ? "selected" : ""}>${s} (${S.check.filter(r => r.id.startsWith(s + "-")).length})</option>`).join("")}</select></label>
+      <button class="btn" id="prevset">← Previous set</button>
+      <button class="btn" id="nextset">Next set →</button>
+      <span class="hint">Our image on the left, the mapped Cardmarket product's preview on the right. Flag a row that does not match to choose the right printing.</span>
+    </div>`);
+  main.append(bar);
+  const rows = el(`<div class="rows"></div>`);
+  S.check.filter(r => r.id.startsWith(S.checkSet + "-")).forEach(r => {
+    const v = verdictOf(r.id);
+    const row = el(`<div class="row">
+        <img src="${r.ref}" alt="" loading="lazy">
+        ${r.preview ? `<img src="${r.preview}" alt="" loading="lazy">` : `<div class="nopic">no preview</div>`}
+        <div>
+          <div class="id">${esc(r.id)}</div>
+          <div class="meta">${esc(r.name)} · product ${r.product}</div>
+          <div class="status ${v ? (v.none ? "none" : "ok") : ""}">${v ? (v.none ? "Flagged: none matches" : `Corrected by hand: product ${v.product}`) : ""}</div>
+          <button class="btn">${v ? "Change" : "Wrong → choose"}</button>
+        </div>
+      </div>`);
+    row.querySelectorAll("img").forEach(img => {
+      img.onclick = () => openZoom(r.ref, r.preview, `${esc(r.id)} · product ${r.product}`, -1);
+    });
+    row.querySelector("button").onclick = async () => {
+      S.from = "check";
+      S.view = "choice"; setTab();
+      S.card = await api(`/api/card?id=${encodeURIComponent(r.id)}`);
+      renderCard();
+    };
+    rows.append(row);
+  });
+  main.append(rows);
+  document.getElementById("set").onchange = e => { S.checkSet = e.target.value; showCheck(); };
+  document.getElementById("prevset").onclick = () => { const i = sets.indexOf(S.checkSet); if (i > 0) { S.checkSet = sets[i - 1]; showCheck(); } };
+  document.getElementById("nextset").onclick = () => { const i = sets.indexOf(S.checkSet); if (i < sets.length - 1) { S.checkSet = sets[i + 1]; showCheck(); } };
+  window.scrollTo(0, 0);
+}
+
+// ── shell ───────────────────────────────────────────────────────────────
+
+function setTab() {
+  document.getElementById("tab-choice").classList.toggle("on", S.view === "choice");
+  document.getElementById("tab-check").classList.toggle("on", S.view === "check");
+}
+
+async function refresh(resetQueue) {
+  S.state = await api("/api/state");
+  if (resetQueue || !S.queue.length) { S.queue = S.state.queue.slice(); S.pos = 0; }
+  renderProgress();
+}
+
+document.getElementById("tab-choice").onclick = () => { S.from = null; showChoice(); };
+document.getElementById("tab-check").onclick = () => showCheck();
+
+refresh(true).then(() => (location.hash === "#check" ? showCheck() : showChoice()));
+</script>
+</body>
+</html>

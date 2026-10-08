@@ -20,6 +20,11 @@ interface Props {
   onClose: () => void;
 }
 
+// One key per tile, as in the review tool: 1-9 then letters (some ids ship
+// 10-14 printings, and a single key press cannot spell "10"). Tiles beyond
+// the map get no key.
+const KEYS = "123456789abcdefghijklm";
+
 // "Trend €3.20 · foil €3.50 · other languages €2.00", the columns a candidate has.
 function priceText(p: PriceCandidateView["price"]): string {
   const parts: string[] = [];
@@ -31,7 +36,7 @@ function priceText(p: PriceCandidateView["price"]): string {
 
 // Asks which Cardmarket printing a card id is, among the candidates the
 // bundle ships, with CardTrader's scan and today's price per printing.
-// The choice is stored per card id; digits pick a tile, Escape closes.
+// The choice is stored per card id; a tile's key picks it, Escape closes.
 export function PriceReferenceDialog({ cardId, image, info, onClose }: Props) {
   const { notify } = useNotices();
   const [views, setViews] = useState<PriceCandidateView[]>([]);
@@ -84,9 +89,9 @@ export function PriceReferenceDialog({ cardId, image, info, onClose }: Props) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.repeat) return;
-      const i = parseInt(e.key, 10);
-      if (!isNaN(i) && i >= 1 && i <= views.length) choose(views[i - 1].product);
+      if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1) return;
+      const i = KEYS.indexOf(e.key.toLowerCase());
+      if (i >= 0 && i < views.length) choose(views[i].product);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -100,7 +105,7 @@ export function PriceReferenceDialog({ cardId, image, info, onClose }: Props) {
         <DialogHeader>
           <DialogTitle>Which Cardmarket printing is {cardId}?</DialogTitle>
           <DialogDescription>
-            {info?.name ? `${info.name}. ` : ""}Compare your card with CardTrader's scans: the foil pattern and the stamp show there. Press a tile's number to choose it.
+            {info?.name ? `${info.name}. ` : ""}Compare your card with CardTrader's scans: the foil pattern and the stamp show there. Press a tile's key to choose it.
           </DialogDescription>
         </DialogHeader>
         <div className="flex gap-6 min-h-0">
@@ -121,14 +126,21 @@ export function PriceReferenceDialog({ cardId, image, info, onClose }: Props) {
                   onClick={() => choose(v.product)}
                 >
                   {scan ? (
-                    <img src={scan} alt="" className="w-full rounded-md" style={{ aspectRatio: "63 / 88", objectFit: "contain", background: "#000" }} />
+                    <img
+                      src={scan}
+                      alt=""
+                      // A scan the webview cannot decode falls back to "No image".
+                      onError={() => setScans((prev) => ({ ...prev, [v.image]: null }))}
+                      className="w-full rounded-md" style={{ aspectRatio: "63 / 88", objectFit: "contain", background: "#000" }} />
                   ) : (
                     <div className="w-full rounded-md flex items-center justify-center n-n500 text-xs" style={{ aspectRatio: "63 / 88", background: "#000" }}>
                       {v.image && scan === undefined ? "Loading…" : "No image"}
                     </div>
                   )}
                   <span className="flex items-center gap-2">
-                    <kbd className="n-tag n-tag-outline font-mono" style={{ fontSize: "10px", padding: "1px 7px" }}>{i + 1}</kbd>
+                    {i < KEYS.length && (
+                      <kbd className="n-tag n-tag-outline font-mono" style={{ fontSize: "10px", padding: "1px 7px" }}>{KEYS[i].toUpperCase()}</kbd>
+                    )}
                     <span className="text-sm">{v.label}</span>
                   </span>
                   <span className="text-xs n-n400 tabular-nums">{priceText(v.price)}</span>

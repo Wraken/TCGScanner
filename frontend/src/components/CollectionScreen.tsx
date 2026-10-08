@@ -422,7 +422,7 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
         image={openCard ? images[openCard] ?? null : null}
         info={openCard && Object.hasOwn(infos, openCard) ? infos[openCard] : null}
         price={openCard ? prices[openCard] : undefined}
-        pricesAvailable={!!collection.prices?.available}
+        prices={collection.prices ?? null}
         customs={collection.customs}
         languages={collection.languages}
         onChangeLang={(c, lang) => editCopy("change the language", () => UpdateCard({ ...c, lang }))}

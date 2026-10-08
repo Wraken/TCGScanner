@@ -51,6 +51,10 @@ export function VariantChoiceDialog({ candidates, preselected, onPick, onDismiss
   }, [candidates]);
 
   useEffect(() => {
+    // Drop the previous candidates' data first, so a changed reference never
+    // flashes its old label.
+    setRefs({});
+    setPrices({});
     if (!candidates) return;
     let cancelled = false;
     const ids = candidates.map((c) => c.card_id);

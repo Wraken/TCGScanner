@@ -17,7 +17,7 @@ import {
 import { CardImage } from "@/components/CardImage";
 import { formatDate } from "@/lib/utils";
 import { formatEUR, formatGuideDate, referenceState, sumValues } from "@/lib/prices";
-import type { CardInfo, CardLanguage, CardPrice, Collection, CollectionCard } from "@/types";
+import type { CardInfo, CardLanguage, CardPrice, Collection, CollectionCard, PricesStatus } from "@/types";
 
 interface Props {
   cardId: string | null;              // null = closed
@@ -26,8 +26,9 @@ interface Props {
   info: CardInfo | null;
   // Cardmarket price of the card; undefined = none.
   price?: CardPrice;
-  // Cardmarket prices are on and a bundle is present; gates the reference notes.
-  pricesAvailable: boolean;
+  // Cardmarket prices status; gates the reference notes ("unset" needs a
+  // bundle, "Not on Cardmarket" also needs the game's guide on disk).
+  prices: PricesStatus | null;
   customs: Collection[];
   languages: CardLanguage[];
   onClose: () => void;
@@ -71,6 +72,10 @@ export function CardCopiesDialog(props: Props) {
   const owned = price && cardId ? sumValues(copies, { [cardId]: price }) : null;
   const refState = referenceState(price);
   const game = info?.game || copies[0]?.game || "";
+  // A price is also missing while the game's guide is not on disk yet (or
+  // its fetch failed): only claim "Not on Cardmarket" once it is.
+  const showRef = !!props.prices?.available && refState !== "priced" &&
+    (refState === "unset" || !!props.prices.games?.[game]?.as_of);
   const scope = game === "onepiece"
     ? (price && (price.trend_non_english > 0 || price.trend_non_english_foil > 0) ? "English and other languages" : "English")
     : "all languages";
@@ -124,7 +129,7 @@ export function CardCopiesDialog(props: Props) {
               <button type="button" className="underline" onClick={props.onSetReference}>Change</button>
             </p>
           )}
-          {props.pricesAvailable && refState !== "priced" && (
+          {showRef && (
             <p className="m-0 text-sm pt-2 inline-flex items-center gap-1.5" style={{ color: refState === "unset" ? "var(--n-warn)" : "var(--n-neutral-500)" }}>
               <TriangleAlert className="w-4 h-4" aria-hidden="true" />
               {refState === "unset" ? "No Cardmarket reference, set it by hand." : "Not on Cardmarket."}

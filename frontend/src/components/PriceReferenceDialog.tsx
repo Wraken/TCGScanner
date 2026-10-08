@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ClearPriceRef, GetPriceCandidateImage, GetPriceCandidates, SetPriceRef } from "../../wailsjs/go/main/App";
 import {
   Dialog,
@@ -37,6 +37,7 @@ export function PriceReferenceDialog({ cardId, image, info, onClose }: Props) {
   const [views, setViews] = useState<PriceCandidateView[]>([]);
   const [scans, setScans] = useState<Record<string, string | null>>({}); // url -> data URL, null = failed
   const [busy, setBusy] = useState(false);
+  const saving = useRef(false); // guards the keyboard path, which `disabled` does not cover
   const open = cardId !== null;
 
   useEffect(() => {
@@ -46,7 +47,8 @@ export function PriceReferenceDialog({ cardId, image, info, onClose }: Props) {
     GetPriceCandidates(cardId)
       .then((v) => { if (!cancelled) setViews((v ?? []) as PriceCandidateView[]); })
       .catch((e) => { if (!cancelled) notify("error", `Couldn't load the printings: ${errorText(e)}`); });
-    return () => { cancelled = true; };
+    // Also clear on close, so a reopened dialog never shows the previous card's tiles.
+    return () => { cancelled = true; setViews([]); };
   }, [cardId]);
 
   // One scan at a time, in tile order; a failure leaves a "no image" box.
@@ -64,7 +66,8 @@ export function PriceReferenceDialog({ cardId, image, info, onClose }: Props) {
   }, [views]);
 
   async function choose(product: number | null) {
-    if (!cardId) return;
+    if (!cardId || saving.current) return;
+    saving.current = true;
     setBusy(true);
     try {
       if (product === null) await ClearPriceRef(cardId);
@@ -73,6 +76,7 @@ export function PriceReferenceDialog({ cardId, image, info, onClose }: Props) {
     } catch (e) {
       notify("error", `Couldn't save the reference: ${errorText(e)}`);
     } finally {
+      saving.current = false;
       setBusy(false);
     }
   }
@@ -80,6 +84,7 @@ export function PriceReferenceDialog({ cardId, image, info, onClose }: Props) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
+      if (e.repeat) return;
       const i = parseInt(e.key, 10);
       if (!isNaN(i) && i >= 1 && i <= views.length) choose(views[i - 1].product);
     };

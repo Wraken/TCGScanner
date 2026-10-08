@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -14,6 +16,8 @@ const (
 	srcPublished source = "published" // TCGdex / LorcanaJSON id, taken as is
 	srcBlueprint source = "blueprint" // one CardTrader blueprint, one Cardmarket id
 	srcVisual    source = "visual"    // visual.json, the embedding tie-break
+	srcPack      source = "pack"      // rule C: the one print of its kind in the pack's expansion
+	srcManual    source = "manual"    // manual.json, the review tool's hand picks
 	srcOverride  source = "override"  // overrides.json
 )
 
@@ -48,6 +52,13 @@ type gameResult struct {
 	// priced, an English one is not); elsewhere they stay mapped and are
 	// listed for a look.
 	ForeignShelf []string
+	// ManualNone lists the cards the review tool settled as "no candidate
+	// matches": unresolved by verdict, not for want of a source.
+	ManualNone map[string]bool
+	// PackDisagree lists the manual picks rule C would have settled
+	// otherwise (card -> the pack rule's product): a cross-check, the
+	// manual pick still ships.
+	PackDisagree map[string]int
 }
 
 // resolveGame runs the steps of the spec for one game. published holds the
@@ -56,10 +67,10 @@ type gameResult struct {
 // hand-made picks. The catalog is the day's product list: every product
 // must exist in it and carry a compatible name, or the card is dropped.
 func resolveGame(game string, cards map[string]ourCard, published map[string]int,
-	exps map[int]ctExpansion, blueprints []ctBlueprint, visual map[string]visualPick, overrides map[string]int,
+	exps map[int]ctExpansion, blueprints []ctBlueprint, visual map[string]visualPick, manual manualPicks, overrides map[string]int,
 	catalog map[int]cmProduct, shelf map[int]shelfLang, catalogDay string) gameResult {
 
-	r := gameResult{Game: game, CatalogDay: catalogDay, Mapped: map[string]resolved{}, Dropped: map[string]string{}}
+	r := gameResult{Game: game, CatalogDay: catalogDay, Mapped: map[string]resolved{}, Dropped: map[string]string{}, ManualNone: map[string]bool{}, PackDisagree: map[string]int{}}
 
 	ids := make([]string, 0, len(cards))
 	for id := range cards {
@@ -72,6 +83,7 @@ func resolveGame(game string, cards map[string]ourCard, published map[string]int
 	sort.Strings(ids)
 
 	ix := indexBlueprints(exps, blueprints)
+	kin := kinCounts(game, cards)
 
 	for _, id := range ids {
 		card := cards[id]
@@ -81,13 +93,33 @@ func resolveGame(game string, cards map[string]ourCard, published map[string]int
 		switch {
 		case overrides[id] != 0:
 			pick = resolved{overrides[id], srcOverride}
+		case manual.None[id]:
+			r.ManualNone[id] = true
+			r.Unresolved = append(r.Unresolved, id)
+			continue
+		case manual.Picks[id] != 0:
+			// A hand pick names a printing CardTrader lists, by any of its
+			// products; rule B chooses the shelf, as for a visual pick.
+			p, ok := 0, false
+			if ix != nil {
+				p, ok = visualShelf(manual.Picks[id], ix, shelf, catalog)
+			}
+			if !ok {
+				r.Dropped[id] = fmt.Sprintf("manual pick %d is on no blueprint, or its printing has no English shelf", manual.Picks[id])
+				continue
+			}
+			pick = resolved{p, srcManual}
+			if p2, src2, _ := resolveBlueprint(game, id, card, ix, shelf, catalog, kin); src2 == srcPack && p2 != p {
+				r.PackDisagree[id] = p2
+			}
 		case published[id] != 0:
 			pick = resolved{published[id], srcPublished}
 		case ix != nil:
 			var product int
-			product, cands = resolveBlueprint(game, id, card, ix, shelf, catalog)
+			var src source
+			product, src, cands = resolveBlueprint(game, id, card, ix, shelf, catalog, kin)
 			if product != 0 {
-				pick = resolved{product, srcBlueprint}
+				pick = resolved{product, src}
 			} else if v, ok := visual[id]; ok && len(cands) > 1 && containsInt(cands, v.Product) {
 				// The tie-break only ever picks among today's candidates:
 				// a pick that is no longer one of them is stale. It names a
@@ -309,6 +341,9 @@ type blueprintIndex struct {
 	// Every blueprint listing a Cardmarket id, by that id: the way back
 	// from a product to its printing and the printing's other shelves.
 	byCM map[int][]ctBlueprint
+	// Every blueprint by (set label of its expansion, base number): the
+	// candidate pool of a variant whose pack is known (rule C).
+	byPackBase map[bpKey][]ctBlueprint
 }
 
 // variantBase strips CardTrader's printing suffix from a collector
@@ -332,7 +367,7 @@ func indexBlueprints(exps map[int]ctExpansion, bps []ctBlueprint) *blueprintInde
 	if bps == nil {
 		return nil
 	}
-	ix := &blueprintIndex{plain: map[bpKey][]ctBlueprint{}, versioned: map[bpKey][]ctBlueprint{}, byBase: map[bpKey][]ctBlueprint{}, allByBase: map[string][]ctBlueprint{}, byCM: map[int][]ctBlueprint{}}
+	ix := &blueprintIndex{plain: map[bpKey][]ctBlueprint{}, versioned: map[bpKey][]ctBlueprint{}, byBase: map[bpKey][]ctBlueprint{}, allByBase: map[string][]ctBlueprint{}, byCM: map[int][]ctBlueprint{}, byPackBase: map[bpKey][]ctBlueprint{}}
 	for _, b := range bps {
 		for _, cm := range nonZero(b.CardMarketIDs) {
 			ix.byCM[cm] = append(ix.byCM[cm], b)
@@ -349,6 +384,10 @@ func indexBlueprints(exps map[int]ctExpansion, bps []ctBlueprint) *blueprintInde
 		bk := bpKey{key.Exp, variantBase(num)}
 		ix.byBase[bk] = append(ix.byBase[bk], b)
 		ix.allByBase[bk.Number] = append(ix.allByBase[bk.Number], b)
+		if lab := expansionLabel(exp); lab != "" {
+			pk := bpKey{lab, bk.Number}
+			ix.byPackBase[pk] = append(ix.byPackBase[pk], b)
+		}
 		if marksVariant(b.Version) {
 			ix.versioned[key] = append(ix.versioned[key], b)
 		} else {
@@ -397,7 +436,7 @@ func numberNamesPrinting(game string, card ourCard) bool {
 // resolveBlueprint applies rule A then rule B. It returns the product, or
 // the candidates when the card is a variant or the language cannot be
 // told, or nothing when no blueprint carries the number.
-func resolveBlueprint(game, id string, card ourCard, ix *blueprintIndex, shelf map[int]shelfLang, catalog map[int]cmProduct) (product int, cands []int) {
+func resolveBlueprint(game, id string, card ourCard, ix *blueprintIndex, shelf map[int]shelfLang, catalog map[int]cmProduct, kin map[kinKey]int) (product int, src source, cands []int) {
 	num := ourNumber(game, card)
 	var plain, versioned []ctBlueprint
 	for _, exp := range homeExpansions(game, card.Set) {
@@ -438,12 +477,12 @@ func resolveBlueprint(game, id string, card ourCard, ix *blueprintIndex, shelf m
 	if !isVariant && len(plain) == 1 {
 		ids := nonZero(plain[0].CardMarketIDs)
 		if len(ids) == 0 {
-			return 0, nil
+			return 0, "", nil
 		}
 		if p, ok := pickShelf(ids, shelf, catalog); ok {
-			return p, nil
+			return p, srcBlueprint, nil
 		}
-		return 0, ids
+		return 0, "", ids
 	}
 	// A variant, or a number several plain blueprints share: every printing
 	// of the base card in the home expansions is a candidate, listed for
@@ -454,6 +493,26 @@ func resolveBlueprint(game, id string, card ourCard, ix *blueprintIndex, shelf m
 		// of OP01-025 may sit on a Premium Card Collection or reprint shelf
 		// rather than Romance Dawn's, and only the artwork tells which.
 		pool = ix.allByBase[variantBase(num)]
+		// Rule C: the pack names the expansion; see packLabels.
+		if labels := packLabels(card.Pack); labels != nil {
+			var mine []ctBlueprint
+			parallel := strings.Contains(id, "_p")
+			for _, l := range labels {
+				for _, b := range ix.byPackBase[bpKey{l, variantBase(num)}] {
+					if isVariantPrinting(b) == parallel {
+						mine = append(mine, b)
+					}
+				}
+			}
+			if len(mine) == 1 && kin[kinKey{variantBase(num), strings.ToUpper(card.Pack), parallel}] == 1 {
+				if p, ok := pickShelf(nonZero(mine[0].CardMarketIDs), shelf, catalog); ok {
+					return p, srcPack, nil
+				}
+			}
+			if len(mine) > 0 {
+				pool = mine
+			}
+		}
 	}
 	seen := map[int]bool{}
 	for _, b := range pool {
@@ -465,7 +524,116 @@ func resolveBlueprint(game, id string, card ourCard, ix *blueprintIndex, shelf m
 		}
 	}
 	sort.Ints(cands)
-	return 0, cands
+	return 0, "", cands
+}
+
+// ── Rule C: the pack names the expansion ─────────────────────────────────
+//
+// A One Piece reprint ("_r1") or parallel ("_p1") carries in our metadata
+// the product it comes from (ourCard.Pack, from punk-records): "PRB-02",
+// "ST-34", "OP-01", the combined "OP14-EB04", "PROMO". CardTrader files its
+// blueprints by expansion, and the expansion's name starts with the same
+// label (the code is less reliable: "st04" is "ST-05"). So the candidates
+// of a variant are the blueprints of its pack's expansion on its base
+// number: the reprint is the one without a variant marking (no letter after
+// the number, no version word beyond "Reprint" / "Non-Foil" / errata), the
+// parallels are the marked ones. When the pack lists exactly one print of
+// the kind and we have exactly one variant of the kind in that pack, they
+// are the same printing (srcPack). Otherwise the prints of the kind are
+// the candidates, listed for the review tool. Measured 2026-10-08 on the
+// 2,064 ambiguous One Piece cards: 1,137 settled, the rest narrowed to 4.8
+// candidates on average (6.7 before).
+
+var (
+	setLabelRe  = regexp.MustCompile(`^[ ]*(OP|ST|EB|PRB)[ ]*-?[ ]*0*([0-9]+)`)
+	cleanCodeRe = regexp.MustCompile(`^(op|st|eb|prb)-?0*([0-9]+)$`)
+	packRe      = regexp.MustCompile(`^(OP|ST|EB|PRB)-?0*([0-9]+)(?:-(EB)-?0*([0-9]+))?$`)
+)
+
+func normLabel(prefix, number string) string {
+	n, _ := strconv.Atoi(number)
+	return fmt.Sprintf("%s-%02d", strings.ToUpper(prefix), n)
+}
+
+// expansionLabel is the set label of a CardTrader expansion ("ST-05"),
+// from its name when the code is a plain set code (else the code), "PROMO"
+// for the promo expansion, "" for a stamped or special run ("op05p1st",
+// "op02p") and for the products no pack of ours names.
+func expansionLabel(e ctExpansion) string {
+	code := strings.ToLower(strings.TrimSpace(e.Code))
+	if code == "promo" {
+		return "PROMO"
+	}
+	cm := cleanCodeRe.FindStringSubmatch(code)
+	if cm == nil {
+		return ""
+	}
+	if m := setLabelRe.FindStringSubmatch(e.Name); m != nil {
+		return normLabel(m[1], m[2])
+	}
+	return normLabel(cm[1], cm[2])
+}
+
+// packLabels are the expansion labels a pack of ours spans: one, or two for
+// the combined "OP14-EB04" boosters; nil when the pack is unknown.
+func packLabels(pack string) []string {
+	pack = strings.ToUpper(strings.TrimSpace(pack))
+	if pack == "" {
+		return nil
+	}
+	if pack == "PROMO" {
+		return []string{"PROMO"}
+	}
+	m := packRe.FindStringSubmatch(pack)
+	if m == nil {
+		return []string{pack}
+	}
+	out := []string{normLabel(m[1], m[2])}
+	if m[3] != "" {
+		out = append(out, normLabel(m[3], m[4]))
+	}
+	return out
+}
+
+// reprintWords mark a plain reprint (or a rarity) on CardTrader, not
+// another printing; they are blanked before the variant words are looked
+// for. "Special Rare" is a printing of its own and is tested first.
+var reprintWords = []string{"non-foil", "reprint", "missing pen symbol next to the artist name", "errata", "fixed text", "1st print", "first print", "secret rare", "super rare", "uncommon", "common", "rare", "leader"}
+
+// isVariantPrinting reports whether a blueprint is a parallel / special
+// print rather than the plain card or its plain reprint: a letter after
+// the number ("EB01-009f"), "Special Rare", or a variant word in the version.
+func isVariantPrinting(b ctBlueprint) bool {
+	num := strings.ToUpper(strings.TrimSpace(b.FixedProperties.CollectorNumber))
+	if num != "" && variantBase(num) != num {
+		return true
+	}
+	v := strings.ToLower(strings.TrimSpace(b.Version))
+	if strings.Contains(v, "special rare") {
+		return true
+	}
+	for _, w := range reprintWords {
+		v = strings.ReplaceAll(v, w, "")
+	}
+	return marksVariant(v)
+}
+
+// kinKey counts our variants of one kind (parallel or reprint) of one base
+// card in one pack: rule C settles a print only when both sides count one.
+type kinKey struct {
+	Base, Pack string
+	Parallel   bool
+}
+
+func kinCounts(game string, cards map[string]ourCard) map[kinKey]int {
+	out := map[kinKey]int{}
+	for id, c := range cards {
+		if !strings.Contains(id, "_") || c.Pack == "" {
+			continue
+		}
+		out[kinKey{variantBase(ourNumber(game, c)), strings.ToUpper(c.Pack), strings.Contains(id, "_p")}]++
+	}
+	return out
 }
 
 // englishOnly keeps the ids whose Cardmarket expansion is an English shelf.

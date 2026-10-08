@@ -238,6 +238,64 @@ func loadShelfLanguages(game string, offline bool, catalog map[int]cmProduct) (m
 // longer ambiguous (a later source resolved it) is ignored, so a stale file
 // never overrides a surer answer.
 
+// ── Source: manual.json (the review tool's hand picks) ────────────────────
+//
+// {"picks": {"<card id>": <product id>}, "none": ["<card id>", ...]}
+// A pick names a printing by any of its Cardmarket products: the mapper
+// chooses the English shelf, as for a visual pick. "none" is the verdict
+// that no candidate matches: the card is neither auto-picked nor listed as
+// ambiguous again. "_<id>" keys are comments.
+
+const manualFile = "manual.json"
+
+type manualPicks struct {
+	Picks map[string]int
+	None  map[string]bool
+}
+
+func loadManual() (manualPicks, error) {
+	data, err := os.ReadFile(manualFile)
+	if errors.Is(err, fs.ErrNotExist) {
+		return manualPicks{}, nil
+	}
+	if err != nil {
+		return manualPicks{}, err
+	}
+	m, err := parseManual(data)
+	if err != nil {
+		return manualPicks{}, fmt.Errorf("%s: %w", manualFile, err)
+	}
+	return m, nil
+}
+
+func parseManual(data []byte) (manualPicks, error) {
+	m := manualPicks{Picks: map[string]int{}, None: map[string]bool{}}
+	if len(data) == 0 {
+		return m, nil
+	}
+	var f struct {
+		Picks map[string]any `json:"picks"`
+		None  []string       `json:"none"`
+	}
+	if err := json.Unmarshal(data, &f); err != nil {
+		return manualPicks{}, err
+	}
+	for id, v := range f.Picks {
+		if strings.HasPrefix(id, "_") {
+			continue
+		}
+		p, ok := v.(float64)
+		if !ok || p <= 0 || p != float64(int(p)) {
+			return manualPicks{}, fmt.Errorf("%q must be a positive product id", id)
+		}
+		m.Picks[id] = int(p)
+	}
+	for _, id := range f.None {
+		m.None[id] = true
+	}
+	return m, nil
+}
+
 const visualFile = "visual.json"
 
 type visualPick struct {
@@ -284,6 +342,9 @@ type ourCard struct {
 	Name   string `json:"name"`
 	Set    string `json:"set"`
 	Number string `json:"number"`
+	// Pack is the product a One Piece printing comes from ("PRB-02",
+	// "ST-34", "OP14-EB04", "PROMO"; "" when unknown), see rule C.
+	Pack string `json:"pack"`
 	// Riftbound ids end with the set's card count ("ogn-001-298"): the
 	// number a showcase is counted past. 0 for the other games.
 	setSize int

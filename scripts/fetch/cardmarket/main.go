@@ -135,6 +135,11 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	ourGames, err = loadOurGames()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 	_, hasToken := os.LookupEnv("CARDTRADER_TOKEN")
 	if !hasToken && !*offline {
 		fmt.Println("CARDTRADER_TOKEN not set: CardTrader step skipped (One Piece and Riftbound will stay unresolved)")
@@ -194,13 +199,39 @@ func main() {
 	}
 }
 
-// gameOfID tells whether an id belongs to game, from the id shapes the
-// fetchers produce (the mapping is one map, so games must be told apart
-// when one is rebuilt). Riftbound: lower-case set, three dashes ("ogn-001-298").
+// ourGames maps every id the fetchers know to its game, so that rebuilding
+// one game drops exactly that game's entries (the mapping is one map). The
+// id shapes alone cannot do it: a signed Riftbound card ("ogn-299-star-298")
+// has the dashes of a Pokémon trainer kit ("tk-bw-e-1"), a Riftbound token
+// ("sfd-t03") the shape of a Pokémon set ("2011bw-1"). Measured 2026-10-08:
+// 59 Riftbound entries were dropped by a Pokémon-only build that way.
+var ourGames map[string]string
+
+func loadOurGames() (map[string]string, error) {
+	out := map[string]string{}
+	for _, game := range allGames {
+		cards, err := loadOurCards(game)
+		if err != nil {
+			return nil, err
+		}
+		for id := range cards {
+			out[id] = game
+		}
+	}
+	return out, nil
+}
+
+// gameOfID tells whether an id belongs to game: by the fetchers' lists
+// (ourGames) when they know the id, else by the shapes the fetchers produce,
+// for an id a fetcher dropped since the last build.
+// Riftbound: lower-case set, three dashes ("ogn-001-298").
 // Lorcana: digits or a known promo set, dash, number ("1-1", "P1-4").
 // One Piece: upper-case letters+digits set, dash, three digits ("OP01-025").
 // Pokémon: everything else TCGdex-shaped ("sv01-020", "base1-1").
 func gameOfID(id, game string) bool {
+	if g, ok := ourGames[id]; ok {
+		return g == game
+	}
 	switch game {
 	case "riftbound":
 		return strings.Count(id, "-") == 2 && id == strings.ToLower(id)
@@ -276,6 +307,10 @@ func buildGame(game string, overrides map[string]int, offline, retryMissing, has
 		}
 	}
 
+	manual, err := loadManual()
+	if err != nil {
+		return gameResult{}, err
+	}
 	visual, err := loadVisual()
 	if err != nil {
 		return gameResult{}, err
@@ -286,7 +321,7 @@ func buildGame(game string, overrides map[string]int, offline, retryMissing, has
 			gameOverrides[id] = p
 		}
 	}
-	return resolveGame(game, cards, published, exps, bps, visual, gameOverrides, catalog, shelf, day), nil
+	return resolveGame(game, cards, published, exps, bps, visual, manual, gameOverrides, catalog, shelf, day), nil
 }
 
 func printSummary(r gameResult, report *strings.Builder) {
@@ -303,9 +338,15 @@ func printSummary(r gameResult, report *strings.Builder) {
 		pct = 100 * float64(len(r.Mapped)) / float64(total)
 	}
 	fmt.Printf("  catalog of %s\n", strings.TrimSpace(strings.Split(r.CatalogDay, "T")[0]))
-	fmt.Printf("  mapped %d/%d (%.1f%%): published %d, blueprint %d, visual %d, override %d\n",
-		len(r.Mapped), total, pct, bySource[srcPublished], bySource[srcBlueprint], bySource[srcVisual], bySource[srcOverride])
+	fmt.Printf("  mapped %d/%d (%.1f%%): published %d, blueprint %d, visual %d, pack %d, manual %d, override %d\n",
+		len(r.Mapped), total, pct, bySource[srcPublished], bySource[srcBlueprint], bySource[srcVisual], bySource[srcPack], bySource[srcManual], bySource[srcOverride])
 	fmt.Printf("  dropped by validation %d, ambiguous %d, unresolved %d", len(r.Dropped), len(r.Ambiguous), len(r.Unresolved))
+	if len(r.ManualNone) > 0 {
+		fmt.Printf(" (manual none %d)", len(r.ManualNone))
+	}
+	if len(r.PackDisagree) > 0 {
+		fmt.Printf("; manual picks the pack rule disagrees with: %d (see -report)", len(r.PackDisagree))
+	}
 	if r.Skipped > 0 {
 		fmt.Printf(", skipped (Pocket) %d", r.Skipped)
 	}
@@ -330,7 +371,19 @@ func printSummary(r gameResult, report *strings.Builder) {
 		fmt.Fprintf(report, "ambiguous  %-16s candidates %v\n", a.Card, a.Candidates)
 	}
 	for _, id := range r.Unresolved {
+		if r.ManualNone[id] {
+			fmt.Fprintf(report, "unresolved %-16s manual: none of the candidates\n", id)
+			continue
+		}
 		fmt.Fprintf(report, "unresolved %s\n", id)
+	}
+	disagree := make([]string, 0, len(r.PackDisagree))
+	for id := range r.PackDisagree {
+		disagree = append(disagree, id)
+	}
+	sort.Strings(disagree)
+	for _, id := range disagree {
+		fmt.Fprintf(report, "disagree   %-16s manual %d, pack rule %d\n", id, r.Mapped[id].Product, r.PackDisagree[id])
 	}
 	for _, id := range r.ForeignShelf {
 		p, note := r.Mapped[id].Product, "kept"

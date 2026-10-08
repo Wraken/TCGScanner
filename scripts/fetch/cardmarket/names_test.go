@@ -104,3 +104,22 @@ func TestGameOfID(t *testing.T) {
 		}
 	}
 }
+
+func TestGameOfIDByMembership(t *testing.T) {
+	// Ids the shape rules cannot place (signed Riftbound cards, Riftbound
+	// tokens, Pokémon trainer kits, Pokémon one-dash lower-case sets) are
+	// told apart by the fetchers' lists.
+	saved := ourGames
+	defer func() { ourGames = saved }()
+	ourGames = map[string]string{
+		"ogn-299-star-298": "riftbound", "sfd-t03": "riftbound", "unl-t01": "riftbound",
+		"tk-bw-e-1": "pokemon", "2011bw-1": "pokemon",
+	}
+	for id, want := range ourGames {
+		for _, g := range allGames {
+			if got := gameOfID(id, g); got != (g == want) {
+				t.Errorf("gameOfID(%q, %q) = %v", id, g, got)
+			}
+		}
+	}
+}

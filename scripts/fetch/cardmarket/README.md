@@ -66,6 +66,26 @@ priced, an English one is not, rather than wrongly. Measured 2026-10-07:
 2,177 twins for 2,742 cards; the cards without one are the anniversary
 sets and most promos, which Cardmarket sells on one shelf.
 
+**Rule C, the pack names the expansion (One Piece variants).** Our
+`_rN` reprints and `_pN` parallels carry, in `../onepiece/cards.json`, the
+product they come from (`pack`: "PRB-02", "ST-34", "OP-01", the combined
+"OP14-EB04", "PROMO"; punk-records' pack of the entry). CardTrader files
+its blueprints by expansion and the expansion's name starts with the same
+label (`expansionLabel`; the code is off for some decks, `st04` is
+"ST-05"). So a variant's candidates are the blueprints of its pack's
+expansion on its base number: the reprint is the one without a variant
+marking (no letter after the number, no version word beyond "Reprint" /
+"Non-Foil" / errata, `isVariantPrinting`), the parallels are the marked
+ones ("Special Rare" counts as one). When the pack lists exactly one print
+of the kind and we have exactly one variant of the kind in that pack, they
+are the same printing (source `pack`); otherwise the prints of the kind
+are the candidates listed for the review tool, and a variant without a
+pack keeps every print of its number. A manual pick the rule disagrees
+with is listed in the report (`disagree` lines) and still ships. Measured
+2026-10-08 on the 2,064 ambiguous cards: 1,137 settled, the rest narrowed
+to 4.8 candidates on average (6.7 before); 330 of the 408 reprints have
+the very same artwork as their base card, which no eye could tell apart.
+
 **Step 3, `visual_tiebreak.py`.** Our One Piece printings are numbered
 (`_p1`, `_p2`); CardTrader's are lettered (`a`, `p`, `m`) and labelled,
 and nothing maps one to the other. These printings differ by artwork,
@@ -97,6 +117,32 @@ trends 0.04 € / 3.61 € foil, V2 0.02 € / 1.91 €), so they are mapped by
 hand from the CardTrader blueprint. Later sets have Panoramas too
 (Winterspell, Wilds Unknown, Attack of the Vine!), but Lorcast does not
 list them, so our fetcher has no id for them.
+
+## Review tool: `manual.json`, every printing checked by eye
+
+`review/review.py` serves a local page to settle the printings by hand,
+one card at a time: our reference image next to one tile per candidate
+printing (a printing's English and non-English products share one image,
+so the tile is the printing and the mapper chooses the shelf, as for a
+visual pick). Keys 1-9 and a-m pick a tile, 0 is "none of the candidates",
+Backspace goes back, S skips. A second mode lists the game's plain cards
+the mapper resolved on its own, our image next to the product's preview,
+to flag the ones that do not match and choose the right printing. Every
+verdict is written to `manual.json` at once, so a pass can stop and resume.
+
+```
+cd review
+python review.py --game onepiece      # needs ../report.txt and the cache/ of a run with the token
+python -m unittest                    # its tests
+```
+
+`manual.json` is `{"picks": {"<card id>": <product id>}, "none": [...]}`
+and is committed. The mapper applies a pick before the automatic blueprint
+choice and before `visual.json` (only `overrides.json` outranks it), checks
+the product against the day's catalog like any other, and counts it as
+`manual` in the summary; a "none" verdict keeps the card unresolved
+instead of listing it as ambiguous again. Decision of 2026-10-08: the One
+Piece printings are settled by hand, not by the visual tie-break.
 
 ## Usage
 
@@ -161,6 +207,8 @@ failed check drops the entry and lists it; it never ships.
 - `cardmarket.json` — the output, committed
 - `tcgdex_ids.json` — TCGdex lookups, committed (0 = TCGdex has no product)
 - `visual.json` — the tie-break's picks, committed
+- `manual.json` — the review tool's hand picks, committed
+- `review/` — the review tool (`review.py`, `index.html`, tests)
 - `overrides.json` — hand picks, committed
 - `cache/` — downloaded upstreams and previews, gitignored; `-offline` reads from it
 - `report*.txt` — gitignored

@@ -199,3 +199,65 @@ func gameResolver(imagesDirs []string) func(cardID string) string {
 		return ""
 	}
 }
+
+// modelNames lists the model directories under root, sorted by name.
+func modelNames(root string) []string {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return nil
+	}
+	var names []string
+	for _, e := range entries {
+		if e.IsDir() {
+			names = append(names, e.Name())
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
+// latestModel is the model under root packaged most recently: the one whose
+// images/manifest.json was written last (package_app_model.py rewrites it on
+// every run); a model without a manifest ranks by its directory's own time.
+func latestModel(root string) (string, bool) {
+	var best string
+	var bestTime time.Time
+	for _, name := range modelNames(root) {
+		info, err := os.Stat(filepath.Join(root, name, "images", imageManifestFile))
+		if err != nil {
+			if info, err = os.Stat(filepath.Join(root, name)); err != nil {
+				continue
+			}
+		}
+		if best == "" || info.ModTime().After(bestTime) {
+			best, bestTime = name, info.ModTime()
+		}
+	}
+	return best, best != ""
+}
+
+// loadCardImageAcross resolves cardID from the most recently packaged model
+// under root first, then from preferred (the model that scanned the card),
+// then from any other model. A card scanned with a model whose directory is
+// gone, or that predates the current bundle, keeps its image.
+func loadCardImageAcross(root, cardID, preferred string) (string, error) {
+	var order []string
+	if latest, ok := latestModel(root); ok {
+		order = append(order, latest)
+	}
+	if preferred != "" {
+		order = append(order, preferred)
+	}
+	order = append(order, modelNames(root)...)
+	tried := map[string]bool{}
+	for _, name := range order {
+		if tried[name] {
+			continue
+		}
+		tried[name] = true
+		if img, err := loadCardImageFrom(filepath.Join(root, name, "images"), cardID); err == nil {
+			return img, nil
+		}
+	}
+	return "", fmt.Errorf("image not found for card %q in any model under %s", cardID, root)
+}

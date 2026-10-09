@@ -256,3 +256,60 @@ func TestLoadGameCover(t *testing.T) {
 		}
 	}
 }
+
+func TestLatestModelByPackagingTime(t *testing.T) {
+	root := t.TempDir()
+	if _, ok := latestModel(root); ok {
+		t.Error("an empty models dir has no latest model")
+	}
+	writeTestFile(t, filepath.Join(root, "old", "images", "manifest.json"), `{}`)
+	writeTestFile(t, filepath.Join(root, "new", "images", "manifest.json"), `{}`)
+	writeTestFile(t, filepath.Join(root, "bare", "config.json"), `{}`) // never packaged: no images dir
+	past := time.Now().Add(-2 * time.Hour)
+	for _, p := range []string{filepath.Join(root, "old", "images", "manifest.json"), filepath.Join(root, "bare")} {
+		if err := os.Chtimes(p, past, past); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got, ok := latestModel(root); !ok || got != "new" {
+		t.Errorf("latest = %q, %v; want \"new\" (its manifest was written last)", got, ok)
+	}
+}
+
+func TestLoadCardImageAcrossModels(t *testing.T) {
+	root := t.TempDir()
+	// "old" and "new" both ship the card; the card itself names "riftbound",
+	// a model whose directory is gone.
+	writeTestFile(t, filepath.Join(root, "old", "images", "manifest.json"), `{"ogn-001-298":"riftbound/ogn-001-298.webp","only-old":"riftbound/only-old.webp"}`)
+	writeTestFile(t, filepath.Join(root, "old", "images", "riftbound", "ogn-001-298.webp"), "old")
+	writeTestFile(t, filepath.Join(root, "old", "images", "riftbound", "only-old.webp"), "old only")
+	writeTestFile(t, filepath.Join(root, "new", "images", "manifest.json"), `{"ogn-001-298":"riftbound/ogn-001-298.webp"}`)
+	writeTestFile(t, filepath.Join(root, "new", "images", "riftbound", "ogn-001-298.webp"), "new")
+	past := time.Now().Add(-2 * time.Hour)
+	if err := os.Chtimes(filepath.Join(root, "old", "images", "manifest.json"), past, past); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := loadCardImageAcross(root, "ogn-001-298", "riftbound")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, payload := decodeDataURL(t, got); payload != "new" {
+		t.Errorf("the most recently packaged model must win, got %q", payload)
+	}
+	// A card the latest model lacks comes from the model that scanned it.
+	got, err = loadCardImageAcross(root, "only-old", "old")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, payload := decodeDataURL(t, got); payload != "old only" {
+		t.Errorf("fallback to the card's model, got %q", payload)
+	}
+	// ...or from any other model when its own is gone or unnamed.
+	if got, err = loadCardImageAcross(root, "only-old", ""); err != nil {
+		t.Errorf("fallback to any model: %v", err)
+	}
+	if _, err := loadCardImageAcross(root, "nowhere", "old"); err == nil {
+		t.Error("an image no model ships must be an error")
+	}
+}

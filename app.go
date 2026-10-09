@@ -306,11 +306,12 @@ func (a *App) GetCardInfo(cardID string) (CardInfo, error) {
 	return lookupCardInfo(allModelImagesDirs(), allModelMetadataDirs(), cardID)
 }
 
+// GetCardImageByModel returns a card's reference image for the collection
+// views: from the most recently packaged model first, then modelName (the
+// model that scanned the card), then any other model. The scan screen uses
+// GetCardImage, which reads the loaded model.
 func (a *App) GetCardImageByModel(cardID, modelName string) (string, error) {
-	if modelName == "" {
-		return "", fmt.Errorf("no model name provided")
-	}
-	return loadCardImage(cardID, modelName)
+	return loadCardImageAcross(filepath.Join(".", "models"), cardID, modelName)
 }
 
 func (a *App) ListExportPresets() []ExportPreset {

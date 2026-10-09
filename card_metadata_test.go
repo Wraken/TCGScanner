@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 	"testing"
 	"time"
 )
@@ -128,7 +127,11 @@ func TestLookupCardInfoRealBundle(t *testing.T) {
 	// Whatever game is packaged first, one of its entries must resolve
 	// through the real manifests. Names can legitimately be empty (partial
 	// Riftbound extraction), so only ID/Game are asserted here.
-	game := strings.TrimSuffix(entries[0].Name(), ".json")
+	games := metadataGames([]string{dir})
+	if len(games) == 0 {
+		t.Skip("models/tcg/metadata holds no game file")
+	}
+	game := games[0]
 	m := cardMetadata(dir, game)
 	if len(m) == 0 {
 		t.Fatalf("%s.json loaded empty", game)
@@ -140,5 +143,16 @@ func TestLookupCardInfoRealBundle(t *testing.T) {
 	}
 	if c.ID != id || c.Game == "" {
 		t.Errorf("lookup %s got %+v", id, c)
+	}
+}
+
+func TestMetadataGamesSkipsThePriceMapping(t *testing.T) {
+	dir := t.TempDir()
+	writeTestFile(t, filepath.Join(dir, "pokemon.json"), `{"sv01-020": {"name": "Pikachu"}}`)
+	writeTestFile(t, filepath.Join(dir, "cardmarket.json"), `{"version": 1, "cards": {"sv01-020": 1001}}`)
+	writeTestFile(t, filepath.Join(dir, "notes.txt"), "x")
+	got := metadataGames([]string{dir, filepath.Join(dir, "missing")})
+	if !slices.Equal(got, []string{"pokemon"}) {
+		t.Errorf("metadataGames = %v, want [pokemon] (cardmarket.json is the price mapping, not a game)", got)
 	}
 }

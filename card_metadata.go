@@ -117,10 +117,22 @@ func lookupCardInfo(imagesDirs, metadataDirs []string, cardID string) (CardInfo,
 			return c, nil
 		}
 	}
-	// Fallback: every distinct game stem across every metadata dir, each
-	// probed once (find() itself already walks every dir per stem).
+	// Fallback: every game file across every metadata dir, each probed once
+	// (find() itself already walks every dir per game).
+	for _, game := range metadataGames(metadataDirs) {
+		if c, ok := find(game); ok {
+			return c, nil
+		}
+	}
+	return CardInfo{}, fmt.Errorf("no metadata for card %q", cardID)
+}
+
+// metadataGames lists the distinct games with a <game>.json file across
+// metadataDirs, in directory order. The price mapping (cardmarket.json, see
+// prices.go) lives in the same directory and is not a game file.
+func metadataGames(metadataDirs []string) []string {
 	seen := map[string]bool{}
-	var stems []string
+	var games []string
 	for _, dir := range metadataDirs {
 		entries, err := os.ReadDir(dir)
 		if err != nil {
@@ -128,20 +140,15 @@ func lookupCardInfo(imagesDirs, metadataDirs []string, cardID string) (CardInfo,
 		}
 		for _, e := range entries {
 			name := e.Name()
-			if e.IsDir() || !strings.HasSuffix(name, ".json") {
+			if e.IsDir() || !strings.HasSuffix(name, ".json") || name == priceMappingFile {
 				continue
 			}
-			stem := strings.TrimSuffix(name, ".json")
-			if !seen[stem] {
-				seen[stem] = true
-				stems = append(stems, stem)
+			game := strings.TrimSuffix(name, ".json")
+			if !seen[game] {
+				seen[game] = true
+				games = append(games, game)
 			}
 		}
 	}
-	for _, stem := range stems {
-		if c, ok := find(stem); ok {
-			return c, nil
-		}
-	}
-	return CardInfo{}, fmt.Errorf("no metadata for card %q", cardID)
+	return games
 }

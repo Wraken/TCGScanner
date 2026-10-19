@@ -76,21 +76,41 @@ delete the file, rebuild offline and recommit to drop them. Re-runs of
 report are kept), and a card settles only when every candidate has a scan;
 checked 2026-10-08: none of the 491 picks sat on an incomplete field.
 
+**Collection sync through Google Drive (code complete 2026-10-19, owner's
+Google setup pending):** spec
+`docs/superpowers/specs/2026-10-19-collection-sync-google-drive-design.md`.
+Each device appends to one append-only journal, `journal-<device id>.jsonl`,
+in a visible `TCGScanner` folder of the owner's Google Drive (`drive.file`
+scope, no server). The journal records the events since the migration: stable
+uids on collections and cards, and the bootstrap written once from the
+existing rows. Merge: last writer wins per entity by `(at, device)`, removals
+are final, price-reference clears are remembered. Sync cycle: at start, on
+window focus, after changes (debounced 5 s), on Sync now, retried while
+offline; one batch per cycle; the first connection asks the merge question.
+Settings screen: Connect, status line, devices, Sync now, Disconnect. Tests:
+Go unit tests against a fake Drive and a fake Google token server
+(`sync_*_test.go`), frontend `tsc` + Vite; `-race` could not run on this PC.
+
 **Owner's steps (desktop PC):**
 
-1. Repackage the bundle with the usual `package_app_model.py` command: it
-   copies `cardmarket.json`, candidates included, into `metadata/`.
-2. Launch the app: a One Piece card with a "no ref" chip opens its copies
-   dialog, "Set reference" shows the printings with CardTrader's scans and
-   today's prices; choose with the card in hand. Two checks in the same
-   pass: open a One Piece copies dialog before the first guide download
-   completes (no "Not on Cardmarket." may show), and open a card with 10
-   or more printings to try the letter keys (A, B…).
-3. The review tool (`cd scripts/fetch/cardmarket/review; python review.py`)
-   now lists the 73 "low" cards first: the ones where our image matches no
-   candidate, worth a look; the twins can be skipped, the app handles them.
-4. After new picks, `cd scripts/fetch/cardmarket; go run . -games onepiece -offline -report report.txt`
-   and commit `manual.json` + `cardmarket.json`; repackage.
+1. Google Cloud console, once (spec "Google side"): create a project with the
+   Drive API enabled; configure the OAuth consent screen as External, app name
+   `TCGScanner`, scopes `drive.file`, `openid`, `email`, publishing status
+   **In production**; create an OAuth client of type **Desktop app**. Paste
+   its client id and client secret into `sync_google.go` (`googleClientID`,
+   `googleClientSecret`) and rebuild.
+2. Live pass (spec "Testing", "Live, by the owner"): run two copies of the
+   built app from two folders, each with its own `collection.db`, signed in to
+   the same account. Scan on one and see it on the other after a focus change;
+   remove on one and see it gone on the other; on a third copy that already
+   has cards, check the merge question.
+3. The mobile app's M2 implements the same journal format: see the spec's "The
+   journal format" section.
+4. Still open from the previous list: the decision on
+   `scripts/fetch/cardmarket/manual.json` (keep, or delete, then rebuild
+   offline and recommit), the review tool's 73 "low" cards, and the
+   price-reference live pass (repackage, then the One Piece "no ref" chip,
+   copies dialog and letter keys).
 
 **Backlog (by priority)**
 

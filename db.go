@@ -111,7 +111,8 @@ func migrate(db *sql.DB) error {
 			return err
 		}
 	}
-	return nil
+	// 2026-10-19: uids, sync tables, device identity, bootstrap events.
+	return migrateSync(db)
 }
 
 func rebuildCards(db *sql.DB) error {

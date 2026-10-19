@@ -38,10 +38,25 @@ func setPriceRef(db *sql.DB, r PriceRef) error {
 	if r.ChosenAt == "" {
 		r.ChosenAt = time.Now().UTC().Format(time.RFC3339)
 	}
-	_, err := db.Exec(`INSERT INTO price_refs (card_id, product, non_english, label, chosen_at) VALUES (?, ?, ?, ?, ?)
-		ON CONFLICT(card_id) DO UPDATE SET product = excluded.product, non_english = excluded.non_english, label = excluded.label, chosen_at = excluded.chosen_at`,
-		r.CardID, r.Product, r.NonEnglish, r.Label, r.ChosenAt)
-	return err
+	deviceID, _, err := syncDevice(db)
+	if err != nil {
+		return err
+	}
+	at := priceRefSyncAt(r.ChosenAt, syncNow())
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`INSERT INTO price_refs (card_id, product, non_english, label, chosen_at, sync_at, sync_by) VALUES (?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(card_id) DO UPDATE SET product = excluded.product, non_english = excluded.non_english, label = excluded.label, chosen_at = excluded.chosen_at, sync_at = excluded.sync_at, sync_by = excluded.sync_by`,
+		r.CardID, r.Product, r.NonEnglish, r.Label, r.ChosenAt, at, deviceID); err != nil {
+		return err
+	}
+	if err := appendSyncEvent(tx, priceRefEvent(r, at)); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func clearPriceRef(db *sql.DB, cardID string) error {

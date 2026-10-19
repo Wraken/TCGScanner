@@ -38,6 +38,9 @@ var googleUserinfoURL = "https://openidconnect.googleapis.com/v1/userinfo"
 const (
 	settingSyncGoogleToken = "sync_google_token"
 	settingSyncGoogleEmail = "sync_google_email"
+	// The account last signed in, kept through a disconnect or a refused
+	// refresh: connecting another account starts the sync afresh.
+	settingSyncGoogleLastEmail = "sync_google_last_email"
 )
 
 // googleSignInTimeout bounds the whole sign-in, browser wait included.
@@ -184,7 +187,25 @@ func saveGoogleToken(db *sql.DB, tok *oauth2.Token, email string) error {
 	if err := setSetting(db, settingSyncGoogleToken, string(b)); err != nil {
 		return err
 	}
-	return setSetting(db, settingSyncGoogleEmail, email)
+	if err := setSetting(db, settingSyncGoogleEmail, email); err != nil {
+		return err
+	}
+	return setSetting(db, settingSyncGoogleLastEmail, email)
+}
+
+// googleAccountChanged reports whether email is not the account this device
+// last synced with (true on a first connection).
+func googleAccountChanged(db *sql.DB, email string) (bool, error) {
+	last, _, err := getSetting(db, settingSyncGoogleLastEmail)
+	if err != nil {
+		return false, err
+	}
+	if last == "" { // signed in before the setting existed
+		if last, _, err = getSetting(db, settingSyncGoogleEmail); err != nil {
+			return false, err
+		}
+	}
+	return last == "" || !strings.EqualFold(last, email), nil
 }
 
 func loadGoogleToken(db *sql.DB) (tok *oauth2.Token, email string, ok bool, err error) {

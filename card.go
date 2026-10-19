@@ -144,21 +144,24 @@ func updateCopy(db *sql.DB, rowID int, set string, args ...any) error {
 	if err != nil {
 		return err
 	}
-	at := syncNow()
+	now := syncNow()
 	tx, err := db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	args = append(args, at, deviceID, rowID)
-	res, err := tx.Exec(`UPDATE cards SET `+set+`, sync_at = ?, sync_by = ? WHERE id = ?`, args...)
-	if err != nil {
+	// Stamped after the row's current key: this edit outranks every change
+	// this device has seen, whatever the other clocks say.
+	var rowAt string
+	if err := tx.QueryRow(`SELECT sync_at FROM cards WHERE id = ?`, rowID).Scan(&rowAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil // nothing changed, nothing to record
+		}
 		return err
 	}
-	if n, err := res.RowsAffected(); err != nil {
+	args = append(args, bumpSyncAt(now, rowAt), deviceID, rowID)
+	if _, err := tx.Exec(`UPDATE cards SET `+set+`, sync_at = ?, sync_by = ? WHERE id = ?`, args...); err != nil {
 		return err
-	} else if n == 0 {
-		return nil // nothing changed, nothing to record
 	}
 	e, err := copyEvent(tx, rowID, opCopyUpdate)
 	if err != nil {
@@ -186,23 +189,24 @@ func updateCard(db *sql.DB, c CollectionCard) error {
 }
 
 func deleteCard(db *sql.DB, id int) error {
-	at := syncNow()
+	now := syncNow()
 	tx, err := db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	var uid string
-	if err := tx.QueryRow(`SELECT uid FROM cards WHERE id = ?`, id).Scan(&uid); err != nil {
+	var uid, rowAt string
+	if err := tx.QueryRow(`SELECT uid, sync_at FROM cards WHERE id = ?`, id).Scan(&uid, &rowAt); err != nil {
 		if err == sql.ErrNoRows {
 			return nil // nothing deleted, nothing to record
 		}
 		return err
 	}
+	at := bumpSyncAt(now, rowAt)
 	if _, err := tx.Exec(`DELETE FROM cards WHERE id = ?`, id); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(`INSERT OR REPLACE INTO sync_tombstones (uid, deleted_at) VALUES (?, ?)`, uid, at); err != nil {
+	if err := syncTombstone(tx, uid, at); err != nil {
 		return err
 	}
 	if err := appendSyncEvent(tx, syncEvent{Op: opCopyRemove, At: at, UID: uid}); err != nil {

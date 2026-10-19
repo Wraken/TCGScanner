@@ -100,20 +100,21 @@ func renameCollection(db *sql.DB, id int, name string) error {
 	if err != nil {
 		return err
 	}
-	at := syncNow()
+	now := syncNow()
 	tx, err := db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	if _, err := tx.Exec(`UPDATE collections SET name = ?, sync_at = ?, sync_by = ? WHERE id = ?`, name, at, deviceID, id); err != nil {
-		return err
-	}
-	var uid string
-	if err := tx.QueryRow(`SELECT uid FROM collections WHERE id = ?`, id).Scan(&uid); err != nil {
+	var uid, rowAt string
+	if err := tx.QueryRow(`SELECT uid, sync_at FROM collections WHERE id = ?`, id).Scan(&uid, &rowAt); err != nil {
 		if err == sql.ErrNoRows {
 			return nil // nothing renamed, nothing to record
 		}
+		return err
+	}
+	at := bumpSyncAt(now, rowAt)
+	if _, err := tx.Exec(`UPDATE collections SET name = ?, sync_at = ?, sync_by = ? WHERE id = ?`, name, at, deviceID, id); err != nil {
 		return err
 	}
 	if err := appendSyncEvent(tx, syncEvent{Op: opCollectionRename, At: at, UID: uid, Name: name}); err != nil {
@@ -123,29 +124,26 @@ func renameCollection(db *sql.DB, id int, name string) error {
 }
 
 // deleteCollection removes a custom collection; its copies keep their game
-// and simply leave the custom. The explicit UPDATE makes the behavior
-// independent of the connection's foreign_keys pragma, and the transaction
-// keeps detach + delete + event + tombstone atomic. The copies get no event
-// of their own: the delete implies "unfiled" everywhere.
+// and simply leave the custom (deleteCollectionRow). The transaction keeps
+// detach + delete + event + tombstone atomic. The copies get no event of
+// their own: the delete implies "unfiled" everywhere.
 func deleteCollection(db *sql.DB, id int) error {
-	at := syncNow()
+	now := syncNow()
 	tx, err := db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	var uid string
-	if err := tx.QueryRow(`SELECT uid FROM collections WHERE id = ?`, id).Scan(&uid); err != nil && err != sql.ErrNoRows {
+	var uid, rowAt string
+	if err := tx.QueryRow(`SELECT uid, sync_at FROM collections WHERE id = ?`, id).Scan(&uid, &rowAt); err != nil && err != sql.ErrNoRows {
 		return err
 	}
-	if _, err := tx.Exec(`UPDATE cards SET collection_id = NULL WHERE collection_id = ?`, id); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(`DELETE FROM collections WHERE id = ?`, id); err != nil {
+	at := bumpSyncAt(now, rowAt)
+	if err := deleteCollectionRow(tx, int64(id)); err != nil {
 		return err
 	}
 	if uid != "" {
-		if _, err := tx.Exec(`INSERT OR REPLACE INTO sync_tombstones (uid, deleted_at) VALUES (?, ?)`, uid, at); err != nil {
+		if err := syncTombstone(tx, uid, at); err != nil {
 			return err
 		}
 		if err := appendSyncEvent(tx, syncEvent{Op: opCollectionDelete, At: at, UID: uid}); err != nil {

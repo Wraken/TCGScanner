@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"golang.org/x/oauth2"
 )
 
 // The sync engine: one cycle pulls the other devices' journals from the Drive
@@ -98,6 +100,12 @@ type syncer struct {
 
 	// onChange, when set (tests), is called by changed() before it arms the timer.
 	onChange func()
+	// onStatus, when set (tests), sees every status emitted, under mu: it
+	// must not call back into the syncer.
+	onStatus func(SyncStatus)
+	// onRelease, when set (tests), runs as the connect flow is about to give
+	// the slot back, outside mu.
+	onRelease func()
 }
 
 func newSyncer(a *App) *syncer {
@@ -149,6 +157,9 @@ func (s *syncer) snapshot() SyncStatus {
 // emitLocked tells the frontend the status changed; the caller holds mu, so
 // the events go out in the order of the changes.
 func (s *syncer) emitLocked() {
+	if s.onStatus != nil {
+		s.onStatus(s.snapshotLocked())
+	}
 	if s.app.ctx != nil {
 		runtime.EventsEmit(s.app.ctx, syncStatusEvent, s.snapshotLocked())
 	}
@@ -507,23 +518,15 @@ func (s *syncer) cycle(ctx context.Context) (applied int, err error) {
 	return applied, s.upload(ctx, drive, folder, ourID, ownListed)
 }
 
-// ensureFolder returns the Drive folder's id: the cached one while it is
-// alive, else the folder found by name, else a new one. A new id drops the
-// cached journal file id: this device's journal is not in that folder.
+// ensureFolder returns the Drive folder's id: the oldest folder found by
+// name (one listing per cycle: a folder another device created first wins),
+// else a new one. An id other than the cached one drops the cached journal
+// file id: this device's journal is not in that folder.
 func (s *syncer) ensureFolder(ctx context.Context, drive *driveClient) (string, error) {
 	db := s.app.db
 	cached, _, err := getSetting(db, settingSyncFolderID)
 	if err != nil {
 		return "", err
-	}
-	if cached != "" {
-		alive, err := drive.folderAlive(ctx, cached)
-		if err != nil {
-			return "", err
-		}
-		if alive {
-			return cached, nil
-		}
 	}
 	id, err := drive.findFolder(ctx, syncFolderName)
 	if err != nil {
@@ -550,7 +553,7 @@ func (s *syncer) ensureFolder(ctx context.Context, drive *driveClient) (string, 
 // id of the file with this device's journal name in the listing, "" if none.
 func (s *syncer) upload(ctx context.Context, drive *driveClient, folder, ourID, ownListed string) error {
 	db := s.app.db
-	content, lastSeq, err := renderJournal(db)
+	lastSeq, err := lastSyncEventSeq(db)
 	if err != nil {
 		return err
 	}
@@ -563,7 +566,15 @@ func (s *syncer) upload(ctx context.Context, drive *driveClient, folder, ourID, 
 	if err != nil {
 		return err
 	}
-	if fileID == "" && ownListed != "" { // e.g. connected again after a disconnect
+	switch {
+	case ownListed == "" && fileID != "":
+		// Not in the listing: deleted, or in the Drive trash, where an
+		// update would still succeed and no other device would see it.
+		fileID = ""
+		if err := deleteSettings(db, settingSyncFileID); err != nil {
+			return err
+		}
+	case fileID == "" && ownListed != "": // e.g. connected again after a disconnect
 		fileID = ownListed
 		if err := setSetting(db, settingSyncFileID, fileID); err != nil {
 			return err
@@ -571,6 +582,10 @@ func (s *syncer) upload(ctx context.Context, drive *driveClient, folder, ourID, 
 	}
 	if ownListed != "" && lastSeq <= uploaded {
 		return nil
+	}
+	content, lastSeq, err := renderJournal(db)
+	if err != nil {
+		return err
 	}
 	if fileID != "" {
 		err := drive.update(ctx, fileID, []byte(content))
@@ -702,7 +717,7 @@ func (a *App) ConnectGoogleDrive() (SyncStatus, error) {
 
 	tok, email, err := connectGoogle(ctx, s.open)
 	if err != nil {
-		s.release()
+		s.release(nil)
 		if ctx.Err() != nil {
 			return s.snapshot(), errCancelled
 		}
@@ -711,12 +726,12 @@ func (a *App) ConnectGoogleDrive() (SyncStatus, error) {
 	s.mu.Lock()
 	if ctx.Err() != nil { // disconnected meanwhile: the canceller set the status
 		s.mu.Unlock()
-		s.release()
+		s.release(nil)
 		return s.snapshot(), errCancelled
 	}
-	if err := saveGoogleToken(a.db, tok, email); err != nil {
+	if err := connectAccount(a.db, tok, email); err != nil {
 		s.mu.Unlock()
-		s.release()
+		s.release(nil)
 		return s.snapshot(), err
 	}
 	s.status = SyncStatus{Connected: true, Email: email, State: syncStateSyncing, Devices: s.devices()}
@@ -725,41 +740,68 @@ func (a *App) ConnectGoogleDrive() (SyncStatus, error) {
 
 	q, err := s.mergeQuestion(ctx)
 	if ctx.Err() != nil {
-		s.release()
+		s.release(nil)
 		return s.snapshot(), errCancelled
 	}
 	if err != nil {
-		// Keeping the sign-in would let a later cycle merge without asking.
+		// Keeping the sign-in would let a later cycle merge without asking:
+		// forgotten while the slot is still held, so none can run between.
 		fmt.Printf("sync: %v\n", err)
-		s.release()
-		if derr := a.DisconnectGoogleDrive(); derr != nil {
+		if derr := s.forgetDrive(); derr != nil {
 			fmt.Printf("sync: %v\n", derr)
 		}
+		s.release(func() bool {
+			s.status = SyncStatus{State: syncStateDisconnected}
+			return true
+		})
 		return s.snapshot(), fmt.Errorf("could not read Google Drive: %w", err)
 	}
 	if q == nil {
-		s.release()
+		s.release(nil)
 		s.runCycle(s.baseCtx())
 		return s.snapshot(), nil
 	}
-	s.mu.Lock()
-	if ctx.Err() != nil {
-		s.mu.Unlock()
-		s.release()
-		return s.snapshot(), errCancelled
-	}
 	if err := setSetting(a.db, settingSyncMergePending, "1"); err != nil {
-		s.mu.Unlock()
-		s.release()
+		s.release(nil)
 		return s.snapshot(), err
 	}
-	s.status.State = syncStateMergePending
-	s.status.Merge = q
-	s.emitLocked()
-	st := s.snapshotLocked()
-	s.mu.Unlock()
-	s.release()
+	// The question is published as the slot is released, under one lock: an
+	// answer can only come once a cycle may run.
+	var st SyncStatus
+	cancelled := false
+	s.release(func() bool {
+		if ctx.Err() != nil { // disconnected meanwhile: the canceller sets the status
+			cancelled = true
+			return false
+		}
+		s.status.State = syncStateMergePending
+		s.status.Merge = q
+		st = s.snapshotLocked()
+		return true
+	})
+	if cancelled {
+		return s.snapshot(), errCancelled
+	}
 	return st, nil
+}
+
+// connectAccount saves the new sign-in. Another account than the last one
+// starts the sync afresh: the other devices' journals and this device's
+// file it knew of are in another Drive.
+func connectAccount(db *sql.DB, tok *oauth2.Token, email string) error {
+	changed, err := googleAccountChanged(db, email)
+	if err != nil {
+		return err
+	}
+	if changed {
+		if err := errors.Join(
+			clearSyncSources(db),
+			deleteSettings(db, settingSyncFolderID, settingSyncFileID, settingSyncUploadedSeq),
+		); err != nil {
+			return err
+		}
+	}
+	return saveGoogleToken(db, tok, email)
 }
 
 // acquireForConnect takes the running slot for the connect flow, after the
@@ -787,10 +829,18 @@ func (s *syncer) acquireForConnect() (context.Context, error) {
 	return ctx, nil
 }
 
-// release gives the running slot back after the connect flow.
-func (s *syncer) release() {
+// release gives the running slot back after the connect flow. set, when
+// not nil, updates the status under the same lock (before the flow's
+// context is cancelled, so it can still tell a disconnect apart): nobody sees
+// the new status with the slot held, nor the slot free with the old status.
+// The status is emitted when set returns true.
+func (s *syncer) release(set func() bool) {
+	if s.onRelease != nil {
+		s.onRelease()
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	emit := set != nil && set()
 	if s.cancel != nil {
 		s.cancel()
 	}
@@ -798,6 +848,9 @@ func (s *syncer) release() {
 	s.running = false
 	s.connecting = false
 	close(s.done)
+	if emit {
+		s.emitLocked()
+	}
 }
 
 // ConfirmMerge answers the first-connection question: merge runs the
@@ -825,7 +878,9 @@ func (a *App) ConfirmMerge(merge bool) (SyncStatus, error) {
 }
 
 // DisconnectGoogleDrive stops the running cycle, forgets the sign-in and
-// what is known of the Drive. Local events keep being recorded.
+// where this device's journal lives. Local events keep being recorded, and
+// how far the other devices' journals were applied is kept: the same account
+// connected again resumes without the question.
 func (a *App) DisconnectGoogleDrive() error {
 	if a.sync == nil {
 		return errNoSyncer
@@ -837,14 +892,22 @@ func (a *App) DisconnectGoogleDrive() error {
 	// Wait for the running cycle: a token refresh in flight would write
 	// the token back after the clear.
 	s.cancelAndWaitLocked()
-	err := errors.Join(
-		clearGoogleToken(a.db),
-		deleteSettings(a.db, settingSyncFolderID, settingSyncFileID, settingSyncUploadedSeq, settingSyncMergePending),
-		clearSyncSources(a.db),
-	)
+	err := s.forgetDrive()
 	s.status = SyncStatus{State: syncStateDisconnected}
 	s.emitLocked()
 	return err
+}
+
+// forgetDrive is the database side of a disconnect; the caller holds the
+// running slot or has waited for it, so no cycle runs meanwhile. The last
+// account's email (settingSyncGoogleLastEmail) is kept.
+func (s *syncer) forgetDrive() error {
+	db := s.app.db
+	return errors.Join(
+		clearGoogleToken(db),
+		deleteSettings(db, settingSyncFolderID, settingSyncFileID, settingSyncUploadedSeq, settingSyncMergePending),
+		detachSyncSources(db),
+	)
 }
 
 // SyncNow runs a cycle now; its outcome is in the status.

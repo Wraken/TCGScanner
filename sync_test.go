@@ -18,18 +18,33 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
+// fakeAccount is the Google account the fake sign-in answers with; tests
+// change it between connections only.
+type fakeAccount struct {
+	email     string
+	noRefresh bool // the token answer carries no refresh token
+}
+
 // fakeGoogle serves Google's token and userinfo endpoints and returns the
 // "browser": open answers the loopback redirect with a code and the state,
 // as Google would after the user consents.
 func fakeGoogle(t *testing.T) (open func(authURL string) error) {
+	return fakeGoogleAs(t, &fakeAccount{email: "florent@example.com"})
+}
+
+func fakeGoogleAs(t *testing.T, acct *fakeAccount) (open func(authURL string) error) {
 	t.Helper()
 	auth := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/token":
 			w.Header().Set("Content-Type", "application/json")
+			if acct.noRefresh {
+				fmt.Fprint(w, `{"access_token":"at","token_type":"Bearer","expires_in":3600}`)
+				return
+			}
 			fmt.Fprint(w, `{"access_token":"at","refresh_token":"rt","token_type":"Bearer","expires_in":3600}`)
 		case "/userinfo":
-			fmt.Fprint(w, `{"email":"florent@example.com"}`)
+			fmt.Fprintf(w, `{"email":%q}`, acct.email)
 		default:
 			http.NotFound(w, r)
 		}
@@ -105,7 +120,7 @@ func TestFirstConnectionWithEmptyDrivePushes(t *testing.T) {
 		t.Errorf("up to date: last sync %q, message %q", st.LastSync, st.Message)
 	}
 	id, _, _ := syncDevice(app.db)
-	files, _ := f.client().listJournals(context.Background(), f.folders[syncFolderName])
+	files, _ := f.client().listJournals(context.Background(), f.folderID(syncFolderName))
 	if len(files) != 1 || files[0].Name != syncJournalName(id) {
 		t.Fatalf("files %+v", files)
 	}
@@ -245,7 +260,7 @@ func TestCycleOfflineAndRecovery(t *testing.T) {
 		t.Errorf("%+v", st)
 	}
 	// The folder deleted on Drive while connected: the stale id is replaced, the journal re-created.
-	delete(f.folders, syncFolderName)
+	f.removeFolders(syncFolderName)
 	for id, file := range f.files {
 		if file.Parent != "" {
 			delete(f.files, id)
@@ -257,7 +272,7 @@ func TestCycleOfflineAndRecovery(t *testing.T) {
 		t.Errorf("stale folder: %+v folders %d files %d", st, len(f.folders), len(f.files))
 	}
 	for _, file := range f.files {
-		if _, ev, _, _ := decodeJournal(bytes.NewReader(file.Content)); len(ev) != 2 || file.Parent != f.folders[syncFolderName] {
+		if _, ev, _, _ := decodeJournal(bytes.NewReader(file.Content)); len(ev) != 2 || file.Parent != f.folders[0].ID {
 			t.Errorf("re-created journal: %d events, parent %q", len(ev), file.Parent)
 		}
 	}
@@ -511,5 +526,222 @@ func TestSyncBindingsWithoutSyncer(t *testing.T) {
 	}
 	if _, err := app.SyncNow(); err == nil {
 		t.Error("SyncNow: want an error")
+	}
+}
+
+// ConfirmMerge(true) answered the instant the question shows still runs the
+// merge: the question is published only once the connect flow has let go
+// of the cycle slot.
+func TestConfirmMergeTheInstantTheQuestionShows(t *testing.T) {
+	app, f := syncApp(t)
+	seedMergeCase(t, app, f)
+	asked := make(chan struct{})
+	var once sync.Once
+	app.sync.onStatus = func(st SyncStatus) {
+		if st.State == syncStateMergePending {
+			once.Do(func() { close(asked) })
+		}
+	}
+	// Hold the slot's release until the answer is waiting on it (or 300 ms
+	// pass: the answer may only come after the release).
+	app.sync.onRelease = func() {
+		deadline := time.Now().Add(300 * time.Millisecond)
+		for time.Now().Before(deadline) {
+			app.sync.mu.Lock()
+			waiting := app.sync.again
+			app.sync.mu.Unlock()
+			if waiting {
+				return
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+	confirmed := make(chan connectResult, 1)
+	go func() {
+		<-asked
+		st, err := app.ConfirmMerge(true)
+		confirmed <- connectResult{st, err}
+	}()
+	if _, err := app.ConnectGoogleDrive(); err != nil {
+		t.Fatal(err)
+	}
+	r := <-confirmed
+	if r.err != nil {
+		t.Fatal(r.err)
+	}
+	waitFor(t, func() bool { return app.GetSyncStatus().State == syncStateUpToDate })
+	if cards, _ := allCards(app.db); len(cards) != 2 || len(f.files) != 2 {
+		t.Errorf("after merge: %d cards, %d files", len(cards), len(f.files))
+	}
+}
+
+// Reading the Drive fails while the question is computed: the sign-in is
+// forgotten before the slot is released, so no cycle can merge meanwhile.
+func TestConnectForgetsTheSignInWhenTheQuestionFails(t *testing.T) {
+	app, f := syncApp(t)
+	seedMergeCase(t, app, f)
+	entered, release := blockDownloads(t, f)
+	connected := make(chan connectResult, 1)
+	go func() {
+		st, err := app.ConnectGoogleDrive()
+		connected <- connectResult{st, err}
+	}()
+	<-entered
+	f.mu.Lock()
+	f.down = true
+	f.mu.Unlock()
+	release()
+	r := <-connected
+	if r.err == nil || r.st.State != syncStateDisconnected || r.st.Connected {
+		t.Errorf("%+v %v", r.st, r.err)
+	}
+	if _, _, ok, _ := loadGoogleToken(app.db); ok {
+		t.Error("the token must be forgotten")
+	}
+	if cards, _ := allCards(app.db); len(cards) != 1 {
+		t.Errorf("nothing may be merged: %d cards", len(cards))
+	}
+}
+
+// Our journal moved to the Drive trash: it is not updated there forever, a
+// new one is created.
+func TestTrashedJournalIsRecreated(t *testing.T) {
+	app, f := syncApp(t)
+	insertCard(app.db, 0, "OP01-006_p4", "onepiece", "tcg", false, "en")
+	if st, err := app.ConnectGoogleDrive(); err != nil || st.State != syncStateUpToDate {
+		t.Fatalf("%+v %v", st, err)
+	}
+	id, _, _ := syncDevice(app.db)
+	oldID, old := f.fileByName(syncJournalName(id))
+	if old == nil {
+		t.Fatal("no journal uploaded")
+	}
+	f.mu.Lock()
+	old.Trashed = true
+	f.mu.Unlock()
+	if st, _ := app.SyncNow(); st.State != syncStateUpToDate {
+		t.Fatalf("%+v", st)
+	}
+	live := 0
+	for fid, file := range f.files {
+		if file.Name == syncJournalName(id) && !file.Trashed {
+			live++
+			if fid == oldID {
+				t.Error("the trashed file was revived")
+			}
+			if v, _, _ := getSetting(app.db, settingSyncFileID); v != fid {
+				t.Errorf("file id cache %q, want %q", v, fid)
+			}
+		}
+	}
+	if live != 1 {
+		t.Errorf("%d live journals, want 1", live)
+	}
+}
+
+// Another device created a TCGScanner folder before ours: the next cycle
+// moves to the oldest one and writes the journal there.
+func TestCycleMovesToTheOldestFolder(t *testing.T) {
+	app, f := syncApp(t)
+	insertCard(app.db, 0, "OP01-006_p4", "onepiece", "tcg", false, "en")
+	if _, err := app.ConnectGoogleDrive(); err != nil {
+		t.Fatal(err)
+	}
+	older := f.addFolder(syncFolderName)
+	f.mu.Lock()
+	older.Created = -1
+	f.mu.Unlock()
+	if st, _ := app.SyncNow(); st.State != syncStateUpToDate {
+		t.Fatalf("%+v", st)
+	}
+	if v, _, _ := getSetting(app.db, settingSyncFolderID); v != older.ID {
+		t.Errorf("folder id %q, want the oldest %q", v, older.ID)
+	}
+	id, _, _ := syncDevice(app.db)
+	found := false
+	for _, file := range f.files {
+		if file.Name == syncJournalName(id) && file.Parent == older.ID {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("the journal must be written in the oldest folder")
+	}
+}
+
+// mergeThenDisconnect connects acct with a local copy and the phone's journal
+// on the Drive, merges, and disconnects.
+func mergeThenDisconnect(t *testing.T) (*App, *fakeDrive, *fakeAccount) {
+	t.Helper()
+	app, f := syncApp(t)
+	acct := &fakeAccount{email: "florent@example.com"}
+	app.sync.open = fakeGoogleAs(t, acct)
+	seedMergeCase(t, app, f)
+	if st, err := app.ConnectGoogleDrive(); err != nil || st.State != syncStateMergePending {
+		t.Fatalf("%+v %v", st, err)
+	}
+	if st, _ := app.ConfirmMerge(true); st.State != syncStateUpToDate {
+		t.Fatalf("%+v", st)
+	}
+	if err := app.DisconnectGoogleDrive(); err != nil {
+		t.Fatal(err)
+	}
+	return app, f, acct
+}
+
+// Disconnect then Connect with the same account: no question, the other
+// journals resume after what was applied, nothing is applied twice.
+func TestReconnectSameAccountResumes(t *testing.T) {
+	app, _, _ := mergeThenDisconnect(t)
+	srcs, _ := listSyncSources(app.db)
+	if len(srcs) != 1 || srcs[0].AppliedSeq != 1 || srcs[0].FileID != "" || srcs[0].ModifiedTime != "" {
+		t.Fatalf("disconnect must keep the sources without their files: %+v", srcs)
+	}
+	// Re-applying the phone's journal from its start would bring p1 back.
+	app.db.Exec(`DELETE FROM cards WHERE uid = 'p1'`)
+	st, err := app.ConnectGoogleDrive()
+	if err != nil || st.State != syncStateUpToDate || st.Merge != nil {
+		t.Fatalf("%+v %v", st, err)
+	}
+	cards := cardsByUID(t, app.db)
+	if _, ok := cards["p1"]; ok || len(cards) != 1 {
+		t.Errorf("nothing may be re-applied: %+v", cards)
+	}
+	if srcs, _ := listSyncSources(app.db); len(srcs) != 1 || srcs[0].FileID == "" {
+		t.Errorf("sources after reconnect %+v", srcs)
+	}
+}
+
+// Another account after a disconnect: it starts afresh, so the question.
+func TestReconnectOtherAccountAsks(t *testing.T) {
+	app, _, acct := mergeThenDisconnect(t)
+	acct.email = "someone@example.com"
+	st, err := app.ConnectGoogleDrive()
+	if err != nil || st.State != syncStateMergePending || st.Merge == nil {
+		t.Fatalf("%+v %v", st, err)
+	}
+	if srcs, _ := listSyncSources(app.db); len(srcs) != 0 {
+		t.Errorf("another account's sources must be forgotten: %+v", srcs)
+	}
+}
+
+// Signed out by Google, then another account: the question too.
+func TestSignedOutThenOtherAccountAsks(t *testing.T) {
+	app, f := syncApp(t)
+	acct := &fakeAccount{email: "florent@example.com"}
+	app.sync.open = fakeGoogleAs(t, acct)
+	seedMergeCase(t, app, f)
+	app.ConnectGoogleDrive()
+	app.ConfirmMerge(true)
+	drive := app.sync.newDrive
+	app.sync.newDrive = func(ctx context.Context) (*driveClient, error) { return nil, fmt.Errorf("refresh: %w", errSignedOut) }
+	if st, _ := app.SyncNow(); st.State != syncStateSignedOut {
+		t.Fatalf("%+v", st)
+	}
+	app.sync.newDrive = drive
+	acct.email = "someone@example.com"
+	st, err := app.ConnectGoogleDrive()
+	if err != nil || st.State != syncStateMergePending {
+		t.Fatalf("%+v %v", st, err)
 	}
 }

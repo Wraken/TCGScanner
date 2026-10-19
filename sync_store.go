@@ -370,6 +370,14 @@ func appendSyncEvent(tx *sql.Tx, e syncEvent) error {
 	return err
 }
 
+// lastSyncEventSeq is the seq of this device's last event, 0 when none: the
+// cheap check before rendering the whole journal.
+func lastSyncEventSeq(db *sql.DB) (int64, error) {
+	var seq int64
+	err := db.QueryRow(`SELECT COALESCE(max(seq), 0) FROM sync_events`).Scan(&seq)
+	return seq, err
+}
+
 // renderJournal is this device's whole journal: the device record, then every
 // event with its seq. lastSeq is the seq of the last event (0 when none).
 func renderJournal(db *sql.DB) (content string, lastSeq int64, err error) {
@@ -453,6 +461,33 @@ func listSyncSources(db *sql.DB) ([]syncSource, error) {
 	return out, rows.Err()
 }
 
+// bumpSyncAt is the at of a local write on an existing row: now, or 1 ms
+// after the row's key when that key is not earlier (a peer's clock ahead of
+// ours). An edit made after seeing a change thus always outranks it. An
+// empty or unparsable key is ignored.
+func bumpSyncAt(now, rowSyncAt string) string {
+	row, err := parseSyncAt(rowSyncAt)
+	if err != nil {
+		return now
+	}
+	if t, err := parseSyncAt(now); err == nil && t.After(row) {
+		return now
+	}
+	return formatSyncAt(row.Add(time.Millisecond))
+}
+
+// syncKindRank orders a batch by entity kind: collections, then copies, then
+// price references, so a copy always finds its collection whatever the ats.
+func syncKindRank(op string) int {
+	switch {
+	case strings.HasPrefix(op, "collection."):
+		return 0
+	case strings.HasPrefix(op, "copy."):
+		return 1
+	}
+	return 2
+}
+
 // syncKeyAfter is the whole last-writer-wins rule: the key (at, by) beats the
 // key (rowAt, rowBy) when it is strictly greater, at first then device id. at
 // is fixed-width, so string order is time order; equal keys (an event applied
@@ -464,8 +499,11 @@ func syncKeyAfter(at, by, rowAt, rowBy string) bool {
 	return by > rowBy
 }
 
-// applySyncEvents folds a batch of other devices' events into the rows,
-// ordered by (at, device) across devices, in one transaction. It records
+// applySyncEvents folds a batch of other devices' events into the rows, in
+// one transaction: kind by kind (collections, copies, price references), each
+// kind in (at, device, seq) order. Last writer wins is per entity, so the
+// kind order only changes one thing: a copy finds its collection even when
+// it was filed before the collection's create (bootstrap, clock skew). It records
 // nothing in sync_events, advances sync_sources.applied_seq per device to
 // the highest seq in the batch, and returns how many events changed a row.
 func applySyncEvents(db *sql.DB, batch []syncSourced, resolveGame func(cardID string) string) (applied int, err error) {
@@ -487,6 +525,9 @@ func applySyncEvents(db *sql.DB, batch []syncSourced, resolveGame func(cardID st
 	}
 	sort.SliceStable(events, func(i, j int) bool {
 		a, b := events[i], events[j]
+		if ra, rb := syncKindRank(a.Event.Op), syncKindRank(b.Event.Op); ra != rb {
+			return ra < rb
+		}
 		if a.Event.At != b.Event.At {
 			return a.Event.At < b.Event.At
 		}
@@ -568,7 +609,8 @@ func syncRowKey(tx *sql.Tx, table, uid string) (id int64, at, by string, found b
 	return id, at, by, err == nil, err
 }
 
-func syncTombstone(tx *sql.Tx, uid, at string) error {
+// syncTombstone records that uid was removed: later events for it are ignored.
+func syncTombstone(tx syncDB, uid, at string) error {
 	_, err := tx.Exec(`INSERT OR REPLACE INTO sync_tombstones (uid, deleted_at) VALUES (?, ?)`, uid, at)
 	return err
 }
@@ -603,14 +645,22 @@ func applyCollectionDelete(tx *sql.Tx, e syncEvent) (bool, error) {
 		return false, err
 	}
 	if found {
-		if _, err := tx.Exec(`UPDATE cards SET collection_id = NULL WHERE collection_id = ?`, id); err != nil {
-			return false, err
-		}
-		if _, err := tx.Exec(`DELETE FROM collections WHERE id = ?`, id); err != nil {
+		if err := deleteCollectionRow(tx, id); err != nil {
 			return false, err
 		}
 	}
 	return found, syncTombstone(tx, e.UID, e.At)
+}
+
+// deleteCollectionRow detaches the collection's copies (they become unfiled)
+// and deletes it. The explicit UPDATE makes this independent of the
+// connection's foreign_keys pragma.
+func deleteCollectionRow(tx syncDB, id int64) error {
+	if _, err := tx.Exec(`UPDATE cards SET collection_id = NULL WHERE collection_id = ?`, id); err != nil {
+		return err
+	}
+	_, err := tx.Exec(`DELETE FROM collections WHERE id = ?`, id)
+	return err
 }
 
 // syncCollectionID resolves a collection uid to its row id; NULL (unfiled)
@@ -711,7 +761,7 @@ func applyCopyRemove(tx *sql.Tx, e syncEvent) (bool, error) {
 
 // priceRefKey is the last-writer-wins key of the reference of cardID: its
 // row's when it exists, else its last clear's (sync_ref_clears), else empty.
-func priceRefKey(tx *sql.Tx, cardID string) (at, by string, rowFound bool, err error) {
+func priceRefKey(tx syncDB, cardID string) (at, by string, rowFound bool, err error) {
 	err = tx.QueryRow(`SELECT sync_at, sync_by FROM price_refs WHERE card_id = ?`, cardID).Scan(&at, &by)
 	if err == nil {
 		return at, by, true, nil
@@ -781,10 +831,18 @@ func upsertRefClear(q syncDB, cardID, at, device string) error {
 	return err
 }
 
-// clearSyncSources forgets every other device's journal (on disconnect): a
-// later connection folds them again from their first event.
+// clearSyncSources forgets every other device's journal (another Google
+// account connects): its journals are folded from their first event.
 func clearSyncSources(db *sql.DB) error {
 	_, err := db.Exec(`DELETE FROM sync_sources`)
+	return err
+}
+
+// detachSyncSources forgets where the other devices' journals live on the
+// Drive but keeps how far each was applied (on disconnect): connecting the
+// same account again lists them anew and resumes after applied_seq.
+func detachSyncSources(db *sql.DB) error {
+	_, err := db.Exec(`UPDATE sync_sources SET file_id = '', modified_time = ''`)
 	return err
 }
 

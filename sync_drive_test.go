@@ -10,6 +10,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -57,15 +58,34 @@ func TestDriveClientRoundTrip(t *testing.T) {
 		t.Error("a 503 is an error")
 	}
 	for _, call := range f.calls {
-		if strings.Contains(call, "fields=") && !strings.Contains(call, "modifiedTime") {
+		if strings.Contains(call, "fields=files") && !strings.Contains(call, "modifiedTime") {
 			t.Errorf("list must ask for modifiedTime: %s", call)
 		}
+	}
+}
+
+// Two devices that created the folder at once: everyone settles on the
+// oldest, whatever order Drive lists them in.
+func TestFindFolderPicksTheOldest(t *testing.T) {
+	f := newFakeDrive(t)
+	first := f.addFolder(syncFolderName).ID
+	f.addFolder(syncFolderName)
+	id, err := f.client().findFolder(context.Background(), syncFolderName)
+	if err != nil || id != first {
+		t.Errorf("findFolder = %q %v, want the oldest %q", id, err, first)
 	}
 }
 
 type fakeDriveFile struct {
 	Name, Parent, ModifiedTime string
 	Content                    []byte
+	Trashed                    bool
+	Created                    int // creation order
+}
+
+type fakeDriveFolder struct {
+	ID, Name string
+	Created  int // creation order
 }
 
 // fakeDrive is an in-memory Drive served over httptest. Tests may read and
@@ -74,7 +94,7 @@ type fakeDrive struct {
 	srv     *httptest.Server
 	mu      sync.Mutex
 	n       int
-	folders map[string]string // name -> id
+	folders []*fakeDriveFolder
 	files   map[string]*fakeDriveFile
 	down    bool
 	calls   []string
@@ -84,7 +104,7 @@ type fakeDrive struct {
 }
 
 func newFakeDrive(t *testing.T) *fakeDrive {
-	f := &fakeDrive{folders: map[string]string{}, files: map[string]*fakeDriveFile{}}
+	f := &fakeDrive{files: map[string]*fakeDriveFile{}}
 	f.srv = httptest.NewServer(http.HandlerFunc(f.handle))
 	t.Cleanup(f.srv.Close)
 	return f
@@ -101,16 +121,62 @@ func (f *fakeDrive) nextID() string {
 
 func fakeDriveNow() string { return time.Now().UTC().Format(time.RFC3339) }
 
-// folder returns the folder's id, creating it when absent.
+// folder returns the id of the oldest folder called name, creating one when
+// there is none.
 func (f *fakeDrive) folder(name string) string {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if id, ok := f.folders[name]; ok {
+	if id := f.folderID(name); id != "" {
 		return id
 	}
-	id := f.nextID()
-	f.folders[name] = id
-	return id
+	return f.addFolder(name).ID
+}
+
+// folderID is the id of the oldest folder called name, "" when none.
+func (f *fakeDrive) folderID(name string) string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var oldest *fakeDriveFolder
+	for _, d := range f.folders {
+		if d.Name == name && (oldest == nil || d.Created < oldest.Created) {
+			oldest = d
+		}
+	}
+	if oldest == nil {
+		return ""
+	}
+	return oldest.ID
+}
+
+// addFolder creates a folder called name, even when one exists.
+func (f *fakeDrive) addFolder(name string) *fakeDriveFolder {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.newFolderLocked(name)
+}
+
+func (f *fakeDrive) newFolderLocked(name string) *fakeDriveFolder {
+	d := &fakeDriveFolder{ID: f.nextID(), Name: name}
+	d.Created = f.n
+	f.folders = append(f.folders, d)
+	return d
+}
+
+// removeFolders deletes every folder called name.
+func (f *fakeDrive) removeFolders(name string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.folders = slices.DeleteFunc(f.folders, func(d *fakeDriveFolder) bool { return d.Name == name })
+}
+
+// fileByName is the first file called name, nil when none.
+func (f *fakeDrive) fileByName(name string) (string, *fakeDriveFile) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for id, file := range f.files {
+		if file.Name == name {
+			return id, file
+		}
+	}
+	return "", nil
 }
 
 // put seeds a file and returns its id.
@@ -118,7 +184,7 @@ func (f *fakeDrive) put(folder, name, content string) string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	id := f.nextID()
-	f.files[id] = &fakeDriveFile{Name: name, Parent: folder, ModifiedTime: fakeDriveNow(), Content: []byte(content)}
+	f.files[id] = &fakeDriveFile{Name: name, Parent: folder, ModifiedTime: fakeDriveNow(), Content: []byte(content), Created: f.n}
 	return id
 }
 
@@ -157,19 +223,29 @@ func (f *fakeDrive) handle(w http.ResponseWriter, r *http.Request) {
 		}
 		out := []item{}
 		if strings.Contains(query, "mimeType = 'application/vnd.google-apps.folder'") {
-			for name, id := range f.folders {
-				if strings.Contains(query, "name = '"+name+"'") {
-					out = append(out, item{ID: id, Name: name})
+			// Drive's order is arbitrary unless asked: newest first here, so
+			// a client that does not ask for createdTime picks the wrong one.
+			folders := slices.Clone(f.folders)
+			sort.Slice(folders, func(i, j int) bool { return folders[i].Created > folders[j].Created })
+			if q.Get("orderBy") == "createdTime" {
+				slices.Reverse(folders)
+			}
+			for _, d := range folders {
+				if strings.Contains(query, "name = '"+d.Name+"'") {
+					out = append(out, item{ID: d.ID, Name: d.Name})
 				}
 			}
 		} else {
 			for id, file := range f.files {
+				if file.Trashed && strings.Contains(query, "trashed = false") {
+					continue
+				}
 				if strings.Contains(query, "'"+file.Parent+"' in parents") && strings.Contains(file.Name, "journal-") {
 					out = append(out, item{id, file.Name, file.ModifiedTime, strconv.Itoa(len(file.Content))})
 				}
 			}
+			sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 		}
-		sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 		fakeDriveJSON(w, map[string]any{"files": out})
 	case path == "/files" && r.Method == http.MethodPost && q.Get("uploadType") == "":
 		var m struct{ Name string }
@@ -177,9 +253,7 @@ func (f *fakeDrive) handle(w http.ResponseWriter, r *http.Request) {
 			fakeDriveFail(w, http.StatusBadRequest, "bad json")
 			return
 		}
-		id := f.nextID()
-		f.folders[m.Name] = id
-		fakeDriveJSON(w, map[string]string{"id": id})
+		fakeDriveJSON(w, map[string]string{"id": f.newFolderLocked(m.Name).ID})
 	case path == "/files" && r.Method == http.MethodPost && q.Get("uploadType") == "multipart":
 		_, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 		if err != nil {
@@ -209,7 +283,7 @@ func (f *fakeDrive) handle(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		id := f.nextID()
-		f.files[id] = &fakeDriveFile{Name: meta.Name, Parent: meta.Parents[0], ModifiedTime: fakeDriveNow(), Content: content}
+		f.files[id] = &fakeDriveFile{Name: meta.Name, Parent: meta.Parents[0], ModifiedTime: fakeDriveNow(), Content: content, Created: f.n}
 		fakeDriveJSON(w, map[string]string{"id": id})
 	case strings.HasPrefix(path, "/files/"):
 		id := strings.TrimPrefix(path, "/files/")
@@ -221,6 +295,8 @@ func (f *fakeDrive) handle(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.Method == http.MethodGet && q.Get("alt") == "media":
 			w.Write(file.Content)
+		case r.Method == http.MethodGet && q.Get("fields") == "id,trashed":
+			fakeDriveJSON(w, map[string]any{"id": id, "trashed": file.Trashed})
 		case r.Method == http.MethodPatch && q.Get("uploadType") == "media":
 			b, _ := io.ReadAll(r.Body)
 			file.Content = b

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -107,8 +106,9 @@ func idOf(data []byte) (string, error) {
 	return r.ID, nil
 }
 
-// list runs a files query and follows nextPageToken.
-func (c *driveClient) list(ctx context.Context, q string) ([]driveFile, error) {
+// list runs a files query (in orderBy order when not empty) and follows
+// nextPageToken.
+func (c *driveClient) list(ctx context.Context, q, orderBy string) ([]driveFile, error) {
 	var out []driveFile
 	token := ""
 	for {
@@ -117,6 +117,9 @@ func (c *driveClient) list(ctx context.Context, q string) ([]driveFile, error) {
 		v.Set("fields", "files(id,name,modifiedTime,size),nextPageToken")
 		v.Set("pageSize", "1000")
 		v.Set("spaces", "drive")
+		if orderBy != "" {
+			v.Set("orderBy", orderBy)
+		}
 		if token != "" {
 			v.Set("pageToken", token)
 		}
@@ -149,9 +152,10 @@ func (c *driveClient) list(ctx context.Context, q string) ([]driveFile, error) {
 
 var driveQuoter = strings.NewReplacer(`\`, `\\`, `'`, `\'`)
 
-// findFolder returns the id of the folder called name, "" when there is none.
+// findFolder returns the id of the oldest folder called name, "" when there
+// is none: two devices that created one at once both settle on the same.
 func (c *driveClient) findFolder(ctx context.Context, name string) (string, error) {
-	files, err := c.list(ctx, "mimeType = '"+driveFolder+"' and name = '"+driveQuoter.Replace(name)+"' and trashed = false")
+	files, err := c.list(ctx, "mimeType = '"+driveFolder+"' and name = '"+driveQuoter.Replace(name)+"' and trashed = false", "createdTime")
 	if err != nil || len(files) == 0 {
 		return "", err
 	}
@@ -168,7 +172,7 @@ func (c *driveClient) createFolder(ctx context.Context, name string) (string, er
 }
 
 func (c *driveClient) listJournals(ctx context.Context, folderID string) ([]driveFile, error) {
-	return c.list(ctx, "'"+driveQuoter.Replace(folderID)+"' in parents and trashed = false and name contains 'journal-'")
+	return c.list(ctx, "'"+driveQuoter.Replace(folderID)+"' in parents and trashed = false and name contains 'journal-'", "")
 }
 
 func (c *driveClient) download(ctx context.Context, fileID string) ([]byte, error) {
@@ -205,24 +209,4 @@ func (c *driveClient) update(ctx context.Context, fileID string, content []byte)
 	}
 	_, err := c.do(ctx, http.MethodPatch, c.upload()+"/files/"+url.PathEscape(fileID)+"?uploadType=media", "text/plain", content)
 	return err
-}
-
-// folderAlive reports whether a cached folder id still names a folder that
-// is not in the trash; a 404 is false, not an error.
-func (c *driveClient) folderAlive(ctx context.Context, id string) (bool, error) {
-	data, err := c.do(ctx, http.MethodGet, c.base()+"/files/"+url.PathEscape(id)+"?fields=id,trashed", "", nil)
-	var de *driveError
-	if errors.As(err, &de) && de.Status == http.StatusNotFound {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	var r struct {
-		Trashed bool `json:"trashed"`
-	}
-	if err := json.Unmarshal(data, &r); err != nil {
-		return false, err
-	}
-	return !r.Trashed, nil
 }

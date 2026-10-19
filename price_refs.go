@@ -42,12 +42,18 @@ func setPriceRef(db *sql.DB, r PriceRef) error {
 	if err != nil {
 		return err
 	}
-	at := priceRefSyncAt(r.ChosenAt, syncNow())
 	tx, err := db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
+	// Stamped after the reference's current key (its row, else its last
+	// clear), so this choice outranks every change this device has seen.
+	keyAt, _, _, err := priceRefKey(tx, r.CardID)
+	if err != nil {
+		return err
+	}
+	at := bumpSyncAt(priceRefSyncAt(r.ChosenAt, syncNow()), keyAt)
 	if _, err := tx.Exec(`INSERT INTO price_refs (card_id, product, non_english, label, chosen_at, sync_at, sync_by) VALUES (?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(card_id) DO UPDATE SET product = excluded.product, non_english = excluded.non_english, label = excluded.label, chosen_at = excluded.chosen_at, sync_at = excluded.sync_at, sync_by = excluded.sync_by`,
 		r.CardID, r.Product, r.NonEnglish, r.Label, r.ChosenAt, at, deviceID); err != nil {
@@ -66,12 +72,17 @@ func clearPriceRef(db *sql.DB, cardID string) error {
 	if err != nil {
 		return err
 	}
-	at := syncNow()
+	now := syncNow()
 	tx, err := db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
+	keyAt, _, _, err := priceRefKey(tx, cardID)
+	if err != nil {
+		return err
+	}
+	at := bumpSyncAt(now, keyAt)
 	if _, err := tx.Exec(`DELETE FROM price_refs WHERE card_id = ?`, cardID); err != nil {
 		return err
 	}

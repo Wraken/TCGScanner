@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestMigrateSyncGivesEveryRowAUidOnce(t *testing.T) {
@@ -46,7 +47,11 @@ func TestMigrateSyncGivesEveryRowAUidOnce(t *testing.T) {
 	}
 }
 
-func TestBootstrapEventsAreWrittenOnceInOrder(t *testing.T) {
+// preSyncDB writes a database from before the sync additions: a custom
+// collection created 2026-10-01 holding a card scanned 2026-09-30 (filed in
+// it later), an unfiled card, and a price reference. It returns the path.
+func preSyncDB(t *testing.T) string {
+	t.Helper()
 	path := filepath.Join(t.TempDir(), "old.db")
 	raw, _ := sql.Open("sqlite", path) // a pre-sync database: schema without the sync additions
 	raw.Exec(`CREATE TABLE collections (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`)
@@ -56,7 +61,11 @@ func TestBootstrapEventsAreWrittenOnceInOrder(t *testing.T) {
 	raw.Exec(`CREATE TABLE price_refs (card_id TEXT PRIMARY KEY, product INTEGER NOT NULL, non_english INTEGER NOT NULL DEFAULT 0, label TEXT NOT NULL DEFAULT '', chosen_at TEXT NOT NULL)`)
 	raw.Exec(`INSERT INTO price_refs (card_id, product, non_english, label, chosen_at) VALUES ('OP01-001', 111, 1, 'Old pick', '2026-10-08T20:00:00Z')`)
 	raw.Close()
-	db, err := openDB(path)
+	return path
+}
+
+func TestBootstrapEventsAreWrittenOnceInOrder(t *testing.T) {
+	db, err := openDB(preSyncDB(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -404,5 +413,160 @@ func TestApplyPriceRefClearOutranksAnOlderLateSet(t *testing.T) {
 	applySyncEvents(db, []syncSourced{ev("phone", 3, "2026-10-19T10:20:00.000Z", opPriceRefSet, set)}, resolve)
 	if refCount() != 0 {
 		t.Error("an older foreign set must not undo a newer local clear")
+	}
+}
+
+// The bootstrap writes a copy at its scan date and its collection at its
+// creation date: a copy scanned before its collection was created must still
+// arrive filed on another device (the apply orders by kind first).
+func TestBootstrappedCopyArrivesFiledOnAnotherDevice(t *testing.T) {
+	db, err := openDB(preSyncDB(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	content, _, err := renderJournal(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	device, events, _, err := decodeJournal(strings.NewReader(content))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var batch []syncSourced
+	for _, e := range events {
+		batch = append(batch, syncSourced{Device: device.Device, Event: e})
+	}
+	other := testDB(t)
+	if id, _, _ := syncDevice(other); id == device.Device {
+		t.Fatal("the other database must have its own device id")
+	}
+	if _, err := applySyncEvents(other, batch, nil); err != nil {
+		t.Fatal(err)
+	}
+	var want int
+	other.QueryRow(`SELECT id FROM collections WHERE name = 'To sell'`).Scan(&want)
+	filed := 0
+	for _, c := range cardsByUID(t, other) {
+		if c.CardID == "OP01-006_p4" {
+			if c.CollectionID != want || want == 0 {
+				t.Errorf("the copy must be filed in To sell (%d): %+v", want, c)
+			}
+			filed++
+		}
+	}
+	if filed != 1 {
+		t.Errorf("%d copies of OP01-006_p4 on the other device, want 1", filed)
+	}
+}
+
+// Across devices in one batch: B files a copy in A's collection with an at
+// earlier than A's collection.create (B's clock is behind).
+func TestApplyCollectionsBeforeCopiesAcrossDevices(t *testing.T) {
+	db := testDB(t)
+	_, err := applySyncEvents(db, []syncSourced{
+		ev("b", 1, "2026-10-19T09:00:00.000Z", opCopyAdd, copyAdd("copy-1", "OP01-006_p4", "col-a")),
+		ev("a", 1, "2026-10-19T10:00:00.000Z", opCollectionCreate, func(e *syncEvent) { e.UID, e.Name = "col-a", "Binder" }),
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want int
+	db.QueryRow(`SELECT id FROM collections WHERE uid = 'col-a'`).Scan(&want)
+	if c := cardsByUID(t, db)["copy-1"]; want == 0 || c.CollectionID != want {
+		t.Errorf("copy must be filed in col-a (%d): %+v", want, c)
+	}
+}
+
+func TestBumpSyncAt(t *testing.T) {
+	for _, c := range []struct{ now, row, want string }{
+		{"2026-10-19T10:00:00.000Z", "", "2026-10-19T10:00:00.000Z"},
+		{"2026-10-19T10:00:00.000Z", "2026-10-19T09:00:00.000Z", "2026-10-19T10:00:00.000Z"},
+		{"2026-10-19T10:00:00.000Z", "2026-10-19T10:00:00.000Z", "2026-10-19T10:00:00.001Z"},
+		{"2026-10-19T10:00:00.000Z", "2026-10-19T11:00:00.999Z", "2026-10-19T11:00:01.000Z"},
+		{"2026-10-19T10:00:00.000Z", "not a date", "2026-10-19T10:00:00.000Z"},
+	} {
+		if got := bumpSyncAt(c.now, c.row); got != c.want {
+			t.Errorf("bumpSyncAt(%q, %q) = %q, want %q", c.now, c.row, got, c.want)
+		}
+	}
+}
+
+// A device whose clock is behind still outranks a write it has seen: a local
+// edit of an existing row is stamped after the row's key.
+func TestLocalWriteOutranksAFutureForeignKey(t *testing.T) {
+	db := testDB(t)
+	future := formatSyncAt(time.Now().Add(time.Hour))
+	if _, err := applySyncEvents(db, []syncSourced{
+		ev("ahead", 1, future, opCollectionCreate, func(e *syncEvent) { e.UID, e.Name = "col-1", "To sell" }),
+		ev("ahead", 2, future, opCopyAdd, copyAdd("copy-1", "OP01-006_p4", "")),
+		ev("ahead", 3, future, opPriceRefSet, func(e *syncEvent) { e.CardID, e.Product, e.Label = "OP01-006_p4", 1, "x" }),
+		ev("ahead", 4, future, opCopyAdd, copyAdd("copy-2", "OP01-007", "")),
+	}, nil); err != nil {
+		t.Fatal(err)
+	}
+	ids := map[string]int{}
+	for uid, c := range cardsByUID(t, db) {
+		ids[uid] = c.ID
+	}
+	var colID int
+	db.QueryRow(`SELECT id FROM collections WHERE uid = 'col-1'`).Scan(&colID)
+	rowAt := func(q string, args ...any) string {
+		var at string
+		db.QueryRow(q, args...).Scan(&at)
+		return at
+	}
+	after := func(what string, e syncEvent, row string) {
+		t.Helper()
+		if e.At <= future {
+			t.Errorf("%s: event at %s must be after the foreign key %s", what, e.At, future)
+		}
+		if row != "" && row != e.At {
+			t.Errorf("%s: row key %s, event at %s", what, row, e.At)
+		}
+	}
+
+	card, _ := getCard(db, ids["copy-1"])
+	card.Lang = "ja"
+	if err := updateCard(db, card); err != nil {
+		t.Fatal(err)
+	}
+	after("updateCard", lastEvent(t, db), rowAt(`SELECT sync_at FROM cards WHERE uid = 'copy-1'`))
+	if err := moveCardToCustom(db, ids["copy-1"], colID); err != nil {
+		t.Fatal(err)
+	}
+	after("moveCardToCustom", lastEvent(t, db), rowAt(`SELECT sync_at FROM cards WHERE uid = 'copy-1'`))
+	if err := renameCollection(db, colID, "For trade"); err != nil {
+		t.Fatal(err)
+	}
+	after("renameCollection", lastEvent(t, db), rowAt(`SELECT sync_at FROM collections WHERE uid = 'col-1'`))
+	if err := setPriceRef(db, PriceRef{CardID: "OP01-006_p4", Product: 2, Label: "y"}); err != nil {
+		t.Fatal(err)
+	}
+	after("setPriceRef", lastEvent(t, db), rowAt(`SELECT sync_at FROM price_refs WHERE card_id = 'OP01-006_p4'`))
+	if err := clearPriceRef(db, "OP01-006_p4"); err != nil {
+		t.Fatal(err)
+	}
+	after("clearPriceRef", lastEvent(t, db), rowAt(`SELECT at FROM sync_ref_clears WHERE card_id = 'OP01-006_p4'`))
+	if err := deleteCard(db, ids["copy-2"]); err != nil {
+		t.Fatal(err)
+	}
+	after("deleteCard", lastEvent(t, db), "")
+	if err := deleteCollection(db, colID); err != nil {
+		t.Fatal(err)
+	}
+	after("deleteCollection", lastEvent(t, db), "")
+}
+
+func TestLastSyncEventSeq(t *testing.T) {
+	db := testDB(t)
+	if n, err := lastSyncEventSeq(db); err != nil || n != 0 {
+		t.Fatal(n, err)
+	}
+	createCollection(db, "To sell")
+	insertCard(db, 0, "OP01-006_p4", "onepiece", "tcg", false, "en")
+	_, last, _ := renderJournal(db)
+	if n, err := lastSyncEventSeq(db); err != nil || n != last || n != 2 {
+		t.Errorf("lastSyncEventSeq = %d %v, want %d", n, err, last)
 	}
 }

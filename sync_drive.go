@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -204,4 +205,24 @@ func (c *driveClient) update(ctx context.Context, fileID string, content []byte)
 	}
 	_, err := c.do(ctx, http.MethodPatch, c.upload()+"/files/"+url.PathEscape(fileID)+"?uploadType=media", "text/plain", content)
 	return err
+}
+
+// folderAlive reports whether a cached folder id still names a folder that
+// is not in the trash; a 404 is false, not an error.
+func (c *driveClient) folderAlive(ctx context.Context, id string) (bool, error) {
+	data, err := c.do(ctx, http.MethodGet, c.base()+"/files/"+url.PathEscape(id)+"?fields=id,trashed", "", nil)
+	var de *driveError
+	if errors.As(err, &de) && de.Status == http.StatusNotFound {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	var r struct {
+		Trashed bool `json:"trashed"`
+	}
+	if err := json.Unmarshal(data, &r); err != nil {
+		return false, err
+	}
+	return !r.Trashed, nil
 }

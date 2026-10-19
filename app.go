@@ -43,6 +43,9 @@ type App struct {
 	priceMappingDirsFn func() []string
 	priceGuideURLFn    func(gameID int) string
 	priceImageAllowFn  func(url string) bool // tests: which image URLs may be fetched
+
+	// Collection sync through Google Drive (sync.go).
+	sync *syncer
 }
 
 func NewApp() *App {

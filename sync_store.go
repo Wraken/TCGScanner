@@ -780,3 +780,20 @@ func upsertRefClear(q syncDB, cardID, at, device string) error {
 		ON CONFLICT(card_id) DO UPDATE SET at = excluded.at, device = excluded.device`, cardID, at, device)
 	return err
 }
+
+// clearSyncSources forgets every other device's journal (on disconnect): a
+// later connection folds them again from their first event.
+func clearSyncSources(db *sql.DB) error {
+	_, err := db.Exec(`DELETE FROM sync_sources`)
+	return err
+}
+
+// deleteSettings removes settings rows; absent keys are fine.
+func deleteSettings(db *sql.DB, keys ...string) error {
+	for _, key := range keys {
+		if _, err := db.Exec(`DELETE FROM settings WHERE key = ?`, key); err != nil {
+			return err
+		}
+	}
+	return nil
+}

@@ -13,13 +13,14 @@ interface Props {
   title: string;
   description: string;
   confirmLabel: string;
+  cancelLabel?: string;
   onConfirm: () => Promise<void> | void;
   onOpenChange: (open: boolean) => void;
 }
 
 // Confirms a destructive action. The button names the action, never "OK".
 // Focus starts on Cancel so Enter alone never destroys anything.
-export function ConfirmDialog({ open, title, description, confirmLabel, onConfirm, onOpenChange }: Props) {
+export function ConfirmDialog({ open, title, description, confirmLabel, cancelLabel = "Cancel", onConfirm, onOpenChange }: Props) {
   const [busy, setBusy] = useState(false);
 
   async function confirm() {
@@ -40,7 +41,7 @@ export function ConfirmDialog({ open, title, description, confirmLabel, onConfir
         </DialogHeader>
         <DialogFooter>
           <button className="n-btn n-btn-secondary" onClick={() => onOpenChange(false)}>
-            Cancel
+            {cancelLabel}
           </button>
           <button className="n-btn n-btn-danger" onClick={confirm} disabled={busy}>
             {confirmLabel}

@@ -1,6 +1,6 @@
 import { Camera, Layers, LayoutGrid, Settings, Upload, WalletCards } from "lucide-react";
 
-export type Screen = "home" | "scan" | "collection";
+export type Screen = "home" | "scan" | "collection" | "settings";
 
 interface Props {
   screen: Screen;
@@ -49,10 +49,13 @@ export function Sidebar({ screen, onNavigate, onExport }: Props) {
         </button>
       </nav>
 
-      <button className="n-nav mt-auto" disabled>
+      <button
+        className="n-nav mt-auto"
+        aria-current={screen === "settings" ? "page" : undefined}
+        onClick={() => onNavigate("settings")}
+      >
         <Settings className="w-[18px] h-[18px]" aria-hidden="true" />
         Settings
-        <span className="n-tag n-tag-neutral ml-auto" style={{ fontSize: "10px", padding: "1px 7px" }}>Soon</span>
       </button>
     </aside>
   );

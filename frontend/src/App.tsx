@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useModel } from "@/hooks/useModel";
+import { useSync } from "@/hooks/useSync";
 import { defaultFilter, useCollection } from "@/hooks/useCollection";
 import { Sidebar, type Screen } from "@/components/Sidebar";
 import { HomeScreen } from "@/components/HomeScreen";
 import { ScanScreen } from "@/components/ScanScreen";
 import { CollectionScreen } from "@/components/CollectionScreen";
+import { SettingsScreen } from "@/components/SettingsScreen";
 import { ExportModal } from "@/components/ExportModal";
 import type { CardFilter } from "@/types";
 
@@ -15,6 +17,7 @@ function App() {
   const [collectionTarget, setCollectionTarget] = useState<CardFilter | null>(null);
   const model = useModel();
   const collection = useCollection();
+  const sync = useSync();
   const target = collectionTarget ?? defaultFilter(collection.games);
 
   function openGame(game: string) {
@@ -59,6 +62,7 @@ function App() {
             onScan={() => setScreen("scan")}
           />
         )}
+        {screen === "settings" && <SettingsScreen sync={sync} />}
       </main>
 
       <ExportModal

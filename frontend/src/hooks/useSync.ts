@@ -19,6 +19,7 @@ export function useSync() {
   const statusRef = useRef<SyncStatus | null>(null);
 
   function apply(s: unknown) {
+    if (s == null) return; // a void binding must never blank the status
     const next = s as SyncStatus;
     statusRef.current = next;
     setStatus(next);
@@ -69,7 +70,11 @@ export function useSync() {
     busy,
     connect: () => run(ConnectGoogleDrive, "connect to Google Drive"),
     confirmMerge: (merge: boolean) => run(() => ConfirmMerge(merge), "finish the first sync"),
-    disconnect: () => run(DisconnectGoogleDrive, "disconnect from Google Drive"),
+    disconnect: () =>
+      run(async () => {
+        await DisconnectGoogleDrive();
+        return GetSyncStatus();
+      }, "disconnect from Google Drive"),
     syncNow: () => run(SyncNow, "sync"),
   };
 }

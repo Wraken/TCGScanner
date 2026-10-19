@@ -1,16 +1,18 @@
 module TCGScanner
 
-go 1.26
+go 1.26.0
 
 require (
 	github.com/ebitengine/purego v0.10.0
 	github.com/google/uuid v1.6.0
 	github.com/wailsapp/wails/v2 v2.11.0
 	golang.org/x/image v0.12.0
+	golang.org/x/oauth2 v0.37.0
 	modernc.org/sqlite v1.46.1
 )
 
 require (
+	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect

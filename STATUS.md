@@ -103,7 +103,11 @@ Go unit tests against a fake Drive and a fake Google token server
    built app from two folders, each with its own `collection.db`, signed in to
    the same account. Scan on one and see it on the other after a focus change;
    remove on one and see it gone on the other; on a third copy that already
-   has cards, check the merge question.
+   has cards, check the merge question. Also: a PC with cards already filed
+   in a custom collection must arrive with them filed in it on the second
+   copy; Disconnect then Connect again, wait past one hour, and the sync must
+   keep working (the refresh token); start a connection, close the consent
+   tab, and press Cancel in Settings.
 3. The mobile app's M2 implements the same journal format: see the spec's "The
    journal format" section.
 4. Still open from the previous list: the decision on

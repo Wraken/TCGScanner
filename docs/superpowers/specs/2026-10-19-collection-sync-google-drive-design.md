@@ -149,7 +149,14 @@ derivation.
 The state is computed per entity: a custom collection by `uid`, a copy by
 `uid`, a price reference by `card_id`.
 
-1. Within one journal, events apply in `seq` order.
+1. A batch of events (every journal's new lines of a cycle) is applied
+   kind by kind: every collection event, then every copy event, then
+   every price reference event; each kind in `(at, device id, seq)`
+   order. So a copy always finds its collection, even when it was filed
+   with an `at` earlier than the collection's `collection.create` (the
+   bootstrap writes a copy at its scan date and its collection at its
+   creation date; another device's clock may be behind). Last writer wins
+   is per entity, so the order across kinds changes nothing else.
 2. Across journals, two events on the same entity are ordered by `at`;
    the later one wins. Equal `at`: the higher device id wins (any fixed
    rule works, it only has to be the same everywhere).
@@ -163,8 +170,13 @@ The state is computed per entity: a custom collection by `uid`, a copy by
 4. `copy.add` for a uid already present is ignored (idempotent: a journal
    may be re-read from the start).
 5. Device clocks are trusted. A device with a badly wrong clock can lose
-   a "last writer wins" race it should have won; that is accepted and
-   documented, not detected.
+   a "last writer wins" race it should have won against a change it has
+   not seen yet; that is accepted and documented, not detected.
+6. A local write on an existing entity stamps `at` strictly later than
+   the entity's current key: `max(now, key + 1 ms)`. So an edit made
+   after seeing a peer's change always outranks it, even when the peer's
+   clock is ahead (otherwise both devices would keep their own value
+   forever). Inserts stamp `now`.
 
 ### The desktop's own journal lives in SQLite
 
@@ -208,8 +220,10 @@ A cycle:
 1. Make sure the access token is valid (refresh it with the stored
    refresh token; a refusal means the user revoked access: status
    "Disconnected, sign in again").
-2. Find the `TCGScanner` folder (id cached in settings; re-found by name
-   if the cache is stale; created if absent).
+2. Find the `TCGScanner` folder: listed by name every cycle, the oldest
+   one (`orderBy=createdTime`) when two devices created one at once;
+   created if absent. The id is cached in settings; a different id drops
+   the cached journal file id.
 3. List the folder's `journal-*.jsonl` files with their `modifiedTime`.
 4. For every file that is not this device's and whose `modifiedTime` is
    newer than the last one applied: download it, parse, apply every line
@@ -219,9 +233,11 @@ A cycle:
    `file_id`, `applied_seq`, `modified_time`, `last_seen`). A file whose
    highest `seq` is lower than `applied_seq` (the device was reset) is
    re-applied from `seq` 1; the rules above make that safe.
-5. If `sync_events` holds lines beyond `uploaded_seq`: render the whole
-   journal and upload it (create the file the first time, update its
-   content afterwards). Record `uploaded_seq`.
+5. If `sync_events` holds lines beyond `uploaded_seq`, or this device's
+   journal is missing from the listing (deleted, or in the Drive trash,
+   where an update would still succeed unseen): render the whole journal
+   and upload it (create the file when missing, update its content
+   afterwards). Record `uploaded_seq`.
 6. Emit `sync:status` to the frontend; if step 4 applied anything, also
    emit `collection:changed` so open views refetch (the collection
    hooks already refetch on their own events; this adds one trigger).
@@ -236,7 +252,11 @@ malformed line is logged and skipped, never fatal. Drive API errors
 "Connect Google Drive" runs the OAuth flow for an installed app: the
 app opens the system browser on Google's consent page with a loopback
 redirect (`http://127.0.0.1:<random port>/`) and PKCE, receives the code
-on that port, exchanges it for tokens. Scopes: `drive.file`, `openid`,
+on that port, exchanges it for tokens. The consent page is always shown
+(`prompt=consent` with offline access): on a reconnect Google may
+otherwise return no refresh token, and a sign-in without one is refused
+("remove TCGScanner from your Google account's third-party access and
+connect again"). Scopes: `drive.file`, `openid`,
 `email` (the last two only to display which account is connected). The
 refresh token is stored in `settings` (`sync_google_token`) in the local
 database, which already holds the user's collection: same trust level,
@@ -259,13 +279,20 @@ Then the app looks at the folder:
   stays disconnected; the user can connect again later). No "replace"
   option in v1: it would be the only destructive path in the feature.
 
-Disconnect: forget the token, the folder id, `sync_sources` and
-`uploaded_seq`; keep the device id, the events and the data, and keep
-recording events. Nothing on Drive is touched: the user deletes the
-folder from Drive if they want.
-Reconnecting the same device resumes where it left off; a reinstalled
-app (new database) gets a new device id, and the previous journal of
-that PC shows as one more device in the list.
+Disconnect: forget the token, the folder id, this device's journal file
+id and `uploaded_seq`; keep the device id, the events and the data, and
+keep recording events. `sync_sources` is kept, without its `file_id` and
+`modified_time`: the other devices' journals are listed anew at the next
+connection and continue after their `applied_seq`. Nothing on Drive is
+touched: the user deletes the folder from Drive if they want.
+Reconnecting the same Google account resumes where it left off, without
+the merge question. Connecting another account than the last one (kept
+in `sync_google_last_email`, which neither a disconnect nor a refused
+refresh clears) starts afresh: `sync_sources`, the folder id, the file id
+and `uploaded_seq` are cleared, so the question is asked when this
+device has copies and that Drive holds journals. A reinstalled app (new
+database) gets a new device id, and the previous journal of that PC
+shows as one more device in the list.
 
 ### Desktop UI
 
@@ -302,7 +329,10 @@ In the Google Cloud console, once:
    secret of an installed app is not confidential, and PKCE protects the
    flow.
 4. Later, for the mobile app: an **Android** client bound to the APK's
-   signing key (or Play App Signing's key). A fork built with another
+   signing key (or Play App Signing's key), in the **same** Cloud project
+   as the Desktop client: `drive.file` grants access to the files created
+   by the project's apps, so a client in another project would not see
+   the desktop's journals (nor the desktop its). A fork built with another
    key needs its own project; a user installing the owner's build does
    not.
 

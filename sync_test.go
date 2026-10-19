@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -375,5 +376,104 @@ func TestCycleAppliesAllJournalsInOneBatch(t *testing.T) {
 	app.db.QueryRow(`SELECT name FROM collections WHERE id = ?`, cards[0].CollectionID).Scan(&name)
 	if name != "Binder" {
 		t.Errorf("collection %q", name)
+	}
+}
+
+// blockDownloads holds the first download in flight until release is
+// called; entered is closed once it is held.
+func blockDownloads(t *testing.T, f *fakeDrive) (entered <-chan struct{}, release func()) {
+	in, out := make(chan struct{}), make(chan struct{})
+	var once, releaseOnce sync.Once
+	f.beforeDownload = func() { once.Do(func() { close(in); <-out }) }
+	release = func() { releaseOnce.Do(func() { close(out) }) }
+	t.Cleanup(release) // before the fake server closes
+	return in, release
+}
+
+func seedMergeCase(t *testing.T, app *App, f *fakeDrive) {
+	insertCard(app.db, 0, "sv01-020", "pokemon", "tcg", false, "en")
+	f.put(f.folder(syncFolderName), "journal-phone.jsonl", phoneJournal("phone", `{"v":1,"seq":1,"at":"2026-10-19T10:00:00.000Z","op":"copy.add","uid":"p1","card_id":"OP01-006_p4","game":"onepiece","foil":false,"lang":"en","collection":"","scanned_at":"2026-10-19T10:00:00.000Z","model":"phone"}`))
+}
+
+type connectResult struct {
+	st  SyncStatus
+	err error
+}
+
+// No trigger may run a cycle while the first-connection question is being
+// computed: it would merge before the user answers.
+func TestConnectRefusesCyclesWhileAsking(t *testing.T) {
+	app, f := syncApp(t)
+	seedMergeCase(t, app, f)
+	entered, release := blockDownloads(t, f)
+	connected := make(chan connectResult, 1)
+	go func() {
+		st, err := app.ConnectGoogleDrive()
+		connected <- connectResult{st, err}
+	}()
+	<-entered // the token is saved, the question's download is in flight
+	app.sync.changed()
+	syncNow := make(chan error, 1)
+	go func() {
+		_, err := app.SyncNow()
+		syncNow <- err
+	}()
+	if _, err := app.ConnectGoogleDrive(); err == nil {
+		t.Error("a second connect while one runs must be refused")
+	}
+	if err := <-syncNow; err == nil {
+		t.Error("SyncNow while connecting must be refused")
+	}
+	time.Sleep(150 * time.Millisecond) // the debounce fires meanwhile
+	release()
+	r := <-connected
+	if r.err != nil || r.st.State != "merge_pending" {
+		t.Fatalf("%+v %v", r.st, r.err)
+	}
+	time.Sleep(150 * time.Millisecond)
+	if cards, _ := allCards(app.db); len(cards) != 1 {
+		t.Errorf("nothing may be applied before the answer: %d cards", len(cards))
+	}
+	if len(f.files) != 1 {
+		t.Errorf("nothing may be uploaded before the answer: %d files", len(f.files))
+	}
+	st, _ := app.ConfirmMerge(true)
+	if cards, _ := allCards(app.db); st.State != "up_to_date" || len(cards) != 2 || len(f.files) != 2 {
+		t.Errorf("after merge: %+v, %d cards, %d files", st, len(cards), len(f.files))
+	}
+}
+
+// A disconnect while the question is being computed wins: the pending
+// connect gives up without asking.
+func TestConnectCancelledByDisconnect(t *testing.T) {
+	app, f := syncApp(t)
+	seedMergeCase(t, app, f)
+	entered, release := blockDownloads(t, f)
+	connected := make(chan connectResult, 1)
+	go func() {
+		st, err := app.ConnectGoogleDrive()
+		connected <- connectResult{st, err}
+	}()
+	<-entered
+	if err := app.DisconnectGoogleDrive(); err != nil {
+		t.Fatal(err)
+	}
+	r := <-connected // returned before the download is released: cancelled
+	release()
+	if r.err == nil {
+		t.Error("the cancelled connect must return an error")
+	}
+	st := app.GetSyncStatus()
+	if st.State != "disconnected" || st.Connected || st.Merge != nil {
+		t.Errorf("%+v", st)
+	}
+	if _, _, ok, _ := loadGoogleToken(app.db); ok {
+		t.Error("no token after the disconnect")
+	}
+	if _, ok, _ := getSetting(app.db, settingSyncMergePending); ok {
+		t.Error("no merge question after the disconnect")
+	}
+	if _, err := app.ConfirmMerge(true); err == nil {
+		t.Error("no question to answer")
 	}
 }

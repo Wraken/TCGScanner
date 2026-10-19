@@ -78,6 +78,9 @@ type fakeDrive struct {
 	files   map[string]*fakeDriveFile
 	down    bool
 	calls   []string
+	// beforeDownload, when set, runs before a download is served and outside
+	// mu: a test blocks it to hold a download in flight.
+	beforeDownload func()
 }
 
 func newFakeDrive(t *testing.T) *fakeDrive {
@@ -131,6 +134,9 @@ func fakeDriveJSON(w http.ResponseWriter, v any) {
 }
 
 func (f *fakeDrive) handle(w http.ResponseWriter, r *http.Request) {
+	if hook := f.beforeDownload; hook != nil && r.Method == http.MethodGet && r.URL.Query().Get("alt") == "media" {
+		hook()
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.calls = append(f.calls, r.Method+" "+r.URL.Path+"?"+r.URL.RawQuery)

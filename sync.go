@@ -78,9 +78,14 @@ type syncer struct {
 	configured bool // a real Google client id is compiled in
 	stopped    bool
 
+	// The running slot is held by a cycle or by the connect flow
+	// (connecting), from before the token is saved until the question is
+	// asked or the first cycle may run: no cycle runs meanwhile, and a
+	// disconnect cancels and waits for either alike.
 	running, again bool
-	cancel         context.CancelFunc // the running cycle's
-	done           chan struct{}      // closed when the running cycle and its reruns end
+	connecting     bool
+	cancel         context.CancelFunc // the slot holder's
+	done           chan struct{}      // closed when the slot is released
 	lastErr        error
 
 	debounce, retry   time.Duration
@@ -251,7 +256,7 @@ func (s *syncer) changed() {
 // and not waiting for the first-connection answer.
 func (s *syncer) timerCycle() {
 	s.mu.Lock()
-	skip := s.stopped || !s.configured || s.status.State == syncStateMergePending
+	skip := s.stopped || !s.configured || s.connecting || s.status.State == syncStateMergePending
 	s.mu.Unlock()
 	if skip || !s.signedIn() {
 		return
@@ -673,41 +678,110 @@ func (a *App) ConnectGoogleDrive() (SyncStatus, error) {
 	if !s.configured {
 		return s.snapshot(), errors.New("Google client id not configured")
 	}
-	ctx := s.baseCtx()
-	tok, email, err := connectGoogle(ctx, s.open)
+	ctx, err := s.acquireForConnect()
 	if err != nil {
 		return s.snapshot(), err
 	}
-	if err := saveGoogleToken(a.db, tok, email); err != nil {
+	errCancelled := errors.New("Google Drive connection cancelled")
+
+	tok, email, err := connectGoogle(ctx, s.open)
+	if err != nil {
+		s.release()
+		if ctx.Err() != nil {
+			return s.snapshot(), errCancelled
+		}
 		return s.snapshot(), err
 	}
 	s.mu.Lock()
+	if ctx.Err() != nil { // disconnected meanwhile: the canceller set the status
+		s.mu.Unlock()
+		s.release()
+		return s.snapshot(), errCancelled
+	}
+	if err := saveGoogleToken(a.db, tok, email); err != nil {
+		s.mu.Unlock()
+		s.release()
+		return s.snapshot(), err
+	}
 	s.status = SyncStatus{Connected: true, Email: email, State: syncStateSyncing, Devices: s.devices()}
 	s.emitLocked()
 	s.mu.Unlock()
 
 	q, err := s.mergeQuestion(ctx)
+	if ctx.Err() != nil {
+		s.release()
+		return s.snapshot(), errCancelled
+	}
 	if err != nil {
 		// Keeping the sign-in would let a later cycle merge without asking.
 		fmt.Printf("sync: %v\n", err)
+		s.release()
 		if derr := a.DisconnectGoogleDrive(); derr != nil {
 			fmt.Printf("sync: %v\n", derr)
 		}
 		return s.snapshot(), fmt.Errorf("could not read Google Drive: %w", err)
 	}
 	if q == nil {
-		s.runCycle(ctx)
+		s.release()
+		s.runCycle(s.baseCtx())
 		return s.snapshot(), nil
 	}
+	s.mu.Lock()
+	if ctx.Err() != nil {
+		s.mu.Unlock()
+		s.release()
+		return s.snapshot(), errCancelled
+	}
 	if err := setSetting(a.db, settingSyncMergePending, "1"); err != nil {
+		s.mu.Unlock()
+		s.release()
 		return s.snapshot(), err
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.status.State = syncStateMergePending
 	s.status.Merge = q
 	s.emitLocked()
-	return s.snapshotLocked(), nil
+	st := s.snapshotLocked()
+	s.mu.Unlock()
+	s.release()
+	return st, nil
+}
+
+// acquireForConnect takes the running slot for the connect flow, after the
+// running cycle if any, and returns the flow's cancellable context.
+func (s *syncer) acquireForConnect() (context.Context, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.connecting {
+		return nil, errors.New("already connecting to Google Drive")
+	}
+	if s.stopped {
+		return nil, errors.New("sync stopped")
+	}
+	s.connecting = true
+	for s.running {
+		done := s.done
+		s.mu.Unlock()
+		<-done
+		s.mu.Lock()
+	}
+	ctx, cancel := context.WithCancel(s.baseCtx())
+	s.running = true
+	s.cancel = cancel
+	s.done = make(chan struct{})
+	return ctx, nil
+}
+
+// release gives the running slot back after the connect flow.
+func (s *syncer) release() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.cancel != nil {
+		s.cancel()
+	}
+	s.cancel = nil
+	s.running = false
+	s.connecting = false
+	close(s.done)
 }
 
 // ConfirmMerge answers the first-connection question: merge runs the
@@ -756,7 +830,11 @@ func (a *App) SyncNow() (SyncStatus, error) {
 	s := a.sync
 	s.mu.Lock()
 	pending := s.status.State == syncStateMergePending
+	connecting := s.connecting
 	s.mu.Unlock()
+	if connecting {
+		return s.snapshot(), errors.New("connecting to Google Drive")
+	}
 	if pending {
 		return s.snapshot(), errors.New("answer the merge question first")
 	}

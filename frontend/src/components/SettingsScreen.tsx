@@ -79,10 +79,17 @@ export function SettingsScreen({ sync }: { sync: ReturnType<typeof useSync> }) {
         ) : (
           <>
             {line && <p className="text-sm n-n400" role="status">{line}</p>}
-            <div>
+            <div className="flex gap-2">
               <button className="n-btn n-btn-primary" onClick={connect} disabled={busy || unconfigured || !status}>
                 Connect Google Drive
               </button>
+              {/* The sign-in waits up to 3 minutes for the browser; a closed
+                  consent tab would hold the screen that long. */}
+              {busy && (
+                <button className="n-btn n-btn-secondary" onClick={disconnect}>
+                  Cancel
+                </button>
+              )}
             </div>
           </>
         )}
@@ -100,7 +107,8 @@ export function SettingsScreen({ sync }: { sync: ReturnType<typeof useSync> }) {
         cancelLabel="Not now"
         onConfirm={() => confirmMerge(true)}
         onOpenChange={(open) => {
-          if (!open) confirmMerge(false);
+          // Escape or "Not now" while the merge runs must not disconnect.
+          if (!open && !busy) confirmMerge(false);
         }}
       />
     </div>

@@ -57,6 +57,9 @@ export function useCollection() {
   const [prices, setPrices] = useState<PricesStatus | null>(null);
   const [gameValues, setGameValues] = useState<Record<string, GameValue>>({});
   const [pricesVersion, setPricesVersion] = useState(0);
+  // Ticks when a sync merged other devices' changes, so a screen holding a
+  // card list refetches it.
+  const [collectionVersion, setCollectionVersion] = useState(0);
 
   // The backend refreshes the guides in the background (on start, and when
   // prices are turned on) and says so; the prices then appear without a
@@ -71,6 +74,7 @@ export function useCollection() {
   // A sync merged another device's changes into the database.
   useEffect(() => {
     const off = EventsOn("collection:changed", () => {
+      setCollectionVersion((n) => n + 1);
       refresh();
     });
     return off;
@@ -255,6 +259,7 @@ export function useCollection() {
     prices,
     gameValues,
     pricesVersion,
+    collectionVersion,
     refreshPrices,
     setPricesEnabled,
   };

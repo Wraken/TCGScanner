@@ -127,7 +127,7 @@ export function CollectionScreen({ collection, target, onChangeTarget, onScan }:
         notify("error", `Couldn't load this collection: ${errorText(e)}`);
       });
     return () => { cancelled = true; };
-  }, [target.game, target.other_bucket, target.collection_id]);
+  }, [target.game, target.other_bucket, target.collection_id, collection.collectionVersion]);
 
   // Unfiltered per-card_id aggregation. Kept separate from `groups` so the
   // copies dialog (looked up against this) never goes empty just because

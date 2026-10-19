@@ -494,3 +494,22 @@ func TestWriteBindingsTriggerASync(t *testing.T) {
 		t.Errorf("armed %d times, want 4 (create, update, move, delete)", armed)
 	}
 }
+
+func TestSyncBindingsWithoutSyncer(t *testing.T) {
+	app := &App{} // the database failed to open: startup never made a syncer
+	if st := app.GetSyncStatus(); st.Connected || st.State != syncStateDisconnected || len(st.Devices) != 0 {
+		t.Errorf("GetSyncStatus = %+v, want the disconnected status", st)
+	}
+	if _, err := app.ConnectGoogleDrive(); err == nil {
+		t.Error("ConnectGoogleDrive: want an error")
+	}
+	if _, err := app.ConfirmMerge(true); err == nil {
+		t.Error("ConfirmMerge: want an error")
+	}
+	if err := app.DisconnectGoogleDrive(); err == nil {
+		t.Error("DisconnectGoogleDrive: want an error")
+	}
+	if _, err := app.SyncNow(); err == nil {
+		t.Error("SyncNow: want an error")
+	}
+}

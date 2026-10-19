@@ -674,12 +674,22 @@ func (s *syncer) mergeQuestion(ctx context.Context) (*SyncMergeQuestion, error) 
 
 // ── Bindings ───────────────────────────────────────────────────────────────
 
-func (a *App) GetSyncStatus() SyncStatus { return a.sync.snapshot() }
+var errNoSyncer = errors.New("database not initialized")
+
+func (a *App) GetSyncStatus() SyncStatus {
+	if a.sync == nil {
+		return SyncStatus{State: syncStateDisconnected}
+	}
+	return a.sync.snapshot()
+}
 
 // ConnectGoogleDrive signs in, then either runs the first cycle or, when
 // both this device and the Drive hold copies, asks before merging them.
 // A failed cycle is reported in the status, not as an error.
 func (a *App) ConnectGoogleDrive() (SyncStatus, error) {
+	if a.sync == nil {
+		return SyncStatus{State: syncStateDisconnected}, errNoSyncer
+	}
 	s := a.sync
 	if !s.configured {
 		return s.snapshot(), errors.New("Google client id not configured")
@@ -793,6 +803,9 @@ func (s *syncer) release() {
 // ConfirmMerge answers the first-connection question: merge runs the
 // cycle, not now disconnects.
 func (a *App) ConfirmMerge(merge bool) (SyncStatus, error) {
+	if a.sync == nil {
+		return SyncStatus{State: syncStateDisconnected}, errNoSyncer
+	}
 	s := a.sync
 	s.mu.Lock()
 	pending := s.status.State == syncStateMergePending
@@ -814,6 +827,9 @@ func (a *App) ConfirmMerge(merge bool) (SyncStatus, error) {
 // DisconnectGoogleDrive stops the running cycle, forgets the sign-in and
 // what is known of the Drive. Local events keep being recorded.
 func (a *App) DisconnectGoogleDrive() error {
+	if a.sync == nil {
+		return errNoSyncer
+	}
 	s := a.sync
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -833,6 +849,9 @@ func (a *App) DisconnectGoogleDrive() error {
 
 // SyncNow runs a cycle now; its outcome is in the status.
 func (a *App) SyncNow() (SyncStatus, error) {
+	if a.sync == nil {
+		return SyncStatus{State: syncStateDisconnected}, errNoSyncer
+	}
 	s := a.sync
 	s.mu.Lock()
 	pending := s.status.State == syncStateMergePending

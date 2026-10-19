@@ -60,15 +60,38 @@ func insertCard(db *sql.DB, collectionID int, cardID, game, modelName string, fo
 	if foil {
 		foilInt = 1
 	}
-	res, err := db.Exec(
-		`INSERT INTO cards (collection_id, card_id, game, foil, model_name, lang) VALUES (?, ?, ?, ?, ?, ?)`,
-		nullableID(collectionID), cardID, game, foilInt, modelName, lang,
+	deviceID, _, err := syncDevice(db)
+	if err != nil {
+		return 0, err
+	}
+	at := syncNow()
+	tx, err := db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	res, err := tx.Exec(
+		`INSERT INTO cards (collection_id, card_id, game, foil, model_name, lang, uid, scanned_at, sync_at, sync_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		nullableID(collectionID), cardID, game, foilInt, modelName, lang, newUID(), syncAtToSQLite(at), at, deviceID,
 	)
 	if err != nil {
 		return 0, err
 	}
 	id, err := res.LastInsertId()
-	return int(id), err
+	if err != nil {
+		return 0, err
+	}
+	e, err := copyEvent(tx, int(id), opCopyAdd)
+	if err != nil {
+		return 0, err
+	}
+	if err := appendSyncEvent(tx, e); err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return int(id), nil
 }
 
 func scanCard(row interface{ Scan(...any) error }) (CollectionCard, error) {
@@ -114,9 +137,41 @@ func listCards(db *sql.DB, f CardFilter) ([]CollectionCard, error) {
 	return cards, rows.Err()
 }
 
+// updateCopy runs one UPDATE of a card row (set and args, the row id last)
+// together with its copy.update event.
+func updateCopy(db *sql.DB, rowID int, set string, args ...any) error {
+	deviceID, _, err := syncDevice(db)
+	if err != nil {
+		return err
+	}
+	at := syncNow()
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	args = append(args, at, deviceID, rowID)
+	res, err := tx.Exec(`UPDATE cards SET `+set+`, sync_at = ?, sync_by = ? WHERE id = ?`, args...)
+	if err != nil {
+		return err
+	}
+	if n, err := res.RowsAffected(); err != nil {
+		return err
+	} else if n == 0 {
+		return nil // nothing changed, nothing to record
+	}
+	e, err := copyEvent(tx, rowID, opCopyUpdate)
+	if err != nil {
+		return err
+	}
+	if err := appendSyncEvent(tx, e); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 func moveCardToCustom(db *sql.DB, rowID, customID int) error {
-	_, err := db.Exec(`UPDATE cards SET collection_id = ? WHERE id = ?`, nullableID(customID), rowID)
-	return err
+	return updateCopy(db, rowID, `collection_id = ?`, nullableID(customID))
 }
 
 func updateCard(db *sql.DB, c CollectionCard) error {
@@ -127,14 +182,33 @@ func updateCard(db *sql.DB, c CollectionCard) error {
 	if c.Foil {
 		foilInt = 1
 	}
-	_, err := db.Exec(`UPDATE cards SET foil = ?, card_id = ?, game = ?, lang = ? WHERE id = ?`,
-		foilInt, c.CardID, c.Game, c.Lang, c.ID)
-	return err
+	return updateCopy(db, c.ID, `foil = ?, card_id = ?, game = ?, lang = ?`, foilInt, c.CardID, c.Game, c.Lang)
 }
 
 func deleteCard(db *sql.DB, id int) error {
-	_, err := db.Exec(`DELETE FROM cards WHERE id = ?`, id)
-	return err
+	at := syncNow()
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var uid string
+	if err := tx.QueryRow(`SELECT uid FROM cards WHERE id = ?`, id).Scan(&uid); err != nil {
+		if err == sql.ErrNoRows {
+			return nil // nothing deleted, nothing to record
+		}
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM cards WHERE id = ?`, id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`INSERT OR REPLACE INTO sync_tombstones (uid, deleted_at) VALUES (?, ?)`, uid, at); err != nil {
+		return err
+	}
+	if err := appendSyncEvent(tx, syncEvent{Op: opCopyRemove, At: at, UID: uid}); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // backfillCardGames fills cards.game for rows where it is still unknown.

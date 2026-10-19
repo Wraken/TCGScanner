@@ -27,12 +27,32 @@ func createCollection(db *sql.DB, name string) (int, error) {
 	if name == "" {
 		return 0, fmt.Errorf("collection name cannot be empty")
 	}
-	res, err := db.Exec(`INSERT INTO collections (name) VALUES (?)`, name)
+	deviceID, _, err := syncDevice(db)
+	if err != nil {
+		return 0, err
+	}
+	at := syncNow()
+	uid := newUID()
+	tx, err := db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	res, err := tx.Exec(`INSERT INTO collections (name, uid, sync_at, sync_by) VALUES (?, ?, ?, ?)`, name, uid, at, deviceID)
 	if err != nil {
 		return 0, err
 	}
 	id, err := res.LastInsertId()
-	return int(id), err
+	if err != nil {
+		return 0, err
+	}
+	if err := appendSyncEvent(tx, syncEvent{Op: opCollectionCreate, At: at, UID: uid, Name: name}); err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return int(id), nil
 }
 
 func getCollection(db *sql.DB, id int) (Collection, error) {
@@ -76,25 +96,61 @@ func renameCollection(db *sql.DB, id int, name string) error {
 	if name == "" {
 		return fmt.Errorf("collection name cannot be empty")
 	}
-	_, err := db.Exec(`UPDATE collections SET name = ? WHERE id = ?`, name, id)
-	return err
-}
-
-// deleteCollection removes a custom collection; its copies keep their game
-// and simply leave the custom. The explicit UPDATE makes the behavior
-// independent of the connection's foreign_keys pragma, and the transaction
-// keeps detach + delete atomic.
-func deleteCollection(db *sql.DB, id int) error {
+	deviceID, _, err := syncDevice(db)
+	if err != nil {
+		return err
+	}
+	at := syncNow()
 	tx, err := db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
+	if _, err := tx.Exec(`UPDATE collections SET name = ?, sync_at = ?, sync_by = ? WHERE id = ?`, name, at, deviceID, id); err != nil {
+		return err
+	}
+	var uid string
+	if err := tx.QueryRow(`SELECT uid FROM collections WHERE id = ?`, id).Scan(&uid); err != nil {
+		if err == sql.ErrNoRows {
+			return nil // nothing renamed, nothing to record
+		}
+		return err
+	}
+	if err := appendSyncEvent(tx, syncEvent{Op: opCollectionRename, At: at, UID: uid, Name: name}); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// deleteCollection removes a custom collection; its copies keep their game
+// and simply leave the custom. The explicit UPDATE makes the behavior
+// independent of the connection's foreign_keys pragma, and the transaction
+// keeps detach + delete + event + tombstone atomic. The copies get no event
+// of their own: the delete implies "unfiled" everywhere.
+func deleteCollection(db *sql.DB, id int) error {
+	at := syncNow()
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var uid string
+	if err := tx.QueryRow(`SELECT uid FROM collections WHERE id = ?`, id).Scan(&uid); err != nil && err != sql.ErrNoRows {
+		return err
+	}
 	if _, err := tx.Exec(`UPDATE cards SET collection_id = NULL WHERE collection_id = ?`, id); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(`DELETE FROM collections WHERE id = ?`, id); err != nil {
 		return err
+	}
+	if uid != "" {
+		if _, err := tx.Exec(`INSERT OR REPLACE INTO sync_tombstones (uid, deleted_at) VALUES (?, ?)`, uid, at); err != nil {
+			return err
+		}
+		if err := appendSyncEvent(tx, syncEvent{Op: opCollectionDelete, At: at, UID: uid}); err != nil {
+			return err
+		}
 	}
 	return tx.Commit()
 }

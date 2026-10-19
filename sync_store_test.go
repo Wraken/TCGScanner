@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -104,5 +105,80 @@ func TestBootstrapEventsAreWrittenOnceInOrder(t *testing.T) {
 	migrate(db)
 	if _, last2, _ := renderJournal(db); last2 != 5 {
 		t.Errorf("a second migration re-bootstrapped: %d events", last2)
+	}
+}
+
+func lastEvent(t *testing.T, db *sql.DB) syncEvent {
+	t.Helper()
+	var line string
+	if err := db.QueryRow(`SELECT line FROM sync_events ORDER BY seq DESC LIMIT 1`).Scan(&line); err != nil {
+		t.Fatal(err)
+	}
+	var e syncEvent
+	if err := json.Unmarshal([]byte(line), &e); err != nil {
+		t.Fatal(err)
+	}
+	return e
+}
+
+func TestWritePathsRecordExactlyOneEventEach(t *testing.T) {
+	db := testDB(t)
+	count := func() int {
+		var n int
+		db.QueryRow(`SELECT count(*) FROM sync_events`).Scan(&n)
+		return n
+	}
+	base := count()
+	cid, _ := createCollection(db, "To sell")
+	e := lastEvent(t, db)
+	var cuid string
+	db.QueryRow(`SELECT uid FROM collections WHERE id = ?`, cid).Scan(&cuid)
+	if e.Op != opCollectionCreate || e.UID != cuid || e.Name != "To sell" || count() != base+1 {
+		t.Errorf("create: %+v", e)
+	}
+	renameCollection(db, cid, "For trade")
+	if e = lastEvent(t, db); e.Op != opCollectionRename || e.UID != cuid || e.Name != "For trade" {
+		t.Errorf("rename: %+v", e)
+	}
+	rid, _ := insertCard(db, cid, "OP01-006_p4", "onepiece", "tcg", true, "ja")
+	e = lastEvent(t, db)
+	card, _ := getCard(db, rid)
+	var ruid, scanned string
+	db.QueryRow(`SELECT uid, scanned_at FROM cards WHERE id = ?`, rid).Scan(&ruid, &scanned)
+	if e.Op != opCopyAdd || e.UID != ruid || e.CardID != "OP01-006_p4" || e.Game != "onepiece" || *e.Foil != true || e.Lang != "ja" || *e.Collection != cuid || e.Model != "tcg" || e.ScannedAt != e.At {
+		t.Errorf("add: %+v (row scanned_at %q)", e, scanned)
+	}
+	moveCardToCustom(db, rid, 0)
+	if e = lastEvent(t, db); e.Op != opCopyUpdate || *e.Collection != "" || *e.Foil != true || e.CardID != "OP01-006_p4" {
+		t.Errorf("move: %+v", e)
+	}
+	card.Foil, card.Lang, card.CardID, card.Game = false, "en", "OP01-007", "onepiece"
+	updateCard(db, card)
+	if e = lastEvent(t, db); e.Op != opCopyUpdate || *e.Foil != false || e.Lang != "en" || e.CardID != "OP01-007" {
+		t.Errorf("update: %+v", e)
+	}
+	deleteCard(db, rid)
+	var tomb int
+	db.QueryRow(`SELECT count(*) FROM sync_tombstones WHERE uid = ?`, ruid).Scan(&tomb)
+	if e = lastEvent(t, db); e.Op != opCopyRemove || e.UID != ruid || tomb != 1 {
+		t.Errorf("remove: %+v tomb %d", e, tomb)
+	}
+	setPriceRef(db, PriceRef{CardID: "OP01-006_p4", Product: 799296, NonEnglish: 799297, Label: "Jolly Roger Foil"})
+	if e = lastEvent(t, db); e.Op != opPriceRefSet || e.Product != 799296 || e.NonEnglish != 799297 || e.Label != "Jolly Roger Foil" {
+		t.Errorf("ref set: %+v", e)
+	}
+	clearPriceRef(db, "OP01-006_p4")
+	if e = lastEvent(t, db); e.Op != opPriceRefClear || e.CardID != "OP01-006_p4" {
+		t.Errorf("ref clear: %+v", e)
+	}
+	deleteCollection(db, cid)
+	if e = lastEvent(t, db); e.Op != opCollectionDelete || e.UID != cuid {
+		t.Errorf("delete: %+v", e)
+	}
+	if count() != base+9 {
+		t.Errorf("%d events, want 9", count()-base)
+	}
+	if _, err := createCollection(db, "  "); err == nil || count() != base+9 {
+		t.Error("a rejected write must record nothing")
 	}
 }

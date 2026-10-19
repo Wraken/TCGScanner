@@ -60,6 +60,17 @@ func setPriceRef(db *sql.DB, r PriceRef) error {
 }
 
 func clearPriceRef(db *sql.DB, cardID string) error {
-	_, err := db.Exec(`DELETE FROM price_refs WHERE card_id = ?`, cardID)
-	return err
+	at := syncNow()
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`DELETE FROM price_refs WHERE card_id = ?`, cardID); err != nil {
+		return err
+	}
+	if err := appendSyncEvent(tx, syncEvent{Op: opPriceRefClear, At: at, CardID: cardID}); err != nil {
+		return err
+	}
+	return tx.Commit()
 }

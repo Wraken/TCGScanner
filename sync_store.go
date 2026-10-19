@@ -192,10 +192,6 @@ func bootstrapEvents(tx *sql.Tx, deviceID, now string) error {
 		}
 	}
 
-	type copyRow struct {
-		uid, cardID, game, lang, model, scannedAt, collection string
-		foil                                                  bool
-	}
 	rows, err = tx.Query(`SELECT c.uid, c.card_id, c.game, c.lang, c.model_name, COALESCE(c.scanned_at, ''), c.foil, COALESCE(col.uid, '')
 		FROM cards c LEFT JOIN collections col ON col.id = c.collection_id ORDER BY c.scanned_at, c.id`)
 	if err != nil {
@@ -258,6 +254,49 @@ func bootstrapEvents(tx *sql.Tx, deviceID, now string) error {
 		}
 	}
 	return nil
+}
+
+// copyRow is a card row as the journal sees it, its collection by uid.
+type copyRow struct {
+	uid, cardID, game, lang, model, scannedAt, collection string
+	foil                                                  bool
+}
+
+// event builds the copy event of op at the instant at: copy.add carries the
+// whole row, copy.update only what can change.
+func (c copyRow) event(op, at string) syncEvent {
+	e := syncEvent{Op: op, At: at, UID: c.uid, CardID: c.cardID, Game: c.game, Lang: c.lang,
+		Foil: boolPtr(c.foil), Collection: strPtr(c.collection)}
+	if op == opCopyAdd {
+		e.ScannedAt = at
+		e.Model = c.model
+	}
+	return e
+}
+
+// copyEvent reads the card row rowID and builds its copy.add or copy.update
+// event, stamped at the row's sync_at (the instant of the write in progress).
+func copyEvent(tx *sql.Tx, rowID int, op string) (syncEvent, error) {
+	var c copyRow
+	var foil int
+	var at string
+	err := tx.QueryRow(`SELECT c.uid, c.card_id, c.game, c.lang, c.model_name, c.foil, COALESCE(col.uid, ''), c.sync_at
+		FROM cards c LEFT JOIN collections col ON col.id = c.collection_id WHERE c.id = ?`, rowID).
+		Scan(&c.uid, &c.cardID, &c.game, &c.lang, &c.model, &foil, &c.collection, &at)
+	if err != nil {
+		return syncEvent{}, err
+	}
+	c.foil = foil != 0
+	return c.event(op, at), nil
+}
+
+// syncAtToSQLite converts a journal instant to SQLite's UTC
+// "YYYY-MM-DD HH:MM:SS", the form scanned_at has always had.
+func syncAtToSQLite(at string) string {
+	if t, err := parseSyncAt(at); err == nil {
+		return t.UTC().Format("2006-01-02 15:04:05")
+	}
+	return at
 }
 
 func txSetting(q syncDB, key string) (string, bool, error) {

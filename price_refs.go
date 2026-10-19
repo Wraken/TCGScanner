@@ -59,7 +59,13 @@ func setPriceRef(db *sql.DB, r PriceRef) error {
 	return tx.Commit()
 }
 
+// clearPriceRef deletes the reference and remembers the clear's key in
+// sync_ref_clears, so an older price_ref.set pulled later stays out.
 func clearPriceRef(db *sql.DB, cardID string) error {
+	deviceID, _, err := syncDevice(db)
+	if err != nil {
+		return err
+	}
 	at := syncNow()
 	tx, err := db.Begin()
 	if err != nil {
@@ -67,6 +73,9 @@ func clearPriceRef(db *sql.DB, cardID string) error {
 	}
 	defer tx.Rollback()
 	if _, err := tx.Exec(`DELETE FROM price_refs WHERE card_id = ?`, cardID); err != nil {
+		return err
+	}
+	if err := upsertRefClear(tx, cardID, at, deviceID); err != nil {
 		return err
 	}
 	if err := appendSyncEvent(tx, syncEvent{Op: opPriceRefClear, At: at, CardID: cardID}); err != nil {

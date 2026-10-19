@@ -167,3 +167,21 @@ func TestConnectGoogleRefusesATokenWithoutRefresh(t *testing.T) {
 		t.Errorf("want the no refresh token error, got %v", err)
 	}
 }
+
+func TestGoogleObscureRoundTrip(t *testing.T) {
+	for _, v := range []string{"", "a", "119517638442-x.apps.googleusercontent.com", "GOC-anything-with-28-characters"} {
+		if got := revealGoogleValue(obscureGoogleValue(v)); got != v {
+			t.Errorf("round trip of %q = %q", v, got)
+		}
+	}
+	if revealGoogleValue("not base64!") != "" {
+		t.Error("an invalid value must reveal to empty")
+	}
+	// The built-in client decodes to a Google client id and secret.
+	if !strings.HasSuffix(googleClientID, ".apps.googleusercontent.com") || !googleConfigured() {
+		t.Errorf("built-in client id: %q", googleClientID)
+	}
+	if !strings.HasPrefix(googleClientSecret, "GOC") || len(googleClientSecret) != 35 {
+		t.Errorf("built-in client secret has an unexpected shape (len %d)", len(googleClientSecret))
+	}
+}

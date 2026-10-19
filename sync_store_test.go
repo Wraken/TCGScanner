@@ -52,6 +52,8 @@ func TestBootstrapEventsAreWrittenOnceInOrder(t *testing.T) {
 	raw.Exec(`CREATE TABLE cards (id INTEGER PRIMARY KEY AUTOINCREMENT, collection_id INTEGER, card_id TEXT NOT NULL, game TEXT NOT NULL DEFAULT '', foil INTEGER NOT NULL DEFAULT 0, lang TEXT NOT NULL DEFAULT 'en', model_name TEXT NOT NULL DEFAULT '', scanned_at DATETIME DEFAULT CURRENT_TIMESTAMP)`)
 	raw.Exec(`INSERT INTO collections (name, created_at) VALUES ('To sell', '2026-10-01 10:00:00')`)
 	raw.Exec(`INSERT INTO cards (collection_id, card_id, game, foil, lang, model_name, scanned_at) VALUES (1, 'OP01-006_p4', 'onepiece', 1, 'ja', 'tcg', '2026-09-30 18:41:10'), (NULL, 'sv01-020', 'pokemon', 0, 'en', 'tcg', '2026-10-02 09:00:00')`)
+	raw.Exec(`CREATE TABLE price_refs (card_id TEXT PRIMARY KEY, product INTEGER NOT NULL, non_english INTEGER NOT NULL DEFAULT 0, label TEXT NOT NULL DEFAULT '', chosen_at TEXT NOT NULL)`)
+	raw.Exec(`INSERT INTO price_refs (card_id, product, non_english, label, chosen_at) VALUES ('OP01-001', 111, 1, 'Old pick', '2026-10-08T20:00:00Z')`)
 	raw.Close()
 	db, err := openDB(path)
 	if err != nil {
@@ -71,9 +73,22 @@ func TestBootstrapEventsAreWrittenOnceInOrder(t *testing.T) {
 	for _, e := range events {
 		ops = append(ops, e.Op)
 	}
-	want := []string{opCollectionCreate, opCopyAdd, opCopyAdd, opPriceRefSet}
-	if !slices.Equal(ops, want) || last != 4 {
-		t.Fatalf("ops %v last %d, want %v 4", ops, last, want)
+	want := []string{opCollectionCreate, opCopyAdd, opCopyAdd, opPriceRefSet, opPriceRefSet}
+	if !slices.Equal(ops, want) || last != 5 {
+		t.Fatalf("ops %v last %d, want %v 5", ops, last, want)
+	}
+	if e := events[3]; e.CardID != "OP01-001" || e.At != "2026-10-08T20:00:00.000Z" || e.Product != 111 || e.NonEnglish != 1 || e.Label != "Old pick" {
+		t.Errorf("bootstrap price ref: %+v", e)
+	}
+	deviceID, _, _ := syncDevice(db)
+	var syncAt, syncBy string
+	db.QueryRow(`SELECT sync_at, sync_by FROM price_refs WHERE card_id = 'OP01-001'`).Scan(&syncAt, &syncBy)
+	if syncAt != "2026-10-08T20:00:00.000Z" || syncBy != deviceID {
+		t.Errorf("price ref sync key: %q %q", syncAt, syncBy)
+	}
+	db.QueryRow(`SELECT sync_at, sync_by FROM cards WHERE card_id = 'OP01-006_p4'`).Scan(&syncAt, &syncBy)
+	if syncAt != "2026-09-30T18:41:10.000Z" || syncBy != deviceID {
+		t.Errorf("card sync key: %q %q", syncAt, syncBy)
 	}
 	if events[0].At != "2026-10-01T10:00:00.000Z" || events[1].At != "2026-09-30T18:41:10.000Z" || events[1].ScannedAt != events[1].At {
 		t.Errorf("bootstrap dates: %+v %+v", events[0], events[1])
@@ -87,7 +102,7 @@ func TestBootstrapEventsAreWrittenOnceInOrder(t *testing.T) {
 		}
 	}
 	migrate(db)
-	if _, last2, _ := renderJournal(db); last2 != 4 {
+	if _, last2, _ := renderJournal(db); last2 != 5 {
 		t.Errorf("a second migration re-bootstrapped: %d events", last2)
 	}
 }

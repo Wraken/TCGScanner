@@ -717,8 +717,9 @@ func (a *App) ConnectGoogleDrive() (SyncStatus, error) {
 
 	tok, email, err := connectGoogle(ctx, s.open)
 	if err != nil {
+		cancelled := ctx.Err() != nil // read before release cancels ctx
 		s.release(nil)
-		if ctx.Err() != nil {
+		if cancelled {
 			return s.snapshot(), errCancelled
 		}
 		return s.snapshot(), err

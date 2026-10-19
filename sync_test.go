@@ -745,3 +745,16 @@ func TestSignedOutThenOtherAccountAsks(t *testing.T) {
 		t.Fatalf("%+v %v", st, err)
 	}
 }
+
+// Google gave no refresh token: the connection fails and nothing is saved.
+func TestConnectWithoutRefreshTokenSavesNothing(t *testing.T) {
+	app, _ := syncApp(t)
+	app.sync.open = fakeGoogleAs(t, &fakeAccount{email: "florent@example.com", noRefresh: true})
+	st, err := app.ConnectGoogleDrive()
+	if err == nil || !strings.Contains(err.Error(), "no refresh token") || st.Connected {
+		t.Errorf("%+v %v", st, err)
+	}
+	if _, _, ok, _ := loadGoogleToken(app.db); ok {
+		t.Error("nothing may be saved")
+	}
+}

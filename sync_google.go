@@ -65,8 +65,8 @@ func googleOAuthConfig(redirectURL string) *oauth2.Config {
 
 // connectGoogle runs the installed-app flow: a loopback listener on
 // 127.0.0.1:0, PKCE (oauth2.GenerateVerifier), state, open(authURL) in the
-// browser, waits for the redirect (timeout 3 min), exchanges the code,
-// fetches the email.
+// browser, waits for the redirect (timeout 3 min), exchanges the code
+// (refusing a token without a refresh token), fetches the email.
 func connectGoogle(ctx context.Context, open func(url string) error) (*oauth2.Token, string, error) {
 	ctx, cancel := context.WithTimeout(ctx, googleSignInTimeout)
 	defer cancel()
@@ -126,7 +126,10 @@ func connectGoogle(ctx context.Context, open func(url string) error) (*oauth2.To
 	go srv.Serve(ln)
 	defer srv.Close() // closes ln too
 
-	authURL := conf.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.S256ChallengeOption(verifier))
+	// prompt=consent: without it, Google may skip the refresh token when the
+	// account already granted access (a reconnect), and the sign-in would
+	// strand an hour later when the access token expires.
+	authURL := conf.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("prompt", "consent"), oauth2.S256ChallengeOption(verifier))
 	if err := open(authURL); err != nil {
 		return nil, "", fmt.Errorf("google sign-in: open browser: %w", err)
 	}
@@ -145,6 +148,9 @@ func connectGoogle(ctx context.Context, open func(url string) error) (*oauth2.To
 	tok, err := conf.Exchange(ctx, code, oauth2.VerifierOption(verifier))
 	if err != nil {
 		return nil, "", fmt.Errorf("google sign-in: exchange: %w", err)
+	}
+	if tok.RefreshToken == "" {
+		return nil, "", errors.New("Google returned no refresh token; remove TCGScanner from your Google account's third-party access and connect again")
 	}
 	email, err := googleEmail(ctx, tok.AccessToken)
 	if err != nil {

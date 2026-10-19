@@ -68,7 +68,7 @@ func TestConnectGoogleLoopbackFlow(t *testing.T) {
 		if q.Get("code_challenge_method") != "S256" || q.Get("scope") == "" || !strings.Contains(q.Get("scope"), "drive.file") {
 			t.Errorf("auth url %s", authURL)
 		}
-		if q.Get("access_type") != "offline" || q.Get("code_challenge") == "" || !strings.HasPrefix(q.Get("redirect_uri"), "http://127.0.0.1:") {
+		if q.Get("access_type") != "offline" || q.Get("prompt") != "consent" || q.Get("code_challenge") == "" || !strings.HasPrefix(q.Get("redirect_uri"), "http://127.0.0.1:") {
 			t.Errorf("auth url %s", authURL)
 		}
 		go http.Get(q.Get("redirect_uri") + "?code=abc&state=" + q.Get("state"))
@@ -134,5 +134,36 @@ func TestGoogleHTTPClientRefreshesAndPersists(t *testing.T) {
 	}
 	if !errors.Is(err, errSignedOut) {
 		t.Errorf("a refused refresh must be errSignedOut: %v", err)
+	}
+}
+
+// A second consent may come back without a refresh token: refused, since the
+// sign-in would strand an hour later.
+func TestConnectGoogleRefusesATokenWithoutRefresh(t *testing.T) {
+	auth := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/token":
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"access_token":"at","token_type":"Bearer","expires_in":3600}`)
+		case "/userinfo":
+			fmt.Fprint(w, `{"email":"florent@example.com"}`)
+		}
+	}))
+	defer auth.Close()
+	googleEndpoint = oauth2.Endpoint{AuthURL: auth.URL + "/auth", TokenURL: auth.URL + "/token"}
+	googleUserinfoURL = auth.URL + "/userinfo"
+	t.Cleanup(func() {
+		googleEndpoint = google.Endpoint
+		googleUserinfoURL = "https://openidconnect.googleapis.com/v1/userinfo"
+	})
+	open := func(authURL string) error {
+		u, _ := url.Parse(authURL)
+		q := u.Query()
+		go http.Get(q.Get("redirect_uri") + "?code=abc&state=" + q.Get("state"))
+		return nil
+	}
+	_, _, err := connectGoogle(context.Background(), open)
+	if err == nil || !strings.Contains(err.Error(), "Google returned no refresh token") {
+		t.Errorf("want the no refresh token error, got %v", err)
 	}
 }

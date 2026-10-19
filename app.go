@@ -60,6 +60,9 @@ func (a *App) Close() {
 	if model != nil {
 		model.Delete()
 	}
+	if a.sync != nil {
+		a.sync.stop()
+	}
 	if a.db != nil {
 		a.db.Close()
 	}
@@ -92,6 +95,9 @@ func (a *App) startup(ctx context.Context) {
 	} else if n > 0 {
 		fmt.Printf("game backfill: %d copies resolved\n", n)
 	}
+
+	a.sync = newSyncer(a)
+	a.sync.start()
 
 	// Price guides older than a day are fetched in the background; the UI
 	// shows what is on disk meanwhile and reloads on the prices:updated event.
@@ -205,6 +211,14 @@ func (a *App) GetCustomCollections() ([]Collection, error) {
 	return listCollections(a.db)
 }
 
+// syncChanged tells the sync a local write succeeded; nil-safe for Apps built
+// without a syncer (tests).
+func (a *App) syncChanged() {
+	if a.sync != nil {
+		a.sync.changed()
+	}
+}
+
 func (a *App) NewCustomCollection(name string) (Collection, error) {
 	if a.db == nil {
 		return Collection{}, fmt.Errorf("database not initialized")
@@ -213,6 +227,7 @@ func (a *App) NewCustomCollection(name string) (Collection, error) {
 	if err != nil {
 		return Collection{}, err
 	}
+	a.syncChanged()
 	return getCollection(a.db, id)
 }
 
@@ -220,7 +235,11 @@ func (a *App) RenameCollection(id int, name string) error {
 	if a.db == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	return renameCollection(a.db, id, name)
+	if err := renameCollection(a.db, id, name); err != nil {
+		return err
+	}
+	a.syncChanged()
+	return nil
 }
 
 func (a *App) DeleteCollection(id int) error {
@@ -231,6 +250,7 @@ func (a *App) DeleteCollection(id int) error {
 		return err
 	}
 	a.activeCustomID.CompareAndSwap(int32(id), 0)
+	a.syncChanged()
 	return nil
 }
 
@@ -245,7 +265,11 @@ func (a *App) MoveCardToCustom(rowID, customID int) error {
 	if a.db == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	return moveCardToCustom(a.db, rowID, customID)
+	if err := moveCardToCustom(a.db, rowID, customID); err != nil {
+		return err
+	}
+	a.syncChanged()
+	return nil
 }
 
 func (a *App) UpdateCard(card CollectionCard) error {
@@ -267,14 +291,22 @@ func (a *App) UpdateCard(card CollectionCard) error {
 	} else {
 		card.Game = prev.Game
 	}
-	return updateCard(a.db, card)
+	if err := updateCard(a.db, card); err != nil {
+		return err
+	}
+	a.syncChanged()
+	return nil
 }
 
 func (a *App) DeleteCard(id int) error {
 	if a.db == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	return deleteCard(a.db, id)
+	if err := deleteCard(a.db, id); err != nil {
+		return err
+	}
+	a.syncChanged()
+	return nil
 }
 
 func (a *App) SaveCard(cardID string, foil bool) (CollectionCard, error) {
@@ -292,6 +324,7 @@ func (a *App) SaveCard(cardID string, foil bool) (CollectionCard, error) {
 	if err != nil {
 		return CollectionCard{}, err
 	}
+	a.syncChanged()
 	return getCard(a.db, id)
 }
 

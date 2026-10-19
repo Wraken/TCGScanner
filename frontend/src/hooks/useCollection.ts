@@ -68,6 +68,14 @@ export function useCollection() {
     return off;
   }, []);
 
+  // A sync merged another device's changes into the database.
+  useEffect(() => {
+    const off = EventsOn("collection:changed", () => {
+      refresh();
+    });
+    return off;
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     for (const g of games) {

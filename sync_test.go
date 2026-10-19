@@ -477,3 +477,20 @@ func TestConnectCancelledByDisconnect(t *testing.T) {
 		t.Error("no question to answer")
 	}
 }
+
+func TestWriteBindingsTriggerASync(t *testing.T) {
+	app, _ := syncApp(t)
+	armed := 0
+	app.sync.onChange = func() { armed++ } // seam called by changed() before arming the timer
+	app.NewCustomCollection("To sell")
+	rid, _ := insertCard(app.db, 0, "OP01-006_p4", "onepiece", "tcg", false, "en")
+	card, _ := getCard(app.db, rid)
+	card.Foil = true
+	app.UpdateCard(card)
+	app.MoveCardToCustom(rid, 0)
+	app.DeleteCard(rid)
+	app.SetPriceRef("OP01-006_p4", 1) // fails (no mapping): must NOT arm
+	if armed != 4 {
+		t.Errorf("armed %d times, want 4 (create, update, move, delete)", armed)
+	}
+}

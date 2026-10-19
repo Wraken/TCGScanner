@@ -95,6 +95,9 @@ type syncer struct {
 	// (tests: the fake Drive); open opens the browser (tests: a fake redirect).
 	newDrive func(ctx context.Context) (*driveClient, error)
 	open     func(url string) error
+
+	// onChange, when set (tests), is called by changed() before it arms the timer.
+	onChange func()
 }
 
 func newSyncer(a *App) *syncer {
@@ -241,6 +244,9 @@ func (s *syncer) start() {
 
 // changed runs after a local write: (re)arm the debounce timer.
 func (s *syncer) changed() {
+	if s.onChange != nil {
+		s.onChange()
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.stopped {

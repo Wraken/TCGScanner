@@ -880,7 +880,7 @@ git commit -m "feat(sync): the sync cycle, first-connection question, status and
 ### Task 8: Wiring — triggers from the app and the frontend hook
 
 **Files:**
-- Modify: `app.go` (`startup` → `a.sync = newSyncer(a); a.sync.start()`; `CreateCollection`, `RenameCollection`, `DeleteCollection`, `MoveCardToCustom`, `UpdateCard`, `DeleteCard`, `SaveCard` call `a.sync.changed()` after success), `prices.go` (`SetPriceRef`, `ClearPriceRef` likewise)
+- Modify: `app.go` (`startup` → `a.sync = newSyncer(a); a.sync.start()`; `NewCustomCollection`, `RenameCollection`, `DeleteCollection`, `MoveCardToCustom`, `UpdateCard`, `DeleteCard`, `SaveCard` call `a.sync.changed()` after success), `prices.go` (`SetPriceRef`, `ClearPriceRef` likewise)
 - Create: `frontend/src/hooks/useSync.ts`
 - Modify: `frontend/src/types.ts`, `frontend/src/hooks/useCollection.ts` (refetch on `collection:changed`)
 - Regenerate: `wails generate module` (not committed)
@@ -906,7 +906,7 @@ func TestWriteBindingsTriggerASync(t *testing.T) {
 	app, _ := syncApp(t)
 	armed := 0
 	app.sync.onChange = func() { armed++ } // seam called by changed() before arming the timer
-	app.CreateCollection("To sell")
+	app.NewCustomCollection("To sell")
 	app.SetActiveCustom(0)
 	// SaveCard needs a loaded model: use the test predictor the scan tests use (see model_test.go) or call insertCard through the binding path UpdateCard instead:
 	rid, _ := insertCard(app.db, 0, "OP01-006_p4", "onepiece", "tcg", false, "en")

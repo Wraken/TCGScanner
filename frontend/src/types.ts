@@ -154,3 +154,35 @@ export interface PriceRef {
   label: string;
   chosen_at: string;
 }
+
+export interface SyncDevice {
+  id: string;
+  name: string;
+  app: string;
+  last_change: string;
+  this_device: boolean;
+}
+
+export interface SyncMergeQuestion {
+  remote_copies: number;
+  remote_devices: string[];
+  local_copies: number;
+}
+
+export interface SyncStatus {
+  connected: boolean;
+  email: string;
+  state:
+    | "unconfigured"
+    | "disconnected"
+    | "merge_pending"
+    | "syncing"
+    | "up_to_date"
+    | "offline"
+    | "error"
+    | "signed_out";
+  message: string;
+  last_sync: string;
+  devices: SyncDevice[];
+  merge: SyncMergeQuestion | null;
+}

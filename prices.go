@@ -692,6 +692,7 @@ func (a *App) SetPriceRef(cardID string, product int) error {
 			if err := setPriceRef(a.db, PriceRef{CardID: cardID, Product: c.Product, NonEnglish: c.NonEnglish, Label: c.Label}); err != nil {
 				return err
 			}
+			a.syncChanged()
 			a.emitPricesUpdated()
 			return nil
 		}
@@ -706,6 +707,7 @@ func (a *App) ClearPriceRef(cardID string) error {
 	if err := clearPriceRef(a.db, cardID); err != nil {
 		return err
 	}
+	a.syncChanged()
 	a.emitPricesUpdated()
 	return nil
 }
